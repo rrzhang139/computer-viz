@@ -40,6 +40,22 @@ Append-only. Every cross-level decision, interface change, glossary update, time
 - decision: Default visual at every level is REALISTIC (Tier 1 photo / Tier 2 react-three-fiber 3D / Tier 3 rich SVG). Symbolic detail becomes a TOGGLEABLE OVERLAY, not a separate view. New per-level template file: `art.md` declares tier + asset sources.
 - rationale: Box-and-arrow diagrams don't ground imagination. Tier system per level lets each component pick the rendering that best conveys its meaning. Three.js (`three`, `@react-three/fiber`, `@react-three/drei`) added for the bottom 3 levels and signal-on-wire.
 
+## 2026-05-07 — Phase 2 validation complete; EXECUTION_SCHEMA locked
+
+- scope: GLOSSARY.md, EXECUTION_SCHEMA.md (lock notice), COORDINATOR_LOG.md
+- proposer: coordinator
+- validation results:
+  - 115 spec.md, 115 interface.md, 115 art.md filled (no remaining TODOs)
+  - All `[BRACKET]` symbols used resolve to GLOSSARY (added [OS], [PC]; documented [NAND]/[NOR]/etc. as gate sub-flavors; documented [FUTEX] as passing reference)
+  - All motivation paragraphs present
+  - Tier distribution: 18 photo / 9 3D / 88 stylized
+  - TIME_AXIS rows referenced in prose match table (a few inline fragments noted but not row declarations)
+- decision: EXECUTION_SCHEMA.md is now LOCKED. Phase 3 agents may reference field names confidently. New fields added only via COORDINATOR_LOG request and only as `?` optional. No renames.
+- known follow-ups (deferred to Phase 3 schema additions if needed):
+  - schedulerState (vruntime tracking) for CFS visualization
+  - dramRefreshState for refresh sweep visualization
+  - These will be added on demand when their level's execution.md needs them
+
 ## 2026-05-07 — Phase 1 spec fan-out complete
 
 - scope: 115 folders × 3 files (spec.md + interface.md + art.md) = 345 files

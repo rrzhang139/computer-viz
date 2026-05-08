@@ -1,6 +1,8 @@
 # EXECUTION_SCHEMA — global state read by every level
 
-**Locked after Phase 2.** Additive changes only after lock (new fields with `?` optional). Renames forbidden.
+**🔒 LOCKED 2026-05-07** at end of Phase 2 validation. Additive changes only from here (new fields with `?` optional). **Renames forbidden** — Phase 3 `execution.md` files reference these field names; rename = breakage.
+
+To request a new field: append a COORDINATOR_LOG entry. To request a rename: don't.
 
 The TypeScript source of truth lives at `src/store/executionState.ts`. This doc explains *what each field means* so non-frontend agents can write `execution.md` correctly.
 
