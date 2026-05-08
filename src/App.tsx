@@ -4,6 +4,7 @@ import { colors, fontSize } from './ui_tokens';
 import { KnowledgeGraph, useGraphHotkey } from './components/KnowledgeGraph';
 import { TermText, Term } from './components/Term';
 import { Unit } from './components/Unit';
+import { LevelView } from './levels/LevelView';
 import './App.css';
 
 function App() {
@@ -35,6 +36,17 @@ function App() {
           Phase 0+ scaffold. Click-to-zoom levels, store, and routing wire up in Phase 5.
         </p>
       </header>
+
+      <section style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 16, color: colors.control, margin: '0 0 12px' }}>
+          Levels (parchment view) — bottom of the stack
+        </h2>
+        <LevelView />
+        <p style={{ color: colors.edge, fontSize: 12, marginTop: 10 }}>
+          Right-side toolbar: zoom in / out between Transistor (level 7) and Electrons (level 8).
+          Use the tick / µ-tick buttons to pulse the gate; the channel and electrons respond.
+        </p>
+      </section>
 
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 16, color: colors.data, margin: '0 0 8px' }}>Execution state (stub)</h2>
