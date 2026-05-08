@@ -127,6 +127,102 @@ test.describe('Click-to-zoom (transistor → electrons)', () => {
     await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
   });
 
+  // ── Spotlight: contextual descriptions per level / per part ─────────────
+
+  test('spotlight on transistor home: explains the row of switches', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('spotlight-title')).toContainText('row of switches');
+    await expect(page.getByTestId('spotlight-body')).toContainText(/voltage-controlled switch/i);
+  });
+
+  test('spotlight on electrons (no part selected): explains why electrons move', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('Why electrons move', { timeout: 5000 });
+    await expect(page.getByTestId('spotlight-body')).toContainText(/V_G/);
+  });
+
+  test('clicking gate updates spotlight to gate definition', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await page.getByTestId('pick-part-gate').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('Gate');
+    await expect(page.getByTestId('spotlight-body')).toContainText(/[Pp]olysilicon/);
+  });
+
+  test('clicking oxide updates spotlight to insulator definition', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await page.getByTestId('pick-part-oxide').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('oxide');
+    await expect(page.getByTestId('spotlight-body')).toContainText(/SiO/);
+  });
+
+  test('clicking source updates spotlight to n+ reservoir', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await page.getByTestId('pick-part-source').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('Source');
+    await expect(page.getByTestId('spotlight-body')).toContainText(/reservoir|electrons/i);
+  });
+
+  test('clicking drain updates spotlight to electron exit', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await page.getByTestId('pick-part-drain').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('Drain');
+    await expect(page.getByTestId('spotlight-body')).toContainText(/exit|across/i);
+  });
+
+  test('clicking substrate updates spotlight to bulk silicon definition', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await page.getByTestId('pick-part-substrate').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('Substrate');
+    await expect(page.getByTestId('spotlight-body')).toContainText(/p-doped|p-type|silicon/i);
+  });
+
+  test('clear restores the default electrons spotlight', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await page.getByTestId('pick-part-gate').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('Gate');
+    await page.getByTestId('pick-part-clear').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('Why electrons move');
+  });
+
+  test('back button restores the transistor spotlight', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await page.getByTestId('pick-part-gate').click();
+    await page.getByTestId('back').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('row of switches', { timeout: 5000 });
+  });
+
+  test('cycling through all parts updates spotlight title each time', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    const parts = [
+      { id: 'pick-part-gate', expected: /^Gate$/ },
+      { id: 'pick-part-oxide', expected: /oxide/ },
+      { id: 'pick-part-source', expected: /Source/ },
+      { id: 'pick-part-drain', expected: /Drain/ },
+      { id: 'pick-part-substrate', expected: /Substrate/ },
+    ];
+    for (const p of parts) {
+      await page.getByTestId(p.id).click();
+      await expect(page.getByTestId('spotlight-title')).toHaveText(p.expected);
+    }
+  });
+
   test('camera state is reset on page reload (deterministic test target)', async ({ page }) => {
     // Click target 0 then reload — the second goto should put the user back
     // at the home view with all four targets visible. This is what makes the

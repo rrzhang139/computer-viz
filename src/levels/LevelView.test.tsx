@@ -22,7 +22,9 @@ vi.mock('./LevelTransistor', () => ({
   },
 }));
 vi.mock('./LevelElectrons', () => ({
-  LevelElectrons: () => <div data-testid="stub-electrons">stub-electrons</div>,
+  LevelElectrons: ({ highlight }: { highlight: unknown }) => (
+    <div data-testid="stub-electrons">stub-electrons highlight={String(highlight)}</div>
+  ),
 }));
 vi.mock('motion/react', () => ({
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,

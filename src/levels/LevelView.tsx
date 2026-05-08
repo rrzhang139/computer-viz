@@ -13,11 +13,17 @@
 //   - Cross-fade reverses; transistor's CameraRig animates camera back home.
 
 import { useCallback, useEffect, useState } from 'react';
-import { motion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { LevelTransistor } from './LevelTransistor';
 import { LevelElectrons } from './LevelElectrons';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
+import {
+  electronsDefaultSpotlight,
+  partSpotlights,
+  transistorSpotlight,
+  type ElectronsPart,
+} from './descriptions';
 
 type LevelKey = 'transistor' | 'electrons';
 
@@ -37,6 +43,7 @@ const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: num
 export function LevelView() {
   const [level, setLevel] = useState<LevelKey>('transistor');
   const [zoomTarget, setZoomTarget] = useState<number | null>(null);
+  const [electronsHighlight, setElectronsHighlight] = useState<ElectronsPart>(null);
   const stepCycle = useExecution((s) => s.stepCycle);
   const stepMicro = useExecution((s) => s.stepMicro);
 
@@ -49,7 +56,18 @@ export function LevelView() {
   const handleBack = useCallback(() => {
     setLevel('transistor');
     setZoomTarget(null);
+    setElectronsHighlight(null);
   }, []);
+
+  // Pick the spotlight content based on level + (within Electrons) highlight.
+  const spotlight =
+    level === 'transistor'
+      ? transistorSpotlight
+      : electronsHighlight
+        ? partSpotlights[electronsHighlight]
+        : electronsDefaultSpotlight;
+  const spotlightKey =
+    level === 'transistor' ? 'transistor' : electronsHighlight ?? 'electrons-default';
 
   // Esc returns to transistor row.
   useEffect(() => {
@@ -104,7 +122,7 @@ export function LevelView() {
           aria-hidden={level !== 'electrons'}
           data-testid="level-pane-electrons"
         >
-          <LevelElectrons />
+          <LevelElectrons highlight={electronsHighlight} onHighlight={setElectronsHighlight} />
         </motion.div>
       </div>
 
@@ -147,12 +165,41 @@ export function LevelView() {
           </div>
         </div>
 
-        <div style={{ borderTop: `1px solid ${parchment.rule}`, paddingTop: 10, color: parchment.inkSoft, fontSize: 11, lineHeight: 1.45 }}>
-          <strong style={{ color: parchment.ink }}>How to navigate</strong>
-          <div style={{ marginTop: 4 }}>
-            Hover any [T] in the row → it lights up. Click → camera flies in,
-            then the carrier-physics view fades on top.
+        <div
+          style={{ borderTop: `1px solid ${parchment.rule}`, paddingTop: 10 }}
+          data-testid="spotlight"
+        >
+          <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+            spotlight
           </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={spotlightKey}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div
+                style={{ color: parchment.ink, fontSize: 13, fontWeight: 600 }}
+                data-testid="spotlight-title"
+              >
+                {spotlight.title}
+              </div>
+              <div
+                style={{ color: parchment.gateOn, fontSize: 11, marginTop: 2, fontStyle: 'italic' }}
+                data-testid="spotlight-subtitle"
+              >
+                {spotlight.subtitle}
+              </div>
+              <div
+                style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 6, lineHeight: 1.5 }}
+                data-testid="spotlight-body"
+              >
+                {spotlight.body}
+              </div>
+            </motion.div>
+          </AnimatePresence>
         </div>
       </aside>
     </div>

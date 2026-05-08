@@ -11,14 +11,15 @@
 // Driven by global executionState: gate voltage rises on even cycles, falls
 // on odd, with microStep providing sub-cycle smoothing.
 
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
+import type { ElectronsPart } from './descriptions';
 
-type Part = 'gate' | 'source' | 'drain' | 'substrate' | 'oxide' | null;
+type Part = ElectronsPart;
 
 const N_ELECTRONS = 120;
 
@@ -191,9 +192,14 @@ function useGateVoltage(): number {
   return Math.max(0, Math.min(1, base + (base === 0 ? ramp : -ramp)));
 }
 
-export function LevelElectrons() {
+interface ElectronsProps {
+  highlight: Part;
+  onHighlight: (p: Part) => void;
+}
+
+export function LevelElectrons({ highlight, onHighlight }: ElectronsProps) {
   const gateOn = useGateVoltage();
-  const [highlight, setHighlight] = useState<Part>(null);
+  const setHighlight = onHighlight;
 
   return (
     <div style={containerStyle} data-testid="level-electrons">
@@ -208,11 +214,7 @@ export function LevelElectrons() {
         <OrbitControls enablePan={false} minDistance={4} maxDistance={12} />
       </Canvas>
       <div style={overlayStyle}>
-        <strong style={{ color: parchment.ink }}>NMOS channel — carrier drift</strong>
-        <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 4 }}>
-          drag to orbit · scroll to zoom
-        </div>
-        <div style={{ marginTop: 10 }}>
+        <div style={{ marginTop: 0 }}>
           <span style={{ color: parchment.gateOn, fontSize: 11 }}>V_G </span>
           <span style={meterTrack}>
             <span style={{ ...meterFill, width: `${gateOn * 100}%` }} data-testid="vg-meter-fill" />
@@ -221,8 +223,11 @@ export function LevelElectrons() {
             {gateOn.toFixed(2)}
           </span>
         </div>
+        <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 6 }}>
+          drag to orbit · scroll to zoom
+        </div>
         {highlight && (
-          <div style={{ color: parchment.highlight, fontSize: 11, marginTop: 8 }} data-testid="highlight-readout">
+          <div style={{ color: parchment.highlight, fontSize: 11, marginTop: 6 }} data-testid="highlight-readout">
             highlighted: <strong>{highlight}</strong>
           </div>
         )}
