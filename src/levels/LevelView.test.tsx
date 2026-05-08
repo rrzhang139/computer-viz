@@ -1,14 +1,25 @@
 // LevelView state-machine tests. The actual r3f Canvas needs WebGL which jsdom
 // doesn't provide, so we stub the level scenes to plain DOM markers.
 //
-// Both panes stay mounted now (cross-fade design), so visibility-by-aria-hidden
-// is the source of truth, not mount/unmount.
+// New interaction model: clicking a MOSFET (proxied via onZoomTo) starts a
+// camera fly-in; once arrived (proxied via onArrived), level switches.
+// Going back uses the "back" button or Escape key.
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+
+// Capture the props LevelTransistor receives so the test can fire onZoomTo /
+// onArrived directly without simulating the camera fly.
+type ZoomCB = (idx: number) => void;
+let zoomCb: ZoomCB | null = null;
+let arrivedCb: ZoomCB | null = null;
 
 vi.mock('./LevelTransistor', () => ({
-  LevelTransistor: () => <div data-testid="stub-transistor">stub-transistor</div>,
+  LevelTransistor: ({ onZoomTo, onArrived }: { onZoomTo: ZoomCB; onArrived: ZoomCB }) => {
+    zoomCb = onZoomTo;
+    arrivedCb = onArrived;
+    return <div data-testid="stub-transistor">stub-transistor</div>;
+  },
 }));
 vi.mock('./LevelElectrons', () => ({
   LevelElectrons: () => <div data-testid="stub-electrons">stub-electrons</div>,
@@ -38,7 +49,7 @@ const transistorPane = () => screen.getByTestId('level-pane-transistor');
 const electronsPane = () => screen.getByTestId('level-pane-electrons');
 
 describe('<LevelView>', () => {
-  it('starts at the transistor level (transistor pane shown, electrons hidden)', () => {
+  it('starts at the transistor level', () => {
     render(<LevelView />);
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'false');
     expect(electronsPane()).toHaveAttribute('aria-hidden', 'true');
@@ -52,63 +63,61 @@ describe('<LevelView>', () => {
     expect(screen.getByTestId('stub-electrons')).toBeInTheDocument();
   });
 
-  it('zoom in button is enabled at top, zoom out is disabled', () => {
+  it('back button is disabled at the transistor level', () => {
     render(<LevelView />);
-    expect(screen.getByTestId('zoom-in')).toBeEnabled();
-    expect(screen.getByTestId('zoom-out')).toBeDisabled();
+    expect(screen.getByTestId('back')).toBeDisabled();
   });
 
-  it('clicking zoom-in flips aria-hidden + breadcrumb', () => {
+  it('onArrived(idx) flips active pane to electrons and updates breadcrumb', () => {
     render(<LevelView />);
-    fireEvent.click(screen.getByTestId('zoom-in'));
+    act(() => arrivedCb!(2));
     expect(electronsPane()).toHaveAttribute('aria-hidden', 'false');
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 8/i);
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Electrons/);
   });
 
-  it('at electrons, zoom-in is disabled and zoom-out is enabled', () => {
+  it('back button enabled on electrons; clicking returns to transistor', () => {
     render(<LevelView />);
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    expect(screen.getByTestId('zoom-in')).toBeDisabled();
-    expect(screen.getByTestId('zoom-out')).toBeEnabled();
-  });
-
-  it('zoom-out from electrons returns to transistor', () => {
-    render(<LevelView />);
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    fireEvent.click(screen.getByTestId('zoom-out'));
+    act(() => arrivedCb!(2));
+    expect(screen.getByTestId('back')).toBeEnabled();
+    fireEvent.click(screen.getByTestId('back'));
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'false');
     expect(electronsPane()).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Transistor/);
   });
 
-  it('round-trip in→out→in lands back on electrons', () => {
+  it('Escape from electrons returns to transistor', () => {
     render(<LevelView />);
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    fireEvent.click(screen.getByTestId('zoom-out'));
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    expect(electronsPane()).toHaveAttribute('aria-hidden', 'false');
-  });
-
-  it('clicking disabled zoom-in at electrons is a no-op', () => {
-    render(<LevelView />);
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    expect(electronsPane()).toHaveAttribute('aria-hidden', 'false');
-  });
-
-  it('clicking disabled zoom-out at transistor is a no-op', () => {
-    render(<LevelView />);
-    fireEvent.click(screen.getByTestId('zoom-out'));
+    act(() => arrivedCb!(2));
+    fireEvent.keyDown(window, { key: 'Escape' });
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'false');
+  });
+
+  it('Escape on transistor is a no-op', () => {
+    render(<LevelView />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(transistorPane()).toHaveAttribute('aria-hidden', 'false');
+  });
+
+  it('onZoomTo alone does not change the level (camera must arrive first)', () => {
+    render(<LevelView />);
+    act(() => zoomCb!(2));
+    expect(transistorPane()).toHaveAttribute('aria-hidden', 'false');
+    expect(electronsPane()).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('onZoomTo then onArrived is the full sequence', () => {
+    render(<LevelView />);
+    act(() => zoomCb!(1));
+    act(() => arrivedCb!(1));
+    expect(electronsPane()).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('inactive pane has pointer-events: none so clicks fall through', () => {
     render(<LevelView />);
     expect(electronsPane().style.pointerEvents).toBe('none');
     expect(transistorPane().style.pointerEvents).toBe('auto');
-    fireEvent.click(screen.getByTestId('zoom-in'));
+    act(() => arrivedCb!(0));
     expect(electronsPane().style.pointerEvents).toBe('auto');
     expect(transistorPane().style.pointerEvents).toBe('none');
   });

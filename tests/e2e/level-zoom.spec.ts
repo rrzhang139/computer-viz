@@ -1,113 +1,143 @@
-// Zoom transition coverage. Records the click sequences a user would perform
-// to walk between the bottom two levels and asserts every intermediate state.
+// Zoom flow e2e: click a MOSFET → camera flies in → cross-fade to electrons.
 //
-// Why this matters: the LevelView state machine is the foundation for the
-// full 7-level zoom flow that arrives in Phase 5. If the transistor↔electrons
-// pair regresses, every deeper drill regresses with it.
+// Test handles:
+//   data-testid="zoom-target-{0..3}"  Html overlay button anchored over each
+//                                      MOSFET in the row. Click triggers the
+//                                      same flow as clicking the 3D mesh.
+//   data-testid="back"                 right-side toolbar back button
+//   data-testid="level-breadcrumb"     reflects current level
+//   data-testid="level-pane-{name}"    aria-hidden flips per active level
+//
+// Camera fly + cross-fade together take ~1.5s. We wait 1800ms after click for
+// the level to settle. Camera state is reset on every page reload (goto).
 
 import { test, expect } from '@playwright/test';
 
-test.describe('Level zoom (transistor ↔ electrons)', () => {
-  test('LevelView is visible on the home page', async ({ page }) => {
+const SETTLE_MS = 1800;
+
+test.describe('Click-to-zoom (transistor → electrons)', () => {
+  test('home view is visible with all four MOSFET targets', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('level-breadcrumb')).toBeVisible();
-    await expect(page.getByTestId('zoom-in')).toBeVisible();
-    await expect(page.getByTestId('zoom-out')).toBeVisible();
+    await expect(page.getByTestId('level-breadcrumb')).toContainText('Transistor');
+    for (let i = 0; i < 4; i++) {
+      await expect(page.getByTestId(`zoom-target-${i}`)).toBeAttached();
+    }
   });
 
-  test('starts at the transistor level (level 7)', async ({ page }) => {
+  test('back button is disabled at home, enabled after zoom-in', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('back')).toBeDisabled();
+    await page.getByTestId('zoom-target-2').click();
+    await page.waitForTimeout(SETTLE_MS);
+    await expect(page.getByTestId('back')).toBeEnabled();
+  });
+
+  test('clicking zoom-target-2 flies camera and switches to electrons', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
-    await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 7/i);
-    await expect(page.getByTestId('level-breadcrumb')).toContainText('Transistor');
-    // Canvas element rendered by react-three-fiber
-    await expect(page.locator('canvas').first()).toBeVisible();
-  });
-
-  test('zoom-out is disabled at the top, zoom-in is enabled', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByTestId('zoom-out')).toBeDisabled();
-    await expect(page.getByTestId('zoom-in')).toBeEnabled();
-  });
-
-  test('clicking zoom-in transitions to electrons (level 8)', async ({ page }) => {
-    await page.goto('/');
-    await page.getByTestId('zoom-in').click();
+    await page.getByTestId('zoom-target-2').click();
+    // Wait for camera fly + cross-fade.
+    await page.waitForTimeout(SETTLE_MS);
     await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false');
     await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'true');
-    await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 8/i);
     await expect(page.getByTestId('level-breadcrumb')).toContainText('Electrons');
+    await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 8/i);
   });
 
-  test('at electrons: zoom-in disabled, zoom-out enabled', async ({ page }) => {
-    await page.goto('/');
-    await page.getByTestId('zoom-in').click();
-    await expect(page.getByTestId('zoom-in')).toBeDisabled();
-    await expect(page.getByTestId('zoom-out')).toBeEnabled();
+  test('all four zoom targets work', async ({ page }) => {
+    for (const i of [0, 1, 2, 3]) {
+      await page.goto('/');
+      await page.getByTestId(`zoom-target-${i}`).click();
+      await page.waitForTimeout(SETTLE_MS);
+      await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false');
+    }
   });
 
-  test('zoom-out from electrons returns to transistor', async ({ page }) => {
+  test('back button returns to transistor', async ({ page }) => {
     await page.goto('/');
-    await page.getByTestId('zoom-in').click();
-    await page.getByTestId('zoom-out').click();
+    await page.getByTestId('zoom-target-1').click();
+    await page.waitForTimeout(SETTLE_MS);
+    await page.getByTestId('back').click();
+    await page.waitForTimeout(SETTLE_MS);
     await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
-    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.getByTestId('level-breadcrumb')).toContainText('Transistor');
   });
 
-  test('full round-trip: trans → electrons → trans → electrons', async ({ page }) => {
+  test('Escape returns to transistor', async ({ page }) => {
     await page.goto('/');
-    const sequence = [
-      ['zoom-in', 'level-pane-electrons', /level 8/i],
-      ['zoom-out', 'level-pane-transistor', /level 7/i],
-      ['zoom-in', 'level-pane-electrons', /level 8/i],
-    ] as const;
-    for (const [btn, expectedPane, expectedDepth] of sequence) {
-      await page.getByTestId(btn).click();
-      await expect(page.getByTestId(expectedPane)).toHaveAttribute('aria-hidden', 'false');
+    await page.getByTestId('zoom-target-1').click();
+    // Wait for arrival via the assertion itself (more resilient than fixed timeout).
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    // Esc keydown is a window listener; click into the document first to make
+    // sure focus is on a real DOM target rather than an inner mesh handle.
+    await page.locator('body').click({ position: { x: 5, y: 5 } });
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+  });
+
+  test('round-trip: T0 → back → T3 → back', async ({ page }) => {
+    await page.goto('/');
+    const sequence: Array<{ click: string; expectedHidden: string; expectedDepth: RegExp }> = [
+      { click: 'zoom-target-0', expectedHidden: 'level-pane-transistor', expectedDepth: /level 8/i },
+      { click: 'back', expectedHidden: 'level-pane-electrons', expectedDepth: /level 7/i },
+      { click: 'zoom-target-3', expectedHidden: 'level-pane-transistor', expectedDepth: /level 8/i },
+      { click: 'back', expectedHidden: 'level-pane-electrons', expectedDepth: /level 7/i },
+    ];
+    for (const { click, expectedHidden, expectedDepth } of sequence) {
+      await page.getByTestId(click).click();
+      await page.waitForTimeout(SETTLE_MS);
+      await expect(page.getByTestId(expectedHidden)).toHaveAttribute('aria-hidden', 'true');
       await expect(page.getByTestId('level-breadcrumb')).toContainText(expectedDepth);
     }
   });
 
-  test('gate voltage meter responds to clock ticks on electrons view', async ({ page }) => {
+  test('hovering an overlay button shows the hover-readout', async ({ page }) => {
     await page.goto('/');
-    await page.getByTestId('zoom-in').click();
-    // The fill span starts at width 0% (so toBeVisible fails on a 0-height
-    // element); attach via the data-testid and check style.width directly.
+    await page.getByTestId('zoom-target-2').hover();
+    await expect(page.getByTestId('hover-readout')).toContainText('T2');
+  });
+
+  test('hover-readout disappears when no longer hovering', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-1').hover();
+    await expect(page.getByTestId('hover-readout')).toBeVisible();
+    // Move pointer away from any zoom target.
+    await page.getByTestId('level-breadcrumb').hover();
+    await expect(page.getByTestId('hover-readout')).toBeHidden();
+  });
+
+  test('gate voltage meter responds to clock ticks (after zoom-in)', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await page.waitForTimeout(SETTLE_MS);
     const meter = page.getByTestId('vg-meter-fill');
     await expect(meter).toBeAttached();
     const w0 = await meter.evaluate((el) => (el as HTMLElement).style.width);
-
     await page.getByTestId('step-cycle').click();
-    // useFrame ramps the gate over a few frames; wait until width changes.
     await expect(async () => {
       const w1 = await meter.evaluate((el) => (el as HTMLElement).style.width);
       expect(w1).not.toBe(w0);
     }).toPass({ timeout: 2500 });
   });
 
-  test('clicking disabled zoom-in at electrons is a no-op', async ({ page }) => {
+  test('clicking back at transistor (disabled) is a no-op', async ({ page }) => {
     await page.goto('/');
-    await page.getByTestId('zoom-in').click(); // electrons
-    // Force-click bypasses Playwright's actionability check; aria-disabled
-    // would normally block, but we want to prove the state-machine ignores it.
-    await page.getByTestId('zoom-in').click({ force: true });
-    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false');
-    await expect(page.getByTestId('level-breadcrumb')).toContainText('Electrons');
+    // Force-click a disabled button.
+    await page.getByTestId('back').click({ force: true });
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
   });
 
-  test('canvas mouse drag does not change level', async ({ page }) => {
-    // The cross-fade design layers two canvases — both panes are mounted with
-    // the inactive one at pointer-events: none. We test that nothing in the
-    // canvas area changes the level state — only the explicit zoom-in/out
-    // buttons do. Use a coordinate-based drag inside the active pane.
+  test('camera state is reset on page reload (deterministic test target)', async ({ page }) => {
+    // Click target 0 then reload — the second goto should put the user back
+    // at the home view with all four targets visible. This is what makes the
+    // "click coordinates are stable across tests" property work.
     await page.goto('/');
-    const pane = page.getByTestId('level-pane-transistor');
-    const box = await pane.boundingBox();
-    if (!box) throw new Error('transistor pane not laid out');
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 + 50);
-    await page.mouse.up();
+    await page.getByTestId('zoom-target-0').click();
+    await page.waitForTimeout(SETTLE_MS);
+    await page.goto('/');
     await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
+    for (let i = 0; i < 4; i++) {
+      await expect(page.getByTestId(`zoom-target-${i}`)).toBeAttached();
+    }
   });
 });
