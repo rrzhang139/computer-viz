@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Die-crop of the LLC region — typically a strip of large SRAM macros running between or around the core grid, with each slice tagged. Source: same `[CHIP]` die photo, the L3 region is the largest on-chip SRAM block on most modern CPUs (Zen 3D V-Cache makes it especially photogenic; Intel ring-LLC is also clearly visible). Fallback prompt: "die-crop highlighting the L3/LLC strip across a multi-core CPU, ~8 visibly tiled SRAM slices labeled, ring stops at each slice, photographic."
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 1 (per INVARIANTS table). L3 is the most visually obvious feature on any modern die; users instantly recognize "the big shared cache." Keeping it photographic continues the chain from `[CHIP]`. Inside, the deeper structure (`[DIR]`, `[VB]`, `[REPL]`) drops to Tier 3 stylized because those are logical/policy-level constructs, not optical regions on the die.

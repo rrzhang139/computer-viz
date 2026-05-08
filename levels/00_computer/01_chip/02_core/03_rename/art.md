@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a 32-row arch-register table on the left (x0…x31), a much wider physical-register pool implied on the right; bright arrows draw arch→phys connections that re-route as new instructions are renamed.
+- Particles: when a uop arrives, three glowing dots highlight the rs1, rs2, and rd rows; the rd row's arrow pivots to a new physical tag pulled from [FL].
+- Palette: storage purple for table rows, data blue for arch-reg values flowing in/out, control orange for allocate signals from top, active pink on the freshly remapped row.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+Rename is conceptually a *re-routing* operation; the educational moment is watching arch x3 point first to p17, then to p42 after a write — entirely a graph-edge animation. Tier 3 SVG with morphing arrows captures it.

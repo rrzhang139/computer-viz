@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Custom rich SVG. A single LLC set rendered as a row of 16 ways; each way's age/RRIP bits shown as a small bar above the line (taller = older). On a hit, the winning way's bar drops to 0 and the others tick up. On a fill, the tallest bar (the victim) gets crossed out with a particle flying into `[VB]`. A side panel shows policy mode (LRU vs RRIP) and re-references count.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 3 (per INVARIANTS table). Replacement is a *policy*, not a region of silicon — there is no photogenic representation. The age/RRIP-bar visualization makes the policy legible in a way die-shots cannot, and the LRU vs RRIP toggle is exactly the kind of educational "see the policy choice" affordance Tier 3 enables.

@@ -6,14 +6,20 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[CLK]` | clock generator + tree as seen by `[CHIP]` | chip init |
+| domain-clock | per-core / per-uncore clock edge | every cycle of that domain |
+| pll-locked | indicates frequency target reached | once per re-lock |
+| clock-gated | domain currently halted to save power | each gate event |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[T]` | PLL VCO + buffers | level `07_transistor/` lineage |
+| `[G]` | clock-tree inverters/buffers | level `06_gate/` lineage |
 
 ## Cross-cutting refs
 
-- TODO
+- Drives the TOP-of-everything control input on every NODE level on the chip.
+- Frequency-target writes come from `02_pmgr/` (sibling).
+- TIME_AXIS row: `02_clock` (1 anim sec ⇒ 1 cycle, period ~0.3 ns at ~3 GHz).

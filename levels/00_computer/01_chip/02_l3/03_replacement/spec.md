@@ -4,28 +4,23 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+When a set is full and a new line arrives, *something* must be evicted — `[REPL]` is the policy that picks. The choice matters: a poor policy (e.g. random) can double the miss-rate of a good one (LRU/RRIP) on real workloads, especially at LLC where reuse distance is huge. RRIP and friends specifically defend against thrashing access patterns that defeat plain LRU. Without a deliberate policy, the LLC becomes "any random subset of recently touched lines" instead of "a curated working set."
 
 ## ROLE
-TODO
+Per-set state + selection logic that picks which `[CL]` to evict when a fill needs space. Tracks age/reuse bits per way; updated on every hit and fill.
 
 ## MADE OF
-<!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+Per-set age/RRIP bits (~2-3 bits × ways-per-set) stored alongside `[CL]`s, plus a small priority-encoder selecting the victim. Built from `[FF]`/`[G]`s; no new primitive.
 
 ## INPUTS
-<!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT (data): hit signal + way-id (re-promote winner); fill request needing a victim.
+- TOP (control): clock, policy-config CSR write (way mask, RRIP M-value), bypass hint from prefetch.
 
 ## OUTPUTS
-<!-- RIGHT -->
-TODO
+- RIGHT: victim way selection back to `[L3]` control; updated age/RRIP bits written into the set.
 
 ## SYMBOL
-<!-- bracketed token. None for connectors. -->
-TODO
+`[REPL]`
 
 ## Notes
 - this is a NODE level

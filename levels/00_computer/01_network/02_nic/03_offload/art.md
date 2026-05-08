@@ -15,13 +15,11 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- Stylized SVG: a wide super-skbuff "loaf" enters from the LEFT, passes through a *prism-shaped* TSO splitter that emits N equal MTU slices RIGHTward, each slice gaining a small header glyph (TCP/IPv4) on its leading edge.
+- Below the TSO prism, a checksum unit shown as a small animated 1's-complement folder collapsing payload bytes into a 16-bit sum that is stamped onto the header glyph.
+- For RX: bottom half of the panel shows a frame entering from RIGHT, hitting a Toeplitz hash sigil, then being routed into one of 4 stacked colored RX queues on the LEFT.
+- TOP overlay (control): toggle pills for "TSO on/off", "CSO on/off", "RSS on/off", and a small box showing the 320-bit RSS key.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+`[OFFLOAD]` is logic on silicon — there is nothing distinctive to photograph (it sits inside the NIC die-shot used at the parent level), and there is no volumetric story. Tier 3 stylized SVG with the prism and hash-sigil metaphors makes the *transformation* (one big buffer → many small frames; one frame → routed by hash) immediately legible.

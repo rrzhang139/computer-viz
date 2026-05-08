@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a grid of slot cells. Each slot shows two operand-ready bits as glowing/dim dots. A horizontal "wakeup bus" runs above the grid, periodically lighting up tag T; matching `psrc` rows light their corresponding ready dot.
+- Particles: tag-broadcast as a moving pulse along the wakeup bus; entries with both dots lit pulse pink and shoot a uop rightward to the issue arbiter, which routes to one of [ALU]/[AGU]/[MUL]/[DIV] columns.
+- Palette: storage purple slot bodies, control orange wakeup bus, data blue uop payloads, active pink fully-ready slot about to issue.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+The "ready bit flips, instruction wakes up, fires" pattern is the heart of OoO; it has to *animate* to land. Tier 3 with broadcast pulses is the right vocabulary; a die-shot would not show the wakeup mechanism.

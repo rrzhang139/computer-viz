@@ -4,28 +4,22 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+A user calling `write(fd, buf, n)` to a file looks atomic but is actually a multi-stage pipeline through the kernel: `[SYSCALL]` → `[VFS]` (which fs?) → `[PCACHE]` (in-cache hit?) → `[BLOCKQ]` (queue I/O if needed) → `[DRV]` (NVMe submission) → `[DMA]` (descriptor + payload to disk). Each stage adds buffering, batching, or scheduling. Without an explicit "I/O path" view, learners see scattered subsystems with no spine. This level is a *cross-cutting overview* — a thin orchestrator that highlights the path; the work is done in the children listed in `MADE OF`.
 
 ## ROLE
-TODO
+Compositional view of the kernel I/O path: shows how a single `read`/`write` syscall threads through `[VFS]` → `[PCACHE]` → `[BLOCKQ]` → `[DRV]` → `[DMA]`.
 
 ## MADE OF
-<!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+1 path-overlay rendering each hop as a stage; references (does not own) `[VFS]`, `[PCACHE]`, `[BLOCKQ]`, `[DRV]`, `[DMA]`.
 
 ## INPUTS
-<!-- LEFT (data) or TOP (control) -->
-TODO
+TOP: `read`/`write` `[SYSCALL]` from U-mode (kernel-mediated control). LEFT: user buffer pointer + offset + length.
 
 ## OUTPUTS
-<!-- RIGHT -->
-TODO
+RIGHT: bytes copied to/from disk; syscall return value (bytes transferred or `-errno`); modified `[PCACHE]` pages.
 
 ## SYMBOL
-<!-- bracketed token. None for connectors. -->
-TODO
+None — this is a composition view, not a new symbol.
 
 ## Notes
 - this is a NODE level

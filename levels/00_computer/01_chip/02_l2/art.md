@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Die-crop showing the L2 SRAM macro adjacent to a single core block — visibly larger and more uniform than L1, with periphery logic for tag/MSHR. Source: same `[CHIP]` die photo as parent (`02_core/`), tile labeled "L2 ~512 KB". Fallback prompt: "die-crop of an L2 cache block: one large SRAM macro adjacent to its host core, periphery tag/MSHR strip, photographic, hot-pink highlight on the active way."
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 1 (per INVARIANTS table). L2 is a recognizable physical block on every modern die — the regular SRAM grid is one of the most photogenic features. Keeping `[L2]` Tier 1 preserves the chain `[CHIP]` → `[CORE]` → `[L1]`/`[L2]`/`[L3]` as a single continuous photographic zoom; symbolic structure (sets, ways, MSHR) appears as overlay on top.

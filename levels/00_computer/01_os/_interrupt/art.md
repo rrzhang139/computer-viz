@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: lightning-style amber strikes (`--color-control`) entering from BOTTOM-RIGHT (device side) and routing UP through a glowing PLIC/CLINT prism into the kernel slab. The currently-executing user thread is shown as a blue ribbon (`--color-data`) that suspends when the strike lands; a second handler ribbon overlays in `--color-active` hot pink, then dissolves on `SRET`. Pulse intensity = priority; lane color codes source (timer / nic / disk).
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Interrupts are *asynchronous and forceful* — they need to read as something that interrupts whatever else is happening. Tier 3 with sharp pulses, glow, and an "interrupt overlay" ribbon makes the preemption visible. A flat box would lose the "this just happened to whoever was running" feeling.

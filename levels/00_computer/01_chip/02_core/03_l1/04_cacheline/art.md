@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Custom rich SVG. A horizontal "ribbon" 64 cells wide showing the byte payload (data-blue gradient), with side panels for tag (control-orange gradient), valid (purple dot), dirty (hot-pink dot when set), and MESI badge. Address-split callout above: tag | index | offset, with bits highlighted as the user types/clicks an address. Animated particle flow along the ribbon when the line is being filled or evicted. Drop-shadow + radial glow for depth.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 3 (per INVARIANTS table). A cache line has no photographic identity — at the die level it's literally indistinguishable from the SRAM array around it. The interesting structure is the *address-split semantics* and the metadata bits, which are pure information. Rich stylized SVG with gradients, address-bit glow, and particle motion communicates "this is the unit of transfer" far better than a die crop ever could.

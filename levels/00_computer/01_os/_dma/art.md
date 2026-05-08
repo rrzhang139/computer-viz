@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a wide pipe between `[RAM]` (LEFT) and the device (RIGHT, e.g. `[DISK]` or `[NIC]`), explicitly *bypassing* the CPU box (which sits TOP and stays dim). A descriptor ring is shown as a circular slot array near the device end; the kernel writes a descriptor (control particle from TOP), the device's DMA engine sucks bytes through the pipe (blue stream `--color-data` flowing horizontally), and a completion entry returns. The CPU box dimming during transfer is the entire visual punchline — the device works while the CPU is free.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+DMA's whole identity is *the CPU is uninvolved during the transfer*. Tier 3 lets us draw the bypass as a literal pipe with the CPU dimmed; flat boxes lose that punchline. Particle motion communicates throughput intuitively.

@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Crop of an SRAM-array region from the same per-core die used at `02_core/`: two visibly regular SRAM macros (I and D) tagged with their KB capacity, plus the small tag-compare and MSHR strips alongside. Source: the `[CHIP]` die photo (Zen 4 / M-series core block, SRAM macros are very visible). Fallback prompt: "die-crop of an L1 cache region, two split SRAM macros labeled I-32 KB and D-32 KB, periphery logic strip below for tag/MSHR, photographic."
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 1 (per INVARIANTS table). SRAM arrays are one of the most photogenic things on a die — perfectly regular and instantly readable as "memory." Keeping `[L1]` photographic preserves the "I'm still pointing at the silicon" feel before the next zoom drops into Tier 3 stylized territory (`[CL]`, `[MSHR]`, `[MESI]`, `[WB]`) where the structure is logical, not optical.

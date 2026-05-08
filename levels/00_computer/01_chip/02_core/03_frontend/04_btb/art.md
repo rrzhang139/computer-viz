@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a tag-array grid (rows = sets, cols = ways), with a glowing "lookup beam" entering from the left (PC), a comparator column on the right, and a target-out beam exiting right.
+- Palette: `--color-storage` (purple) for cell bodies, `--color-data` (blue) for the lookup beam, `--color-active` (pink) for the matching row.
+- Particles: a single bright dot races down the indexed row on each lookup; on hit, the target field flashes and emits a target-arrow rightward.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+A BTB has no canonical photo — it's a logical SRAM array. Tier 3 lets us animate the *parallelism* (PC enters, all tags compared simultaneously) which is the educational point.

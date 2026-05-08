@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Custom rich SVG state diagram. Four nodes M/E/S/I arranged as a ring of glowing badges (Modified = hot-pink, Exclusive = data-blue, Shared = purple, Invalid = passive-slate). Edges labeled with the trigger (local-read, local-write, BusRd, BusRdX, Invalidate). The active state pulses; the most recent transition arrow runs a particle along it. A side panel lists "what this means for the program" (e.g. M = "you can write without telling anyone").
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 3 (per INVARIANTS table). A coherence FSM has no photographic identity — it's a few hundred gates per line. The interesting content is the *graph of states and transitions*; that maps cleanly onto a labeled, animated state-diagram. Matching the canonical MESI diagram from textbooks lowers the cognitive load when the user already knows the protocol.

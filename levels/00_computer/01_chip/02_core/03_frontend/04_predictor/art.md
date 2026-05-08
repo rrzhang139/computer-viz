@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a long row of 2-bit counter cells, each shaded by state (00=strong-NT slate, 01=weak-NT, 10=weak-T, 11=strong-T pink). XOR hasher shown as a wedge fusing PC bits (blue) with GHR bits (orange-tinted control color) into the index.
+- Particles: bit-stream sliding through GHR shift register on each branch retire; index lookup highlights the indexed counter; on update, the indexed cell saturates one notch and "settles".
+- Palette: storage purple for cells, data blue for PC, control orange for GHR/training, active pink for current index.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+The PHT's behavior is statistical and dynamic — counters drift over time. Tier 3 lets us animate the saturation in/out, the central educational insight ("two bits of inertia is what makes loops predictable"); a static photo cannot.

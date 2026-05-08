@@ -4,29 +4,26 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+`[PIPE]` and `[USOCK]` both *copy* user bytes through kernel buffers — fast, but still two memcpys per message. When two processes need to exchange data at memory-bandwidth speeds (database server ↔ workers, video frames into a renderer, telemetry buffers into a compositor), even one kcpoy is too much. `[SHM]` solves this by mapping the *same physical pages* into both `[PROC]`s' page tables; a store by one process becomes immediately visible to the other via a normal load — no syscall, no copy, no kernel involvement on the data path. The cost: synchronization is the user's problem (futex, atomic ops), and there's no flow control. Without `[SHM]` the only way to get zero-copy IPC would be `vmsplice`/`splice` tricks against `[PIPE]`; not general.
 
 ## ROLE
-TODO
+Map a region of kernel-managed physical pages into ≥2 `[PROC]`s' address spaces simultaneously, so that loads/stores in one process are immediately visible to all others mapping the region.
 
 ## MADE OF
-<!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+1 `tmpfs`-backed file (POSIX `shm_open`) OR 1 `shmget` segment (SysV API) + N `[PT]` mappings (one per attached `[PROC]`) all pointing at the same backing pages in `[RAM]`. The pages live in the page cache (`[PCACHE]`); reference count = number of mappings.
 
 ## INPUTS
-<!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT (data): nothing flows here as bytes — data arrives via *direct store instructions* by any attached `[PROC]`'s `[CORE]`. The `[CORE]`'s store buffer (`[SB]`) and `[L1]` D-cache propagate it; `[MESI]` keeps both processes' caches coherent.
+- TOP (control): setup syscalls (`shm_open` / `mmap`, `shmget` / `shmat`); detach via `munmap` / `shmdt`.
 
 ## OUTPUTS
-<!-- RIGHT -->
-TODO
+- RIGHT: visibility — a load in any attached `[PROC]` returns the latest committed value. No wakeups by default; user-space typically pairs with `[FUTEX]`-style waits if synchronous.
 
 ## SYMBOL
-<!-- bracketed token. None for connectors. -->
-TODO
+`[SHM]`
 
 ## Notes
 - this is a NODE level
 - spatial invariants apply (see /INVARIANTS.md)
+- TIME_AXIS row `02_ipc/03_shm` (1 anim sec ⇒ 1 store visible to both).
+- The fact that the *same* physical page appears in two address spaces with potentially different virtual addresses is the central insight.

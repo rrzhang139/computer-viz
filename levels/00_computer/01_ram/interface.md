@@ -6,14 +6,19 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[RAM]` | main memory; one DDR5 channel of DIMMs | `memTraffic.level === 'RAM'` |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[RANK]` | a chip-select group of DRAM packages on a DIMM | `02_rank/` |
+| `[DRAM]` | one DRAM die package on the DIMM PCB | `02_dram_chip/` |
+| `_dram_bus` | DDR5 channel (CA + DQ + DQS + CLK + CKE) wires to `[MEMCTRL]` | `_dram_bus/` |
 
 ## Cross-cutting refs
 
-- TODO
+- Driver / consumer: `01_chip/02_memctrl/` (`[MEMCTRL]`) issues all commands across `_dram_bus`.
+- Demand source: cache miss path from `01_chip/02_l3/` (`[L3]`) — every fill or writeback ends here.
+- OS view: `01_os/02_pagetables/` (`[PT]`) and `01_os/02_pagecache/` (`[PCACHE]`) live in physical pages backed by `[RAM]`.
+- Time-axis row: `01_ram` (1 anim sec ⇒ 100 ns).

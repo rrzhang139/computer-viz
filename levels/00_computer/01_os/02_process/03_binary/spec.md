@@ -4,28 +4,22 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+The CODE region of a `[PROC]` doesn't appear by magic — it comes from a file on disk built by a compiler. The ELF binary is the OS's standard format for "here is machine code + initialized data + symbols + relocations + which `.so`s I depend on." `execve` mmaps the ELF's `.text` into CODE, `.rodata`/`.data` into DATA, allocates `.bss` (zero-fill), then resolves dynamic linkage via the GOT/PLT so the same binary works across processes that share libc. Without ELF, every loader would re-invent layout, dynamic linking, and ASLR; debug info would be unstandardized.
 
 ## ROLE
-TODO
+The on-disk format and in-memory layout for executable code: ELF segments → mapped VMAs inside `[PROC]`'s CODE/DATA/BSS regions.
 
 ## MADE OF
-<!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+1 ELF header + N program headers (`PT_LOAD` segments) → mapped to CODE (`.text`, RX), DATA (`.data` RW + `.rodata` R + `.bss` RW zero-fill); plus M shared libraries (`libc.so`, `libpython.so`...) each contributing additional `PT_LOAD`s. GOT (per-DSO data) + PLT (per-DSO trampolines) wire cross-DSO calls.
 
 ## INPUTS
-<!-- LEFT (data) or TOP (control) -->
-TODO
+TOP: `execve(path, argv, envp)` syscall, dynamic-linker invocations. LEFT: ELF file bytes streamed from `[VFS]` → `[PCACHE]` (lazily via `[MMAP]`).
 
 ## OUTPUTS
-<!-- RIGHT -->
-TODO
+RIGHT: `[PROC]` ready to run with `pc` set to ELF entry; subsequent instruction fetches by `[CORE]` resolve into `.text` pages.
 
 ## SYMBOL
-<!-- bracketed token. None for connectors. -->
-TODO
+`[BIN]`
 
 ## Notes
 - this is a NODE level

@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a translucent dispatch hub at center; incoming syscall arrows from TOP carry path strings as text-textured particles. The hub holds an ops-table fan — multiple labeled slots (ext4 / xfs / procfs / tmpfs / nfs) — and the active filesystem's slot lights up (`--color-active`) as the current request routes through it. Below the hub: `[DENTRY]` and `[INODE]` cache tiles glowing when consulted. Path traversal animates as a sequence of small dentry-tile illuminations along the path string.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+VFS is a *router* + *cache*; Tier 3 lets us draw the routing fan with multiple downstream FS targets visible at once, plus the dentry/inode caches as a textured surface. A flat box would imply VFS does the work itself — wrong; the visual must show pass-through.

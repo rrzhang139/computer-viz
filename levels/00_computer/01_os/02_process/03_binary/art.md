@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG — a horizontal "filmstrip" of ELF segments (`.text`, `.rodata`, `.data`, `.bss`) shown left-to-right, each as a textured panel (instruction grid for `.text`, hex bytes for `.data`, hatched/zero pattern for `.bss`). Above each panel: the `PT_LOAD` header summary (`vaddr`, `flags=RWX`). Arrows fan up into the parent process tower indicating which CODE/DATA region each lands in. A separate row shows attached `.so` strips with light separators. GOT/PLT visualized as small lookup nodes between strips with curved dotted links.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+ELF is structurally tabular (segments × addresses × flags) but spatially deserves more than a table — readers need to *see* `.text` filling CODE while `.bss` fills with zeros and `.so`s slot in adjacent. Tier 3 with textured panels and animated mapping arrows turns a static structure into the act of loading.

@@ -6,14 +6,15 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `I_D` | drain current (carrier drift magnitude) | continuous; rises when V_GS > V_th |
+| `channel_state` | inverted (conducting) vs. depleted (off) | gate-voltage step; ~ps settling |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| — | none — this is the atomic floor | no children exist |
 
 ## Cross-cutting refs
 
-- TODO
+- The `[T]` level (`07_transistor/`) wraps this physical behavior into a switch abstraction; nothing else references the electron level directly.

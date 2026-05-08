@@ -8,6 +8,8 @@
 tier: 3-stylized
 ```
 
+Confirmed Tier 3. The CFS runqueue is a data structure (red-black tree) — there is nothing to photograph. Render it as a glowing tree with depth and motion.
+
 Options:
 - `1-photo` — Tier 1: real photo / die-crop with SVG hotspot overlay
 - `2-3d` — Tier 2: react-three-fiber 3D scene with materials and particles
@@ -15,13 +17,13 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- Center: a stylized red-black tree, ~7–15 nodes, each node = a `[THREAD]` rendered as a small glowing capsule labeled `tid` and tinted by `vruntime` (cooler hue = lower vruntime = will run sooner). Edges are translucent gradient lines with subtle parallax — depth conveyed by drop-shadow, not a flat skeleton.
+- LEFT: a queue-shaped "incoming" lane where wakeups arrive — particles in `--color-data` slide in and dock as new tree nodes; the rb-tree rebalances with a brief animated rotation.
+- TOP: a pulsing tick beacon in `--color-control` (orange) — every tick the `current` thread's `vruntime` advances and the leftmost node may change.
+- RIGHT: an exit lane where the leftmost node detaches and is handed off to `[CTX]`; particle flow in `--color-active` (hot pink).
+- ABOVE the CFS tree: a thin priority strip showing the RT/Deadline lists (always-ahead-of-CFS), drawn as rectangular tokens stacked left-to-right.
+- BACKGROUND: a large dim CPU-icon halo behind the tree to emphasize "this is per-CPU"; multiple CPUs each have their own tree.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The rb-tree is the load-bearing concept; flat boxes hide that "fair" comes from "leftmost node by vruntime, rebalanced after every insert." A Tier 3 stylized tree with a moving leftmost-pointer makes the algorithm visible without showing C code. Particles and gradients make the ~1 ms tick feel rhythmic, anchoring the TIME_AXIS row.

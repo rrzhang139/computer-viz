@@ -6,14 +6,18 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[BLOCKQ]` | request queue + scheduler | per-bio enqueue |
+| dispatched-request count | for parent overlay | each dispatch tick |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| (none — leaf in V1) | | |
 
 ## Cross-cutting refs
 
-- TODO
+- TIME_AXIS row: `02_block_layer` — native unit `request`, 1 anim sec ⇒ 1 bio enqueue/dequeue.
+- `01_os/02_pagecache/` — primary submitter on miss / writeback.
+- `01_os/02_driver/` — destination of dispatched requests.
+- `01_os/_dma/` — payload pages handed to driver for DMA transfer.

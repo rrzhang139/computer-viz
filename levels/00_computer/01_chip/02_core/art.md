@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Single-core die-crop with annotated functional blocks: frontend (top-left), regfile (center-left), execution units / ALU (center), L1-I and L1-D (bottom-left and bottom-right), L2 slice (right edge). Preferred: cropped tiles from the same `[CHIP]` die-shot used at the parent (Zen 4 / M-series core block) so zoom feels continuous. Fallback prompt: "annotated single CPU core die-block, frontend / regfile / ALU / L1 / L2 regions tinted in token colors, photographic, hot-pink highlight on the active stage."
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 1 (per INVARIANTS table). The whole point of zooming from `[CHIP]` to `[CORE]` is "now I'm pointing at one of those tiles" — staying photographic preserves continuity. Symbolic overlay then labels Fetch / Decode / Exec / Mem / WB, and the execution-pointer pulses on the active stage from `ExecutionState.pipelineStage`. Tier 3 stylized is reserved for the deeper micro-arch units (decoder, hazards) that have no clean photographic form.

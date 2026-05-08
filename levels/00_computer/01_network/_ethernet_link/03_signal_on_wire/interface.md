@@ -6,14 +6,19 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| (none — analog view) | this level emits visualization data only; no upward `[SYM]` | — |
+| bit-edge | one rising/falling differential edge propagating along the pair | edge launched at the LEFT termination |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| (none) | leaf — physics, atomic for this repo | — |
 
 ## Cross-cutting refs
 
-- TODO
+- Sibling `03_frame_bytes/` — same wire, byte-level view above.
+- `[AFE]` (`02_phy/03_line_driver/`) — drives the LEFT termination of this view.
+- Cross-link to `_pcie/02_lane/` (same kind of differential analog story, different speed).
+- `08_electrons` (foundational) — same electron drift idea at the transistor level.
+- TIME_AXIS row `_ethernet_link/03_signal_on_wire`.

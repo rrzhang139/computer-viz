@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: an inode card showing the metadata fields as a stack (mode/uid/gid/size/times/nlink), with a block-pointer table below it (`{direct[12], indirect, double, triple}` or extent tree, depending on filesystem). On read, a pointer lights up and emits a beam to the corresponding block in `[BLOCKQ]`. The address_space pointer projects upward to a `[PCACHE]` page strip. Hardlink visualization: two `[DENTRY]` cards on top with arrows converging on the same inode card.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The "card with fields + pointer table" picture is the canonical inode mental model; Tier 3 lets us render it with depth + animated pointer-following, which is essential for grokking how `read(offset)` becomes a block address.

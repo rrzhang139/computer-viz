@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: three vertically-stacked layers connected by glowing tendrils — TOP a slice of `[PROC]` virtual address space (the VMA range as a colored band), MIDDLE the `[PCACHE]` page tree for the file (a row of slots), BOTTOM the `[INODE]` block map. A `mmap()` call materializes the VMA and pulls fluorescent fibers between matching slots; on first touch the fiber lights up, a page fault flares, and a page slides from disk → pagecache → VMA. Anonymous mmap (no file) shows fibers attaching only to the zeroed slab pool.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The whole intuition of mmap is "pages and files are two views of the same thing"; Tier 3's stacked translucent layers + connecting fibers makes that *one diagram* rather than three separate boxes. Animation of first-touch is essential.

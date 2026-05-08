@@ -6,14 +6,18 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `pmu_count` | per-counter current value (read via CSR) | every CLK |
+| `pmu_overflow` | counter wrapped → optional IRQ | wrap cycle |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[REG]` | per-counter cell | already defined |
+| `[G]` | event-select mux + adder | already defined |
 
 ## Cross-cutting refs
 
-- TODO
+- Event sources: `02_core/03_rob` (retire), `02_core/03_pipeline/04_squash` (mispredict-flush), `02_core/03_l1` (miss), `02_mmu/03_tlb` (tlb-miss), `02_core/03_pipeline/04_hazards` (stall-cause).
+- Read by software via `02_core/03_csr` (`mcycle`, `minstret`, `mhpmcounter*`).
+- May feed `02_core/03_prefetch` throttle decisions.

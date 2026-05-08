@@ -15,13 +15,11 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- Stylized SVG of a TLP as a *gem-like packet* moving rightward across the lane bundle (parent's view zoomed). Header (12–16 B) rendered as a faceted leading block in `--color-control` orange (because routing/type fields are control), payload as a longer body in `--color-data` blue, LCRC as a small trailing block in purple-ish.
+- Toggle overlay annotates fields: Fmt/Type, Length, Requester ID, Tag, Address[63:2], MPS-bound payload, LCRC[31:0].
+- Direction arrow LEFT→RIGHT (data flow); a faint backward ACK/NAK ribbon along the TOP carrying control credit.
+- Across the bundle below, parallel "stripes" show how the same TLP byte stream is split across 4 lanes (gen4 ×4).
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+A TLP has no physical form — it is bytes-in-flight. Tier 3 stylized SVG with depth-stacked field glyphs and particle motion communicates packet-ness, header/payload/CRC layering, and lane-striping in one frame. Tier 1/2 do not apply: nothing to photograph, nothing volumetric. Stays consistent with `[FRAME]` (sibling on the network side) which is also stylized.

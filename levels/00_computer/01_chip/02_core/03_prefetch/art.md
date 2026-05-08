@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a row of stream-tracker tiles, each a tiny scope showing observed addresses on a number line with a stride arrow. When a tile gains confidence, a "leading" arrow extends ahead and a glowing line-request shoots rightward toward [L1].
+- Particles: demand-miss addresses arrive from the left as blue dots; the matching tracker absorbs them and fires anticipatory pink dots that "lead" the demand stream.
+- Palette: storage purple tile bodies, data blue demand stream, active pink prefetch fires, control orange throttle gauge running across the top.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+The educational point is the *temporal lead* of prefetch dots over demand dots — a moving picture concept. Tier 3 SVG with stride visualization captures it; a die-shot is meaningless here.

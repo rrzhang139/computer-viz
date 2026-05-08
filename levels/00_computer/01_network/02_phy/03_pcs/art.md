@@ -15,13 +15,10 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- Stylized SVG: a "translation table" rendered as a glowing lookup matrix. Bytes (8 bits) enter from LEFT, scrambler XOR motif applies, then a 4D-PAM5 mapper splits the byte across 4 parallel pair-tracks emitting PAM-5 symbols (`-2, -1, 0, +1, +2`) RIGHTward.
+- Animated bit-balance bar at TOP showing the running disparity (kept near zero by the encoder), and a transition-density meter showing why coding matters.
+- Toggle overlay: byte ↔ coded-symbol mapping for the current value, and a comma/sync pattern callout.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+`[PCS]` is pure digital state-machinery and bit-twiddling — no photogenic feature, no volumetric depth. Tier 3 stylized SVG with the lookup-table metaphor and bit-balance/transition-density meters communicates *why* coding exists, not just that it does.

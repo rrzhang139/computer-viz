@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a row of large counter dials/odometers, each labeled (`cycles`, `retire`, `mispred`, `l1-miss`, `tlb-miss`, `stall`). Above each dial, a small mux icon shows which event source feeds it. Beneath, a sparkline of recent rate.
+- Particles: each event ticks fly in as small dots that drop into the dial, ratcheting the digits forward; overflow causes the dial to flash and emit an IRQ-particle upward.
+- Palette: storage purple dials, control orange event-select muxes from top, data blue event-pulses, active pink the dial currently being incremented this cycle.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+The PMU is the user's *window* into pipeline behavior — counters changing visibly is the whole point. Tier 3 odometers ratcheting on every event makes "this code spends half its cycles stalled on L1 misses" obvious; a die-shot does not.

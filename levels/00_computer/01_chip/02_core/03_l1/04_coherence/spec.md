@@ -4,28 +4,23 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+`[MESI]` exists because multiple cores cache the same memory and writes have to *eventually* be visible. Without per-line state, two cores writing to the same `[CL]` would silently diverge and the program would observe values that no source order produced. MESI is the minimum bookkeeping that gives single-writer semantics: at any moment a line is Modified (this core has the only dirty copy), Exclusive (this core has the only clean copy), Shared (read-only, may be in others), or Invalid. Transitions are driven by *both* local accesses (read/write) and remote events (snoops). It's the simplest protocol that can be both correct and bandwidth-frugal — pure invalidate, no cache-to-cache forwarding overhead per write.
 
 ## ROLE
-TODO
+Per-line state machine on D-cache lines tracking Modified / Exclusive / Shared / Invalid; advance state on local read/write and on snoop messages from `_interconnect_ring`.
 
 ## MADE OF
-<!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+2 state bits per `[CL]` (4 states), 1 small transition-table FSM made of `[G]`s, plus per-line snoop-comparator. All built from gates + the existing `[CL]` storage; no new primitive.
 
 ## INPUTS
-<!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT (data): line tag/index of access; remote snoop addresses arriving on the ring.
+- TOP (control): local op (load/store/fence), snoop type (BusRd/BusRdX/Invalidate), clock.
 
 ## OUTPUTS
-<!-- RIGHT -->
-TODO
+- RIGHT: state transition signal back to `[CL]` (sets E/M/S/I bits); ring response (data or ack); writeback request to `[L2]` when M-line is invalidated.
 
 ## SYMBOL
-<!-- bracketed token. None for connectors. -->
-TODO
+`[MESI]`
 
 ## Notes
 - this is a NODE level

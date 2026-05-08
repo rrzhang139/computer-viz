@@ -15,13 +15,12 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- react-three-fiber scene: two parallel copper traces (TX+ above TX−) and a second pair below (RX+/RX−). PBR copper material on a green FR-4 substrate. Particles (electrons) drift along TX+ rightward and TX− leftward in antiphase, illustrating differential.
+- Camera: 3/4 oblique looking down the trace; orbitable ±15°.
+- TOP overlay: SerDes EQ preset value as a small floating tag (control orange).
+- LEFT/RIGHT: SerDes blocks rendered as small dark silicon dies at each end; bond-pads visible.
+- A toggle (overlay=on) annotates UI = 62.5 ps, one symbol = 130 bits (128 data + 2 sync), and adds an eye-diagram inset.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+A lane is fundamentally a *3D physical object* whose meaning is in the antiphase voltage difference between two traces — flat SVG would lose the "two wires, opposite swings, common-mode noise rejected" intuition. Tier 2 with particle motion makes that immediate. Sits next to `01_network/02_phy/03_line_driver` which uses the same tier for the same reason.

@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a vertical stack of ~16 slots stacked low-to-high, top entry highlighted. A glowing arrow descends on push (blue particle representing PC+4 lands on top); on pop, the top entry detaches and exits rightward as `ras_target`.
+- Palette: storage purple for slots, data blue for return address values, control orange for push/pop signals from top, active pink for the current TOS slot.
+- Depth: subtle drop-shadow on the stack base; "stack pointer" shown as a small chevron sliding up/down the right edge.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+A LIFO is best understood as a moving picture, not a static one — the stack pointer rising and falling on call/ret is the entire concept. Tier 3 SVG with particle motion lets us show that rhythm.

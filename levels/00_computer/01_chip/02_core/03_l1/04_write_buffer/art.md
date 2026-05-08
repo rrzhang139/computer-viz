@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Custom rich SVG. A horizontal FIFO of ~16 cells, each cell showing addr | byte-mask | data with the youngest at the right edge. Drain particle flows out the right into the L1-D `[CL]` ribbon. Forwarding shown as a translucent purple arc curving back from a matching entry to a younger load box hovering above the buffer. Coalesce events: two adjacent cells merge with a quick gradient flash. Depth via stacked layers; passive cells dim, the active drain row glows.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 3 (per INVARIANTS table). The write buffer is a queue with a CAM bolted on; physically it's a small SRAM/CAM block on the die, but the *interesting* content is the queueing + forwarding behavior. A rich-SVG ledger view animates drain, coalesce, and store-to-load forwarding all at once — none of which a die-crop could show.

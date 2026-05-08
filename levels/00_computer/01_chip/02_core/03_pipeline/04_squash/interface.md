@@ -6,14 +6,19 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `flush_mask` | bitmask of ROB IDs to kill | flush cycle |
+| `redirect_pc` | new fetch PC | flush cycle |
+| `flush_active` | flush in progress (1+ cycles) | combinational |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[G]` | FSM + fanout logic | already defined |
 
 ## Cross-cutting refs
 
-- TODO
+- Triggered by `02_core/03_rob` (mispredict), `02_core/03_trap` (exception/IRQ), `02_core/03_loadq` (memory-order violation).
+- Restores `02_core/03_rename` from checkpoint, `02_core/03_frontend/04_ras` SP, `02_core/03_freelist` shadow.
+- Kills uops in `02_core/03_rs`, `02_core/03_loadq`, `02_core/03_storeb`, `03_pipeline` stage latches.
+- Increments mispredict count in `02_core/03_pmu`.

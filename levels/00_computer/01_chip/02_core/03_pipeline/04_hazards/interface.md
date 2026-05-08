@@ -6,14 +6,20 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `stall_F` | freeze fetch latch | combinational, same cycle |
+| `stall_D` | freeze decode latch | combinational |
+| `bubble_X` | insert NOP into EX | combinational |
+| `haz_kind` | which hazard fired (raw/load-use/struct/ctrl) | combinational |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[G]` | comparator + priority-encoder logic | already defined |
 
 ## Cross-cutting refs
 
-- TODO
+- Reads stage latches owned by `02_core/03_pipeline`.
+- Cooperates with `03_pipeline/04_forward`: when forwarding is possible the hazard is suppressed.
+- Distinct from `03_pipeline/04_squash` (which kills, not stalls).
+- Increments stall counters in `02_core/03_pmu`.

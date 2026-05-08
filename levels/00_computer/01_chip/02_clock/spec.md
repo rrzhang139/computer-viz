@@ -4,28 +4,23 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+Every `[FF]` on the chip needs a clock edge to latch on. `[CLK]` is what produces that edge — a PLL multiplies a low-frequency board reference (~100 MHz) up to GHz, then a balanced clock-tree distributes it across the die so every flip-flop sees the rising edge within a tight skew budget. Without it, the synchronous datapath simply does not advance. Per-core domains exist so DVFS can slow one core without slowing the whole chip, and so a stalled core can clock-gate cleanly. Skew, jitter, and tree-power are the three things that bound max frequency.
 
 ## ROLE
-TODO
+Generate the chip's high-frequency reference (PLL) and distribute it via a balanced clock-tree to every clocked element, with multiple per-core / per-uncore domains.
 
 ## MADE OF
-<!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+1+ PLL (analog phase-locked loop locking onto an external XTAL/reference) + a clock-tree network of buffers/inverters distributing each domain + per-domain clock gates for power management. Built from `[T]`/`[G]` and analog blocks; the underlying physics lives at `08_electrons`/`07_transistor`.
 
 ## INPUTS
-<!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT (data): external reference clock (board crystal / 100 MHz REFCLK).
+- TOP (control): frequency-target / ratio CSRs from `[PMGR]`, lock/unlock commands, clock-gate enables.
 
 ## OUTPUTS
-<!-- RIGHT -->
-TODO
+- RIGHT: per-domain clock signals fanned out to every `[CORE]`, `[L3]` slice, `[MEMCTRL]`, and `_interconnect_ring/` stop. Lock-status flag back to firmware.
 
 ## SYMBOL
-<!-- bracketed token. None for connectors. -->
-TODO
+`[CLK]`
 
 ## Notes
 - this is a NODE level

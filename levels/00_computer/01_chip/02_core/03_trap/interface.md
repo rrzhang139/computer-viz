@@ -6,14 +6,21 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `trap_take` | a trap is being taken this cycle | retire of faulting uop |
+| `trap_cause` | RISC-V mcause encoding | trap cycle |
+| `trap_target` | redirect PC = mtvec (or vectored offset) | trap cycle |
+| `priv_next` | new privilege mode after trap | trap cycle |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[G]` | priority encoder, FSM | already defined |
 
 ## Cross-cutting refs
 
-- TODO
+- Reads/writes `02_core/03_csr` (`mtvec`, `mepc`, `mcause`, `mtval`, `mstatus`).
+- Triggers `03_pipeline/04_squash`.
+- Receives faults from `02_core/03_rob` head (and from `02_mmu`/`03_tlb` for page faults indirectly).
+- IRQ pending from external sources via `01_os/_interrupt` and chip pin.
+- Increments trap counters in `02_core/03_pmu`.

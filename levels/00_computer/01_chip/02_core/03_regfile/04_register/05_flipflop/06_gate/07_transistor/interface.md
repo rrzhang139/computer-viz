@@ -6,14 +6,17 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[T]` | one voltage-controlled switch | continuous; switching on gate edge (~ps) |
+| `on/off` | conducting state of the switch | gate voltage crossing threshold V_th |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `I_D` | drain current — drift magnitude through the channel | `08_electrons/` |
+| `channel_state` | inverted vs. depleted channel | `08_electrons/` |
 
 ## Cross-cutting refs
 
-- TODO
+- `06_gate/` (parent in zoom-out direction) composes 2–4 `[T]` into a `[G]`; uses the `on/off` abstraction emitted here.
+- TIME_AXIS row `07_transistor: ps, 10 ps per anim sec` — sub-cycle scale.

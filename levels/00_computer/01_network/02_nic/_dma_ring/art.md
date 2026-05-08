@@ -15,13 +15,11 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- Stylized SVG: a circular ring of slots (descriptors). Two side-by-side rings: TX (top) and RX (bottom). Each slot is an `(addr_hi, addr_lo, len, status)` glyph. Two pointers — head (NIC-owned) and tail (kernel-owned) — chase each other around the ring. Filled slots glow `--color-data` blue; empty slots are dim `--color-passive` slate.
+- A small CPU/kernel block on the LEFT writes new descriptors at tail++ and pushes a *doorbell* glyph (`--color-control` orange) over to the NIC block on the RIGHT.
+- The NIC block reads descriptors via TLP arrows (cross-link to `_pcie/02_tlp` styling) and emits write-back TLPs that bump head++.
+- Toggle overlay annotates ring depth (256 entries default), the formula `tail = (tail+1) mod N`, and an MSI-X icon when the NIC raises an interrupt.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+A ring buffer is a topology, not an object — Tier 3 stylized SVG with animated head/tail pointers along a circular path teaches the producer/consumer asymmetry better than any photo or 3D scene. Same tier is used by `_dma` (kernel-side parent concept) for visual consistency.

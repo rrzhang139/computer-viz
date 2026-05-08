@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a "translator panel" sitting between the kernel slab (TOP) and a device card (RIGHT). The panel shows three slots: an ops-table receptacle (filled with concrete callbacks like `submit_io`, `xmit_skb`), a doorbell button glowing each time MMIO writes (`--color-control`), and an ISR antenna at TOP catching incoming `[IRQ]`s. A small DMA ring orbits between panel and device. The device itself is rendered in muted real-hardware style (NVMe controller chip, NIC silicon) hinting at what the driver is talking to.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+A driver is *the bridge* — Tier 3 lets us draw that bridging structure with all three traffic kinds (request DOWN, MMIO RIGHT, IRQ UP) visible simultaneously. Concrete callback names in the ops-table receptacle ground the abstraction.

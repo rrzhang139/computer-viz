@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a large grid of glowing 4 KB page tiles, grouped into stacks per `[INODE]` (each stack = one file's `address_space`). Color encoding: clean = soft purple (`--color-storage`), dirty = warm amber (`--color-control`), under writeback = pulsing. Active page on hit lights hot pink (`--color-active`). LRU recency ordering shown as a left→right gradient (LRU on right, soon to evict). On miss, a tile blinks empty and a request beam exits BOTTOM to `[BLOCKQ]`; on fill, the page slides in.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The page cache is a *huge population* of pages, and most of the intuition is statistical (lots of stuff cached, occasional miss flushes a tile). Tier 3 lets us render thousands of subtle tiles with depth and gradient state coding, where flat boxes would just look like a database table.

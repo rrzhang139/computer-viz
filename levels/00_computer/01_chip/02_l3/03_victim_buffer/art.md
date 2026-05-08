@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Custom rich SVG. A small holding-pen of ~8 line-cells positioned between the L3 ribbon (left) and the memctrl block (right). On eviction, a `[CL]` gradient slides into a free cell. On rehit, the cell pulses pink and the line slides back into L3. On drain, the cell streams a particle trail to memctrl. Empty cells are slate; dirty cells glow purple; the active drain cell pulses orange.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 3 (per INVARIANTS table). VB has no recognizable die signature (a small CAM/queue near the LLC slices). The interesting content is the *flow* — eviction-then-maybe-rehit-or-drain — which only animation makes legible. Rich SVG with motion shows the rate-decoupling story in one frame.

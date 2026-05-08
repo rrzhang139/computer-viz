@@ -4,28 +4,27 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+The architectural [REG] file holds program data, but the *machine itself* needs status: current privilege mode, trap vector base, saved PC, interrupt mask, page-table root pointer, performance counters, hart ID, etc. The CSR space is a separate 12-bit-addressable register file accessed by `csrr`/`csrw`/`csrrw` and implicitly by [TRAP]. Each CSR has its own access permissions (which privilege levels may read/write) and side effects (writing `satp` invalidates the [TLB]). Without it, OS and the privileged spec have nowhere to live in hardware.
 
 ## ROLE
-TODO
+RISC-V control/status register file (mstatus, mcause, mtvec, mepc, mip, mie, satp, etc.).
 
 ## MADE OF
 <!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+A small bank of [REG] cells (one per defined CSR), an address-decoder [G] tree mapping the 12-bit CSR-addr → register-select, and a permission-check [G] stage gated by current `privMode`.
 
 ## INPUTS
 <!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT: write data from `csrrw` instruction or implicit writes from [TRAP]; read-port address.
+- TOP: [CLK]; current `privMode`; access-type bits (csrrw/csrrs/csrrc).
 
 ## OUTPUTS
 <!-- RIGHT -->
-TODO
+- RIGHT: read-data to register-write port (typical csrr returns old value); side-effect signals (e.g., satp-write triggers TLB flush, mstatus-write may change interrupt enable).
 
 ## SYMBOL
 <!-- bracketed token. None for connectors. -->
-TODO
+[CSR]
 
 ## Notes
 - this is a NODE level

@@ -19,9 +19,11 @@ Options:
 <!-- For Tier 2: 3D scene description, material refs. -->
 <!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
 
-TODO
+- Stylized SVG: a top-down view of the pipeline scaffold with comparator wedges drawn between ID source-tag and EX/MEM/WB dest-tag busses. When tags match, the comparator wedge glows; if forwarding cannot save it, a stall halo wraps the IF/ID latches.
+- Particles: a stall halo is an orange "freeze" overlay that pulses while [HAZ] holds a stage; bubble insertion is a faded grey NOP-shape sliding into EX.
+- Palette: storage purple latches, control orange stall/bubble signals, active pink the matched comparator, slate inactive.
 
 ## Reasoning
 
 <!-- Why this tier fits this level. -->
-TODO
+The lesson is "the hazard is detected by *comparing tags across stages*"; that's a parallel-comparator visual, perfect for Tier 3. A photo can't show a comparator firing.

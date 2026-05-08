@@ -4,28 +4,27 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+Most data hazards do not actually need a stall: the producing instruction has the result inside its EX/MEM latch *right now* — it just hasn't written it back to the regfile yet. The [FWD] mux short-circuits that result directly into the consumer's EX inputs, paying zero extra cycles. This turns most RAW hazards into free passes; only load-use (where the value isn't ready until end of MEM) still requires a 1-cycle stall. Without forwarding, every `add` after a producer would cost 2 bubble cycles — pipeline IPC would tank.
 
 ## ROLE
-TODO
+Bypass mux that routes EX/MEM/WB-stage results back into EX operand inputs.
 
 ## MADE OF
 <!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+Two N-input muxes (one per ALU input) built from [G], plus tag comparators selecting the right source.
 
 ## INPUTS
 <!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT: ALU inputs from regfile read OR EX/MEM latch result OR MEM/WB latch result (or [WB]-stage value).
+- TOP: select bits from a small comparator that matches consumer's psrc tags against producer-stage pdst tags.
 
 ## OUTPUTS
 <!-- RIGHT -->
-TODO
+- RIGHT: chosen operand value forwarded into [ALU] (or [AGU]) inputs.
 
 ## SYMBOL
 <!-- bracketed token. None for connectors. -->
-TODO
+[FWD]
 
 ## Notes
 - this is a NODE level

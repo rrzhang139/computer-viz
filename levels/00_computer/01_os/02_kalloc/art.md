@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a row of "shelves" (one per `kmem_cache`, labeled by object type — task_struct, skb, inode, dentry...). Each shelf is a strip of identically-shaped slots; full slots glow purple (`--color-storage`), free slots are dim. A per-CPU mini-shelf floats above each: that's the freelist hot path. Allocations pop a slot off the per-CPU shelf and emit the object RIGHT (`--color-data`); when the per-CPU shelf empties, a refill animation imports a slab of slots from the main shelf.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The slab allocator's identity is "many shelves, each typed, each with a per-CPU fast lane." Tier 3's shelf-row layout makes that immediate; freelist motion + per-CPU caches are the kind of detail Tier 3 is built for.

@@ -6,26 +6,28 @@
 
 <!-- Why does this level exist? What problem does it solve? What would break if you removed it?
      Answer this BEFORE describing structure. -->
-TODO
+A transistor is the *first usable abstraction*: a voltage-controlled switch. Below this, you have continuous physics (drifting carriers); above this, you can compose discrete logic. The level exists to bridge those two regimes with one rule — "gate high closes the switch" — that the rest of the visualization can rely on without ever again thinking about charge densities or threshold voltages. Remove this level and every higher level (gates, flip-flops, the entire CPU) is left dangling on top of physics it pretends to ignore. The transistor is also the unit cost of a chip: counting `[T]`s is how the rest of the tower reasons about area and power.
 
 ## ROLE
-TODO
+A voltage-controlled switch — the smallest discrete logic primitive built from physics.
 
 ## MADE OF
 <!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+1 doped silicon channel populated by mobile carriers (atomic — `08_electrons/` is the physical substrate, not a `[BRACKET]`). Static-CMOS context is two complementary devices: 1 NMOS + 1 PMOS, but each is one `[T]`.
 
 ## INPUTS
 <!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT (data): source terminal — the "input" voltage being switched
+- TOP (control): gate terminal — the binary control that opens or closes the channel
+- BOTTOM (implicit): bulk/body tied to Vdd (PMOS) or Vss (NMOS)
 
 ## OUTPUTS
 <!-- RIGHT -->
-TODO
+- RIGHT: drain terminal — connects to source when gate is asserted, else floats / open
 
 ## SYMBOL
 <!-- bracketed token. None for connectors. -->
-TODO
+`[T]` — defined here per `GLOSSARY.md`.
 
 ## Notes
 - this is a NODE level

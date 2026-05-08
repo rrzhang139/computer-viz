@@ -15,13 +15,11 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- High-res top-down photo of a small ethernet PHY IC on a NIC PCB next to the RJ45 magnetics. A QFN/QFP package, ~5×5 mm, typically labeled with the vendor and part number (e.g., "Marvell 88E1512", "Broadcom BCM5421").
+- AI-generation prompt fallback: "macro photograph of a small ethernet PHY chip in QFN package on a green FR-4 PCB, surrounded by SMD passives, RJ45 jack with magnetics module on the right edge of frame, sharp focus, professional studio lighting".
+- SVG hotspot overlay: rectangles for `03_pcs` (over the digital half of the die outline, conceptually toward the xMII side) and `03_line_driver` (over the analog half, conceptually toward the RJ45 side).
+- Overlay-on labels: "GMII 8 bits @ 125 MHz" on the LEFT edge, "1000BASE-T 4 pairs" on the RIGHT edge, "MDIO" on the TOP (control).
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+A PHY is a real, photographable chip and is explicitly assigned Tier 1 by the agent brief. Photographing the chip-next-to-RJ45 layout makes it visceral that "this little IC is what makes the cable work". Children (`[PCS]` digital, `[AFE]` analog) split the tier: PCS gets stylized SVG, AFE gets a 3D analog-waveform scene.

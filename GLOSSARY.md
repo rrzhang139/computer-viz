@@ -20,6 +20,7 @@
 | `[AGU]` | `levels/.../02_core/03_agu/` | address generation unit for loads/stores |
 | `[DECODER]` | `levels/.../02_core/03_frontend/04_decoder/` | maps instruction bits to control signals |
 | `[FQ]` | `levels/.../03_frontend/04_fetchbuffer/` | fetch queue / instruction prefetch buffer |
+| `[PC]` | `levels/.../02_core/03_frontend/` | program counter — special register holding next instruction address |
 | `[BTB]` | `levels/.../03_frontend/04_btb/` | branch target buffer |
 | `[PHT]` | `levels/.../03_frontend/04_predictor/` | pattern history table; predicts taken/not-taken |
 | `[RAS]` | `levels/.../03_frontend/04_ras/` | return address stack |
@@ -99,6 +100,7 @@
 
 | Symbol | Defined in | One-line role |
 |---|---|---|
+| `[OS]` | `levels/00_computer/01_os/` | the kernel as a single block — mediator between userspace and hardware |
 | `[PROC]` | `levels/.../01_os/02_process/` | virtual address space (CODE/DATA/HEAP/STACK) |
 | `[BIN]` | `levels/.../02_process/03_binary/` | ELF binary mapped into CODE region |
 | `[MMU]` | `levels/.../01_os/02_mmu/` | virtual→physical translation hardware |
@@ -163,3 +165,11 @@
 - `_nvme_link/` — NVMe-over-PCIe (uses `[QP]`, `[TLP]`)
 - `_interconnect_ring/` — ring/mesh between cores
 - `_ethernet_link/` — twisted pair (uses `[FRAME]` at child level)
+
+## Sub-flavors of `[G]` (not separately registered)
+
+`[G]` is the canonical gate symbol; specific gates are sub-flavors mentioned inline: `[NAND]`-as-gate (collides with `[NAND]`-flash above; context disambiguates), `[NOR]`, `[AND]`, `[OR]`, `[NOT]`, `[XOR]`. These are not their own folders.
+
+## Passing references (mentioned in prose, not folder-defined)
+
+`[FUTEX]` (Linux fast userspace mutex; userspace synchronization on top of `[SHM]`).

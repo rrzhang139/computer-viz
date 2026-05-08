@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Die-crop showing the PLL block (a small distinctive analog island, often near the chip edge) plus an overlay of the clock-tree H-tree fanning out across the die. Source: same `[CHIP]` die photo with the PLL region tagged; AI-generated H-tree overlay if needed. Fallback prompt: "die-crop highlighting a PLL block and a balanced H-tree clock distribution net fanning out across a CPU die, photographic with a thin orange overlay marking the tree, hot-pink pulse on the active edge."
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 1 (per INVARIANTS table). The PLL is a recognizable analog island and the clock-tree, while subtle, can be evoked over a real die-shot. Keeping it Tier 1 communicates "this is a real circuit on a real die." The animation is what carries the meaning: a pulse-wave radiating from the PLL outward through the tree on every clock edge, painting the ground truth that *this is what makes everything else tick*.

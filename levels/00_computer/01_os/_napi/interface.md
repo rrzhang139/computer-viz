@@ -6,14 +6,19 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[NAPI]` | per-RX-queue NAPI poll context | `napi_schedule()` |
+| `pollState` | one of `IDLE` / `SCHEDULED` / `POLLING` | every state transition |
+| `budgetUsed` | packets drained in current poll cycle (0..budget) | each poll iteration |
 
 ## Symbols this level expects DOWN
 
-| symbol | meaning | producer (child folder) |
-|---|---|---|
-| TODO | TODO | TODO |
+(connector — no child folders; this is a zoomable edge)
 
 ## Cross-cutting refs
 
-- TODO
+- Triggered by hard IRQ from `[NIC]` (`00_computer/01_network/02_nic/`) on RX descriptors filled.
+- Pulls skbs from `01_network/02_nic/_dma_ring/` (the RX descriptor ring).
+- Hands skbs to sibling `02_netstack/` via `__netif_receive_skb_core`.
+- Wakeups for arrived data eventually reach sibling `02_scheduler/` (`[RUNQ]`) when an skb hits a blocked `[SOCK]`.
+- TIME_AXIS row: `_napi` (1 anim sec ⇒ 50 µs).
+- Distinct from TX path: TX is `[QDISC]` → driver, NOT NAPI.

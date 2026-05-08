@@ -15,13 +15,19 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
+Stylized SVG of an LDPC Tanner-graph belief-propagation animation.
 
-TODO
+Layout (LEFT data, RIGHT data, TOP control):
+- LEFT: stream of raw page bytes arriving from the channel as a row of bit cells; some cells are red (flipped) — initial bit-error visualization
+- CENTER: bipartite Tanner graph: top row of "variable nodes" (bit cells, blue `--color-data`), bottom row of "check nodes" (parity equations, purple `--color-storage`). Animated edges carry messages back and forth, iteration by iteration. With each iteration, more red cells flip back to blue.
+- RIGHT: corrected bit stream emerges; a counter shows iterations used and `ecc.raw_ber`. On uncorrectable, the whole graph flashes pink (`--color-active`) and an "uncorrectable" flag fires.
+- TOP: orange (`--color-control`) iteration-budget tick + soft-read-retry escalation arrow
+
+Visual language:
+- Iteration sweeps as a wave of light moving across the Tanner graph edges
+- Bit cells visibly "vote" — flickering between 0 and 1 — until they settle
+- A small voltage-band drift inset (TLC: 8 levels with overlapping Gaussians) shows *why* errors arise; ties this level back to `[NCELL]`
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+LDPC decoding is a beautiful iterative algorithm but invisible at the chip level. Tier 3 SVG with a Tanner graph and message passing is the canonical visualization in coding-theory textbooks; using it here keeps the user grounded in real code rather than a generic "ECC box". The fade-from-red-to-blue across iterations makes the *iterative* nature of LDPC unmistakable (vs. the one-shot feel of BCH or Hamming).

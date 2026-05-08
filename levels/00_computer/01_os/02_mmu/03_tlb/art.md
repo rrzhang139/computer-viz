@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a horizontal row of ~16 visible glowing slots (the rest dimmed, as "more entries"), each carrying `{VPN | ASID | PPN | RWXU}`. Incoming `VPN` (`--color-data`) compares in parallel against all slots simultaneously (CAM lines flash); on hit the matched slot glows hot pink (`--color-active`) and emits `PPN` to RIGHT. On miss, all slots flash red briefly and a beam exits DOWN to the page-table walker. ASID color band on each slot makes inter-process separation visible.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+A TLB is a small associative memory that needs to feel "parallel-checked, instant, tiny" — Tier 3 gradients + simultaneous flash render that better than a labeled table. The slot-glow on hit is the natural execution-pointer highlight.

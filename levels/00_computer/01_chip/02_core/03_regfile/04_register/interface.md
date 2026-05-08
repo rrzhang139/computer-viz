@@ -6,14 +6,17 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[REG]` | one 32-bit word of storage | rising edge of CLK (gated by `we` if present) |
+| `Q[0..31]` | currently latched 32-bit value | held between edges |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[FF]` | one-bit memory cell; 32 of these compose the register | `05_flipflop/` |
 
 ## Cross-cutting refs
 
-- TODO
+- `03_regfile/` (parent in zoom-out direction) holds 32 instances of `[REG]` — the architectural register file x0..x31.
+- `03_alu/`, `03_agu/`, `03_mul/`, `03_div/` all read/write `[REG]` values via the regfile's read/write ports.
+- TIME_AXIS row `04_register: cycle, 1 cycle per anim sec` — first level where "1 anim sec = 1 cycle".

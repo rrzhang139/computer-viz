@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a translucent "kernel slab" floating above the `[CHIP]` die, with U-mode programs as small lit blocks above and hardware (RAM/DISK/NIC) below. Gradients: deep indigo→violet for kernel body (`--color-storage` family), warm amber pulses (`--color-control`) along `[SYSCALL]` and `[IRQ]` paths, blue particle streams (`--color-data`) along `[DMA]` and `02_io_path`. Subsystems (`[VFS]`, `[PCACHE]`, `[BLOCKQ]`, etc.) appear as nested glowing tiles inside the slab; on hover/zoom each tile becomes its child level.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The kernel has no physical form — it is logical software running on the same `[CORE]` and `[RAM]` as everything else. A photo would lie; a flat boxes-and-arrows diagram would be Visio. Tier 3 with depth, glow, and particle flows lets us show the *mediation* (control coming down from U-mode, results flowing right, IRQs coming up from devices) while keeping the kernel visually distinct from the silicon below.

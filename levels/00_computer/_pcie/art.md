@@ -15,13 +15,11 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- Stylized SVG of the link as a *bundle of glowing lanes* between `[CHIP]` (LEFT) and the peripheral (RIGHT). Each lane = a thin double-stripe (TX above, RX below) with copper-orange gradient. Particles flow rightward along TX, leftward along RX.
+- TOP edge: a faint LTSSM state ribbon (control, orange `--color-control`).
+- BOTTOM edge: implicit ground plane (never drawn per INVARIANTS).
+- Children zoom hotspots: rectangular outline around one stripe pair → `02_lane`; an oblong packet shape moving along the bundle → `02_tlp`.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The `[PCIE]` edge has no single "thing" to photograph at this scope (it is the *protocol relationship* between sockets), and the user needs to read direction + parallelism + framing all at once. Tier 3 stylized SVG with gradients and particle flows shows lane-aggregation and full-duplex separation in one glance, and gives clean drill-points to the two child levels. Tier 1 is reserved for the slot itself if photographed at the parent `00_computer` board level; Tier 2 is reserved for the lane-internal differential-pair scene.

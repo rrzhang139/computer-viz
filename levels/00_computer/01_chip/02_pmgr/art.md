@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Custom rich SVG. A schematic dashboard: per-core dials showing current (V, f) point + C-state badge + thermal needle; a P-state ladder visualization with the active rung lit; thermal-cap line overlaid on the frequency trace; particle pulses representing DVFS transitions sweeping voltage/frequency targets out to `[CLK]` and the PMIC. Background ghost layer of the die for spatial anchoring.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Confirming Tier 3 (per INVARIANTS table). The PMGR's actual silicon is a small embedded controller — visually unremarkable on a die. The pedagogical content is the *control loop*: telemetry in, (V,f,C) decisions out, with the OS in the loop. A rich-SVG dashboard shows P-state ladders, C-state transitions, and thermal-throttle events together — none of which a die-shot conveys.

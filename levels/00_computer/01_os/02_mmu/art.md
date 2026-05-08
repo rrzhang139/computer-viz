@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a translation "lens" sitting on the LEFT data path between core and cache. Virtual addresses enter as blue particles (`--color-data`), strike a glowing prism that splits them into `[VPN | offset]` lanes, refract through a `[TLB]` lookup pane (small fully-associative cache as a row of glowing cells), and exit RIGHT as physical addresses tinted slightly differently. On miss the prism dims and a longer beam routes DOWN through the page-table radix tree before re-emerging. `satp` enters from TOP as control (`--color-control`).
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Translation is hard to picture as anything but transformation; a "prism/lens" metaphor visually communicates that the address is *changed in flight* without breaking the LEFT→RIGHT data invariant. Tier 3 lets us animate the TLB hit (instant) vs the multi-bounce walk on miss in the same frame.

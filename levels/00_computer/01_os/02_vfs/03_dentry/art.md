@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a forest of small dentry tiles arranged as a tree (root `/`, then its children, then theirs). A path lookup `/home/alice/data.txt` traces a glowing breadcrumb step-by-step (`--color-active`), each tile pulsing as it's hashed and matched. Negative dentries are shown as faint ghosted tiles. Each tile has a slim arrow down to its `[INODE]` card. Hash-table layer rendered below as a row of buckets; hit shows a quick down-then-up flash from the bucket.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+Path traversal is sequential and visible; Tier 3's tree + breadcrumb idiom matches it exactly. Negative dentries deserve to be visible (often forgotten); ghosted tiles encode that without clutter.

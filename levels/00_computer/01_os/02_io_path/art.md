@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a horizontal "river" of stages flowing LEFT→RIGHT across a translucent kernel slab. Each stage is a glowing waypoint (`syscall → VFS → pagecache → block → driver → DMA → disk`) drawn as a vertical pillar; the active stage pulses hot pink (`--color-active`). Bytes are blue particle packets (`--color-data`) hopping pillar to pillar; on a `[PCACHE]` hit the packet ricochets back to userspace early (visualized as a shortcut arc). Below the river: small representations of the actual subsystems' icons that this view borrows from sibling levels.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The whole point of this level is to show *the path* — Tier 3's particle-flow + glowing-waypoint idiom is exactly that. Flat boxes-and-arrows would be the wrong tier; this is the canonical "system diagram you've seen once and want to make alive."

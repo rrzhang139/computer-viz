@@ -15,13 +15,10 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+- react-three-fiber scene: a single twisted pair shown in cross-section + length, with the two conductors as copper PBR cylinders. Tube cutaway reveals electron-particle clouds drifting at thermal+drift velocity (slow), while a faster *wavefront* (the bit edge) sweeps RIGHTward as a glowing ring at ~0.66c. The contrast between the two velocities is the lesson.
+- A 2D voltage-vs-time inset along the TOP edge plots the differential V(t) being asserted at the LEFT and observed at the RIGHT — visibly attenuated and slightly dispersed at the far end.
+- Toggle overlay: drift velocity vs propagation velocity numerical labels (using `<Unit>` per INVARIANTS), arrow showing direction of the wavefront, and a small note "differential = `V+ − V−`".
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The signal-on-wire view is *the* canonical Tier-2 case in this repo: the user must see physical depth (the twisted pair as a 3D object), particle motion (electrons), and time-varying voltage all at once, which neither a flat SVG nor a photo can convey. Tier 2 is also the explicit assignment in the agent brief and parallels `_pcie/02_lane` (same substrate, same tier).

@@ -6,14 +6,18 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `fl_pop` | a free physical-register tag served from head | rename CLK edge |
+| `fl_empty` | freelist exhausted → stall rename | combinational |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[REG]` | per-slot storage cell holding a physical-register ID | already defined |
+| `[G]` | head/tail counter, full/empty logic | already defined |
 
 ## Cross-cutting refs
 
-- TODO
+- Pop consumer: `02_core/03_rename` ([RAT]).
+- Push producer: `02_core/03_rob` retirement (returning `pdst_old`).
+- Reset by `03_pipeline/04_squash` if a fatal trap requires architectural-state rebuild.

@@ -15,13 +15,8 @@ Options:
 
 ## Asset sources
 
-<!-- For Tier 1: photo URL or AI-generation prompt. Confirm provenance. -->
-<!-- For Tier 2: 3D scene description, material refs. -->
-<!-- For Tier 3: gradient palettes, particle behaviors, depth-stacking choices. -->
-
-TODO
+Tier 3 stylized SVG: a queue laid out horizontally, with bio "tickets" sliding in from LEFT (each carrying LBA + length + direction); adjacent tickets with mergeable LBA ranges fuse into longer requests (visible coalescing). Multi-queue rendering: one lane per CPU. The scheduler is a mechanism that pops the head and emits a request RIGHT toward `[DRV]`. Color: read = blue (`--color-data`), write = warm `--color-control`. Completion bios return LEFT through a parallel lower lane in muted tone.
 
 ## Reasoning
 
-<!-- Why this tier fits this level. -->
-TODO
+The block layer's whole point is *queueing + merging*; Tier 3's particle-on-conveyor metaphor with visible fusion of adjacent tickets is the right imagery. Per-CPU lanes make the mq design legible.

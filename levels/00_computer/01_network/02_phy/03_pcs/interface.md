@@ -6,14 +6,19 @@
 
 | symbol | meaning | latched on |
 |---|---|---|
-| TODO | TODO | TODO |
+| `[PCS]` | the line-coding/scrambling sublayer of the PHY | code-mode programmed + scrambler seeded |
+| sync-acquired | CDR + comma detector locked, RX byte boundaries known | comma pattern matched |
+| coded-symbol | one PCS symbol ready for `[AFE]` | symbol-clock tick |
 
 ## Symbols this level expects DOWN
 
 | symbol | meaning | producer (child folder) |
 |---|---|---|
-| TODO | TODO | TODO |
+| (none) | leaf for Phase 1 — symbols go DOWN to sibling `03_line_driver/` | — |
 
 ## Cross-cutting refs
 
-- TODO
+- Sibling `03_line_driver/` (`[AFE]`) — receives coded symbols, supplies recovered ones.
+- Parent `02_phy/` — owns the chip; this is its digital half.
+- `[MAC]` (sibling NIC chip) — supplies/consumes bytes over xMII.
+- TIME_AXIS row `02_phy/03_pcs`.

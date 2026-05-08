@@ -4,28 +4,27 @@
 
 ## Motivation (REQUIRED — one paragraph, no diagrams)
 
-<!-- Why does this level exist? What problem does it solve? What would break if you removed it?
-     Answer this BEFORE describing structure. -->
-TODO
+The I-cache delivers a 32- or 64-byte line at irregular intervals (hits in 1 cycle, misses in tens), while the decoder/rename pipe wants exactly N uops every cycle. The [FQ] is a small queue that absorbs that mismatch: it buffers raw fetched bytes (or pre-decoded uops, depending on design) until rename is ready. Without it, an I-cache miss would immediately stall every downstream stage even though the next several already-fetched lines are ready to decode.
 
 ## ROLE
-TODO
+Decouples I-cache fetch rate from decode/rename consumption rate.
 
 ## MADE OF
 <!-- count + (previous-level symbol). For connectors: signals/protocol + physical medium. -->
-TODO
+~16–32 entries of [REG]-cell ring buffer, head + tail pointer counters, full/empty [G] logic.
 
 ## INPUTS
 <!-- LEFT (data) or TOP (control) -->
-TODO
+- LEFT: I-cache line (32–64 bytes) tagged with predicted PC stream.
+- TOP: [CLK]; enqueue-enable from fetch; dequeue-enable from decode; flush from [SQ] on misprediction.
 
 ## OUTPUTS
 <!-- RIGHT -->
-TODO
+- RIGHT: head-of-queue uop bytes → [DECODER]; not-empty signal → backpressure toward fetch.
 
 ## SYMBOL
 <!-- bracketed token. None for connectors. -->
-TODO
+[FQ]
 
 ## Notes
 - this is a NODE level
