@@ -9,7 +9,7 @@
 // Below the buttons: a breadcrumb showing depth and current name.
 
 import { useState } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 import { LevelTransistor } from './LevelTransistor';
 import { LevelElectrons } from './LevelElectrons';
 import { useExecution } from '../store/executionState';
@@ -50,22 +50,53 @@ export function LevelView() {
 
   const meta = LEVEL_META[level];
 
+  // Both panes stay mounted (so WebGL contexts and OrbitControls state survive
+  // the transition) and we cross-fade with scale + blur. Transistor is the
+  // "outside" view (scale 1.15 when inactive — we left it behind), Electrons
+  // is the "inside" view (scale 0.85 when inactive — we haven't reached it).
+  // This makes the zoom feel symmetric in both directions without needing
+  // direction tracking.
+  const transistorAnim = {
+    opacity: level === 'transistor' ? 1 : 0,
+    scale: level === 'transistor' ? 1 : 1.15,
+    filter: level === 'transistor' ? 'blur(0px)' : 'blur(6px)',
+  };
+  const electronsAnim = {
+    opacity: level === 'electrons' ? 1 : 0,
+    scale: level === 'electrons' ? 1 : 0.85,
+    filter: level === 'electrons' ? 'blur(0px)' : 'blur(6px)',
+  };
+  const transition = { duration: 1.0, ease: [0.65, 0, 0.35, 1] as const };
+
   return (
     <div style={frameStyle}>
       <div style={canvasFrame}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={level}
-            initial={{ opacity: 0, scale: level === 'electrons' ? 0.9 : 1.1 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: level === 'electrons' ? 1.05 : 0.95 }}
-            transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-            style={{ width: '100%', height: '100%' }}
-            data-testid={`level-pane-${level}`}
-          >
-            {level === 'transistor' ? <LevelTransistor /> : <LevelElectrons />}
-          </motion.div>
-        </AnimatePresence>
+        <motion.div
+          initial={false}
+          animate={transistorAnim}
+          transition={transition}
+          style={{
+            ...paneStyle,
+            pointerEvents: level === 'transistor' ? 'auto' : 'none',
+          }}
+          aria-hidden={level !== 'transistor'}
+          data-testid="level-pane-transistor"
+        >
+          <LevelTransistor />
+        </motion.div>
+        <motion.div
+          initial={false}
+          animate={electronsAnim}
+          transition={transition}
+          style={{
+            ...paneStyle,
+            pointerEvents: level === 'electrons' ? 'auto' : 'none',
+          }}
+          aria-hidden={level !== 'electrons'}
+          data-testid="level-pane-electrons"
+        >
+          <LevelElectrons />
+        </motion.div>
       </div>
 
       {/* Right-side zoom toolbar */}
@@ -143,6 +174,11 @@ const canvasFrame: React.CSSProperties = {
   overflow: 'hidden',
   background: parchment.bg,
   boxShadow: '0 2px 12px rgba(80,60,30,0.18)',
+};
+
+const paneStyle: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
 };
 
 const asideStyle: React.CSSProperties = {

@@ -11,12 +11,14 @@
 // Driven by global executionState: gate voltage rises on even cycles, falls
 // on odd, with microStep providing sub-cycle smoothing.
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
+
+type Part = 'gate' | 'source' | 'drain' | 'substrate' | 'oxide' | null;
 
 const N_ELECTRONS = 120;
 
@@ -28,10 +30,30 @@ const CHANNEL_X_MAX = 1.5;
 const SOURCE_X = -2.5;
 const DRAIN_X = 2.5;
 
-function MOSFET({ gateOn }: { gateOn: number }) {
+function MOSFET({
+  gateOn,
+  highlight,
+  onPickPart,
+}: {
+  gateOn: number;
+  highlight: Part;
+  onPickPart: (p: Part) => void;
+}) {
   const electronsRef = useRef<THREE.InstancedMesh>(null);
   const gateRef = useRef<THREE.Mesh>(null);
   const oxideRef = useRef<THREE.Mesh>(null);
+  const sourceRef = useRef<THREE.Mesh>(null);
+  const drainRef = useRef<THREE.Mesh>(null);
+  const substrateRef = useRef<THREE.Mesh>(null);
+
+  const partGlow = (ref: React.RefObject<THREE.Mesh | null>, name: Part, base: string) => {
+    if (!ref.current) return;
+    const m = ref.current.material as THREE.MeshStandardMaterial;
+    m.emissive.set(parchment.gateOn);
+    const isHi = highlight === name;
+    m.emissiveIntensity = isHi ? 0.45 + Math.sin(performance.now() * 0.006) * 0.12 : 0;
+    if (!isHi) m.color.set(base);
+  };
 
   const electrons = useMemo(
     () =>
@@ -55,12 +77,20 @@ function MOSFET({ gateOn }: { gateOn: number }) {
       const c = new THREE.Color(parchment.gate).lerp(new THREE.Color(parchment.gateOn), gateOn);
       mat.color.copy(c);
       mat.emissive.set(parchment.gateOn);
-      mat.emissiveIntensity = gateOn * 0.35;
+      // base intensity from V_G; pulse boost if highlighted
+      const baseI = gateOn * 0.35;
+      const hiBoost = highlight === 'gate' ? 0.4 + Math.sin(performance.now() * 0.006) * 0.15 : 0;
+      mat.emissiveIntensity = baseI + hiBoost;
     }
     if (oxideRef.current) {
       const mat = oxideRef.current.material as THREE.MeshStandardMaterial;
-      mat.opacity = 0.18 + gateOn * 0.22;
+      mat.opacity = 0.18 + gateOn * 0.22 + (highlight === 'oxide' ? 0.25 : 0);
+      mat.emissive.set(parchment.gateOn);
+      mat.emissiveIntensity = highlight === 'oxide' ? 0.3 : 0;
     }
+    partGlow(sourceRef, 'source', parchment.doped);
+    partGlow(drainRef, 'drain', parchment.doped);
+    partGlow(substrateRef, 'substrate', parchment.substrate);
 
     if (electronsRef.current) {
       for (let i = 0; i < N_ELECTRONS; i++) {
@@ -101,26 +131,26 @@ function MOSFET({ gateOn }: { gateOn: number }) {
 
   return (
     <group>
-      <mesh position={[0, -SUB_H / 2 - 0.05, 0]}>
+      <mesh ref={substrateRef} position={[0, -SUB_H / 2 - 0.05, 0]} onClick={() => onPickPart('substrate')}>
         <boxGeometry args={[SUB_W, SUB_H, SUB_D]} />
         <meshStandardMaterial color={parchment.substrate} roughness={0.85} metalness={0.05} />
       </mesh>
 
-      <mesh position={[-2.25, -0.05, 0]}>
+      <mesh ref={sourceRef} position={[-2.25, -0.05, 0]} onClick={() => onPickPart('source')}>
         <boxGeometry args={[1.5, 0.18, SUB_D - 0.1]} />
         <meshStandardMaterial color={parchment.doped} roughness={0.6} metalness={0.1} />
       </mesh>
-      <mesh position={[2.25, -0.05, 0]}>
+      <mesh ref={drainRef} position={[2.25, -0.05, 0]} onClick={() => onPickPart('drain')}>
         <boxGeometry args={[1.5, 0.18, SUB_D - 0.1]} />
         <meshStandardMaterial color={parchment.doped} roughness={0.6} metalness={0.1} />
       </mesh>
 
-      <mesh ref={oxideRef} position={[0, 0.18, 0]}>
+      <mesh ref={oxideRef} position={[0, 0.18, 0]} onClick={() => onPickPart('oxide')}>
         <boxGeometry args={[CHANNEL_X_MAX - CHANNEL_X_MIN + 0.3, 0.08, SUB_D - 0.05]} />
         <meshStandardMaterial color={parchment.oxide} transparent opacity={0.25} roughness={0.3} metalness={0.1} />
       </mesh>
 
-      <mesh ref={gateRef} position={[0, 0.32, 0]}>
+      <mesh ref={gateRef} position={[0, 0.32, 0]} onClick={() => onPickPart('gate')}>
         <boxGeometry args={[CHANNEL_X_MAX - CHANNEL_X_MIN + 0.4, 0.16, SUB_D + 0.1]} />
         <meshStandardMaterial color={parchment.gate} emissive={parchment.gateOn} emissiveIntensity={0} roughness={0.55} metalness={0.2} />
       </mesh>
@@ -163,6 +193,7 @@ function useGateVoltage(): number {
 
 export function LevelElectrons() {
   const gateOn = useGateVoltage();
+  const [highlight, setHighlight] = useState<Part>(null);
 
   return (
     <div style={containerStyle} data-testid="level-electrons">
@@ -173,7 +204,7 @@ export function LevelElectrons() {
         <ambientLight intensity={0.65} />
         <directionalLight position={[5, 8, 4]} intensity={0.9} />
         <directionalLight position={[-5, 4, -4]} intensity={0.35} color={parchment.oxide} />
-        <MOSFET gateOn={gateOn} />
+        <MOSFET gateOn={gateOn} highlight={highlight} onPickPart={setHighlight} />
         <OrbitControls enablePan={false} minDistance={4} maxDistance={12} />
       </Canvas>
       <div style={overlayStyle}>
@@ -190,6 +221,34 @@ export function LevelElectrons() {
             {gateOn.toFixed(2)}
           </span>
         </div>
+        {highlight && (
+          <div style={{ color: parchment.highlight, fontSize: 11, marginTop: 8 }} data-testid="highlight-readout">
+            highlighted: <strong>{highlight}</strong>
+          </div>
+        )}
+      </div>
+
+      {/* HTML overlay artifacts — deterministic test targets */}
+      <div style={partPickerStyle} data-testid="part-picker">
+        {(['gate', 'oxide', 'source', 'drain', 'substrate'] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setHighlight(p)}
+            data-testid={`pick-part-${p}`}
+            aria-pressed={highlight === p}
+            style={partBtn(highlight === p)}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() => setHighlight(null)}
+          data-testid="pick-part-clear"
+          aria-pressed={highlight === null}
+          style={partBtn(highlight === null)}
+        >
+          clear
+        </button>
       </div>
     </div>
   );
@@ -230,3 +289,30 @@ const meterFill: React.CSSProperties = {
   background: parchment.gateOn,
   transition: 'width 80ms linear',
 };
+
+const partPickerStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 12,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  gap: 6,
+  padding: '6px 8px',
+  background: 'rgba(241,231,205,0.92)',
+  border: `1px solid ${parchment.rule}`,
+  borderRadius: 6,
+};
+
+function partBtn(active: boolean): React.CSSProperties {
+  return {
+    padding: '4px 10px',
+    background: active ? parchment.gateOn : 'transparent',
+    color: active ? '#fff' : parchment.ink,
+    border: `1px solid ${parchment.rule}`,
+    borderRadius: 3,
+    cursor: 'pointer',
+    fontSize: 11,
+    fontFamily: 'inherit',
+    fontWeight: active ? 600 : 400,
+  };
+}

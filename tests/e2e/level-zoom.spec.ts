@@ -17,7 +17,7 @@ test.describe('Level zoom (transistor ↔ electrons)', () => {
 
   test('starts at the transistor level (level 7)', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('level-pane-transistor')).toBeVisible();
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
     await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 7/i);
     await expect(page.getByTestId('level-breadcrumb')).toContainText('Transistor');
     // Canvas element rendered by react-three-fiber
@@ -33,8 +33,8 @@ test.describe('Level zoom (transistor ↔ electrons)', () => {
   test('clicking zoom-in transitions to electrons (level 8)', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('zoom-in').click();
-    await expect(page.getByTestId('level-pane-electrons')).toBeVisible();
-    await expect(page.getByTestId('level-pane-transistor')).toBeHidden();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 8/i);
     await expect(page.getByTestId('level-breadcrumb')).toContainText('Electrons');
   });
@@ -50,8 +50,8 @@ test.describe('Level zoom (transistor ↔ electrons)', () => {
     await page.goto('/');
     await page.getByTestId('zoom-in').click();
     await page.getByTestId('zoom-out').click();
-    await expect(page.getByTestId('level-pane-transistor')).toBeVisible();
-    await expect(page.getByTestId('level-pane-electrons')).toBeHidden();
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'true');
   });
 
   test('full round-trip: trans → electrons → trans → electrons', async ({ page }) => {
@@ -63,7 +63,7 @@ test.describe('Level zoom (transistor ↔ electrons)', () => {
     ] as const;
     for (const [btn, expectedPane, expectedDepth] of sequence) {
       await page.getByTestId(btn).click();
-      await expect(page.getByTestId(expectedPane)).toBeVisible();
+      await expect(page.getByTestId(expectedPane)).toHaveAttribute('aria-hidden', 'false');
       await expect(page.getByTestId('level-breadcrumb')).toContainText(expectedDepth);
     }
   });
@@ -91,18 +91,23 @@ test.describe('Level zoom (transistor ↔ electrons)', () => {
     // Force-click bypasses Playwright's actionability check; aria-disabled
     // would normally block, but we want to prove the state-machine ignores it.
     await page.getByTestId('zoom-in').click({ force: true });
-    await expect(page.getByTestId('level-pane-electrons')).toBeVisible();
+    await expect(page.getByTestId('level-pane-electrons')).toHaveAttribute('aria-hidden', 'false');
     await expect(page.getByTestId('level-breadcrumb')).toContainText('Electrons');
   });
 
-  test('orbit-only canvas controls do not change level', async ({ page }) => {
+  test('canvas mouse drag does not change level', async ({ page }) => {
+    // The cross-fade design layers two canvases — both panes are mounted with
+    // the inactive one at pointer-events: none. We test that nothing in the
+    // canvas area changes the level state — only the explicit zoom-in/out
+    // buttons do. Use a coordinate-based drag inside the active pane.
     await page.goto('/');
-    const canvas = page.locator('canvas').first();
-    await canvas.hover();
+    const pane = page.getByTestId('level-pane-transistor');
+    const box = await pane.boundingBox();
+    if (!box) throw new Error('transistor pane not laid out');
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
-    await page.mouse.move(120, 80);
+    await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2 + 50);
     await page.mouse.up();
-    // Still on transistor.
-    await expect(page.getByTestId('level-pane-transistor')).toBeVisible();
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
   });
 });
