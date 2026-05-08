@@ -1,0 +1,19 @@
+# interface — 00_computer/01_chip/02_core/03_frontend/04_fetchbuffer
+
+> Phase 1. **Owned by the PARENT folder.** Children import; only parent edits.
+
+## Symbols this level emits UP
+
+| symbol | meaning | latched on |
+|---|---|---|
+| TODO | TODO | TODO |
+
+## Symbols this level expects DOWN
+
+| symbol | meaning | producer (child folder) |
+|---|---|---|
+| TODO | TODO | TODO |
+
+## Cross-cutting refs
+
+- TODO
