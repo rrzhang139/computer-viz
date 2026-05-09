@@ -43,8 +43,8 @@ function App() {
         </h2>
         <LevelView />
         <p style={{ color: colors.edge, fontSize: 12, marginTop: 10 }}>
-          Right-side toolbar: zoom in / out between Transistor (level 7) and Electrons (level 8).
-          Use the tick / µ-tick buttons to pulse the gate; the channel and electrons respond.
+          Click any of the four MOSFETs in the gate (level 6) to fly the camera in to one transistor (level 7).
+          Use the tick / µ-tick buttons to pulse V_G; the polysilicon strip warms and the channel under the oxide glows.
         </p>
       </section>
 

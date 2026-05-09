@@ -1,49 +1,49 @@
 // LevelView — both panes always mounted; cross-fade driven by `level`.
 //
-// Interaction model:
-//   - User clicks a MOSFET in LevelTransistor (or its data-testid="zoom-target-{i}"
-//     overlay button).
-//   - LevelTransistor's CameraRig animates camera toward that MOSFET.
-//   - When camera is close (~0.6 units), CameraRig fires onArrived(idx).
-//   - LevelView switches level → 'electrons'; cross-fade transitions panes.
+// Levels:
+//   gate (depth 6)        — a logic gate built from 4 transistors (the row).
+//   transistor (depth 7)  — a single MOSFET (the voltage-controlled switch).
 //
-// Going back:
-//   - Press Escape, OR click the "← back" button in the right toolbar.
-//   - LevelView sets level → 'transistor', clears zoomTarget.
-//   - Cross-fade reverses; transistor's CameraRig animates camera back home.
+// Interaction:
+//   - On the Gate level, click any of the 4 transistor meshes (or its
+//     data-testid="zoom-target-{i}" overlay button). LevelGate's CameraRig
+//     flies the camera toward it; when close, onArrived fires and LevelView
+//     switches level → 'transistor'; cross-fade transitions panes.
+//   - Going back: Esc or "← back" button → setLevel('gate'), clears zoom
+//     target + part highlight.
 
 import { useCallback, useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { LevelGate } from './LevelGate';
 import { LevelTransistor } from './LevelTransistor';
-import { LevelElectrons } from './LevelElectrons';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
 import {
-  electronsDefaultSpotlight,
+  gateSpotlight,
   partSpotlights,
-  transistorSpotlight,
+  transistorDefaultSpotlight,
   type ElectronsPart,
 } from './descriptions';
 
-type LevelKey = 'transistor' | 'electrons';
+type LevelKey = 'gate' | 'transistor';
 
 const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: number }> = {
+  gate: {
+    title: 'Gate',
+    subtitle: 'a logic gate (4× [T])',
+    depth: 6,
+  },
   transistor: {
     title: 'Transistor',
     subtitle: 'a voltage-controlled switch ([T])',
     depth: 7,
   },
-  electrons: {
-    title: 'Electrons',
-    subtitle: 'carrier drift through the channel',
-    depth: 8,
-  },
 };
 
 export function LevelView() {
-  const [level, setLevel] = useState<LevelKey>('transistor');
+  const [level, setLevel] = useState<LevelKey>('gate');
   const [zoomTarget, setZoomTarget] = useState<number | null>(null);
-  const [electronsHighlight, setElectronsHighlight] = useState<ElectronsPart>(null);
+  const [transistorHighlight, setTransistorHighlight] = useState<ElectronsPart>(null);
   const stepCycle = useExecution((s) => s.stepCycle);
   const stepMicro = useExecution((s) => s.stepMicro);
 
@@ -51,28 +51,28 @@ export function LevelView() {
     setZoomTarget(idx);
   }, []);
   const handleArrived = useCallback(() => {
-    setLevel('electrons');
+    setLevel('transistor');
   }, []);
   const handleBack = useCallback(() => {
-    setLevel('transistor');
+    setLevel('gate');
     setZoomTarget(null);
-    setElectronsHighlight(null);
+    setTransistorHighlight(null);
   }, []);
 
-  // Pick the spotlight content based on level + (within Electrons) highlight.
+  // Spotlight: level + (when on Transistor) part highlight.
   const spotlight =
-    level === 'transistor'
-      ? transistorSpotlight
-      : electronsHighlight
-        ? partSpotlights[electronsHighlight]
-        : electronsDefaultSpotlight;
+    level === 'gate'
+      ? gateSpotlight
+      : transistorHighlight
+        ? partSpotlights[transistorHighlight]
+        : transistorDefaultSpotlight;
   const spotlightKey =
-    level === 'transistor' ? 'transistor' : electronsHighlight ?? 'electrons-default';
+    level === 'gate' ? 'gate' : transistorHighlight ?? 'transistor-default';
 
-  // Esc returns to transistor row.
+  // Esc returns to gate (only meaningful when zoomed into a transistor).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && level === 'electrons') {
+      if (e.key === 'Escape' && level === 'transistor') {
         handleBack();
       }
     };
@@ -82,18 +82,17 @@ export function LevelView() {
 
   const meta = LEVEL_META[level];
 
-  // Both panes mounted; only one is "active" (opaque, fully scaled). The other
-  // is faded + scaled away. Transistor scales UP when inactive (we left it
-  // behind), Electrons scales DOWN when inactive (we haven't reached it).
+  // Cross-fade: gate (outside) scales up when inactive ("we left it behind"),
+  // transistor (inside) scales down when inactive ("we haven't reached it").
+  const gateAnim = {
+    opacity: level === 'gate' ? 1 : 0,
+    scale: level === 'gate' ? 1 : 1.15,
+    filter: level === 'gate' ? 'blur(0px)' : 'blur(6px)',
+  };
   const transistorAnim = {
     opacity: level === 'transistor' ? 1 : 0,
-    scale: level === 'transistor' ? 1 : 1.15,
+    scale: level === 'transistor' ? 1 : 0.85,
     filter: level === 'transistor' ? 'blur(0px)' : 'blur(6px)',
-  };
-  const electronsAnim = {
-    opacity: level === 'electrons' ? 1 : 0,
-    scale: level === 'electrons' ? 1 : 0.85,
-    filter: level === 'electrons' ? 'blur(0px)' : 'blur(6px)',
   };
   const transition = { duration: 0.7, ease: [0.65, 0, 0.35, 1] as const };
 
@@ -102,27 +101,23 @@ export function LevelView() {
       <div style={canvasFrame}>
         <motion.div
           initial={false}
+          animate={gateAnim}
+          transition={transition}
+          style={{ ...paneStyle, pointerEvents: level === 'gate' ? 'auto' : 'none' }}
+          aria-hidden={level !== 'gate'}
+          data-testid="level-pane-gate"
+        >
+          <LevelGate zoomTarget={zoomTarget} onZoomTo={handleZoomTo} onArrived={handleArrived} />
+        </motion.div>
+        <motion.div
+          initial={false}
           animate={transistorAnim}
           transition={transition}
           style={{ ...paneStyle, pointerEvents: level === 'transistor' ? 'auto' : 'none' }}
           aria-hidden={level !== 'transistor'}
           data-testid="level-pane-transistor"
         >
-          <LevelTransistor
-            zoomTarget={zoomTarget}
-            onZoomTo={handleZoomTo}
-            onArrived={handleArrived}
-          />
-        </motion.div>
-        <motion.div
-          initial={false}
-          animate={electronsAnim}
-          transition={transition}
-          style={{ ...paneStyle, pointerEvents: level === 'electrons' ? 'auto' : 'none' }}
-          aria-hidden={level !== 'electrons'}
-          data-testid="level-pane-electrons"
-        >
-          <LevelElectrons highlight={electronsHighlight} onHighlight={setElectronsHighlight} />
+          <LevelTransistor highlight={transistorHighlight} onHighlight={setTransistorHighlight} />
         </motion.div>
       </div>
 
@@ -137,10 +132,10 @@ export function LevelView() {
 
         <button
           onClick={handleBack}
-          disabled={level === 'transistor'}
+          disabled={level === 'gate'}
           aria-label="back / zoom out"
           data-testid="back"
-          style={backBtn(level === 'transistor')}
+          style={backBtn(level === 'gate')}
         >
           <span style={{ fontSize: 16, lineHeight: 1 }}>←</span>
           <span style={{ fontSize: 11, marginTop: 2 }}>back</span>

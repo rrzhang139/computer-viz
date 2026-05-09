@@ -14,11 +14,11 @@ code {
 /* Inactive level pane must NOT intercept pointer events. r3f's Canvas sets
    its own pointer-events on the inner <canvas>, so the parent's
    pointer-events:none doesn't cascade by default. Force it here. */
-[data-testid="level-pane-transistor"][aria-hidden="true"],
-[data-testid="level-pane-electrons"][aria-hidden="true"] {
+[data-testid="level-pane-gate"][aria-hidden="true"],
+[data-testid="level-pane-transistor"][aria-hidden="true"] {
   pointer-events: none !important;
 }
-[data-testid="level-pane-transistor"][aria-hidden="true"] *,
-[data-testid="level-pane-electrons"][aria-hidden="true"] * {
+[data-testid="level-pane-gate"][aria-hidden="true"] *,
+[data-testid="level-pane-transistor"][aria-hidden="true"] * {
   pointer-events: none !important;
 }

@@ -1,276 +1,226 @@
-// LevelTransistor — Tier 2 row of MOSFETs as discrete switches.
+// LevelTransistor — Tier 2 view of a single MOSFET (NMOS).
 //
-// Interaction model:
-//   - Hover a MOSFET (or its anchored Html button) → highlight + cursor pointer.
-//   - Click a MOSFET (or its button) → camera flies toward that MOSFET, and
-//     once it gets close, the parent (LevelView) swaps to LevelElectrons.
-//   - No "zoom in" button — the meshes themselves are the zoom targets.
+// This is the deepest level (level 7). The transistor is the smallest reusable
+// digital primitive — a voltage-controlled switch. We show its physical
+// structure (substrate / source / drain / oxide / gate / contacts) and the
+// gate-on / gate-off behavior via material color cues. Carrier particles are
+// intentionally NOT modeled — the level is about the device, not the physics
+// of conduction.
 //
-// Test handles: each MOSFET has an <Html> overlay button with
-// data-testid="zoom-target-{i}". Buttons are anchored at the mesh's world
-// position so they follow the camera. Tests can click them deterministically.
+// Geometry (LEFT=source data, RIGHT=drain output, TOP=gate control):
+//   substrate slab in y<0 (warm sepia silicon)
+//   source (n+) at LEFT, drain at RIGHT (muted slate-blue tint)
+//   gate oxide as a thin translucent slab over the channel
+//   polysilicon gate strip — terracotta when V_G high, ink-brown when low
+//   "channel" plate under the oxide that glows when V_G high (carrier
+//   inversion stand-in, no individual particles)
+//
+// Driven by global executionState: gate voltage rises on even cycles, falls
+// on odd, with microStep providing sub-cycle smoothing.
 
-import { useEffect, useRef, useState } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, Text } from '@react-three/drei';
+import { useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
+import type { ElectronsPart } from './descriptions';
 
-const POSITIONS: readonly [number, number, number][] = [
-  [-3.6, 0, 0],
-  [-1.2, 0, 0],
-  [1.2, 0, 0],
-  [3.6, 0, 0],
-];
+type Part = ElectronsPart;
 
-const HOME_POS = new THREE.Vector3(0, 5, 13);
-const HOME_LOOK = new THREE.Vector3(0, 0, 0);
+const SUB_W = 6;
+const SUB_H = 0.6;
+const SUB_D = 1.6;
+const CHANNEL_X_MAX = 1.5;
+const CHANNEL_X_MIN = -1.5;
 
-function targetPoseFor(idx: number): { pos: THREE.Vector3; look: THREE.Vector3 } {
-  const x = POSITIONS[idx][0];
-  return {
-    pos: new THREE.Vector3(x, 2, 4.5), // close to the picked MOSFET
-    look: new THREE.Vector3(x, 0, 0),
-  };
-}
-
-interface MosfetProps {
-  position: [number, number, number];
-  idx: number;
-  hovered: boolean;
-  active: boolean;
-  on: number;
-  onHover: (idx: number | null) => void;
-  onClick: (idx: number) => void;
-}
-
-function Mosfet({ position, idx, hovered, active, on, onHover, onClick }: MosfetProps) {
+function MOSFET({
+  gateOn,
+  highlight,
+  onPickPart,
+}: {
+  gateOn: number;
+  highlight: Part;
+  onPickPart: (p: Part) => void;
+}) {
   const gateRef = useRef<THREE.Mesh>(null);
+  const oxideRef = useRef<THREE.Mesh>(null);
   const channelRef = useRef<THREE.Mesh>(null);
-  const groupRef = useRef<THREE.Group>(null);
+  const sourceRef = useRef<THREE.Mesh>(null);
+  const drainRef = useRef<THREE.Mesh>(null);
+  const substrateRef = useRef<THREE.Mesh>(null);
+
+  const partGlow = (
+    ref: React.RefObject<THREE.Mesh | null>,
+    name: Part,
+    base: string,
+  ) => {
+    if (!ref.current) return;
+    const m = ref.current.material as THREE.MeshStandardMaterial;
+    m.emissive.set(parchment.gateOn);
+    const isHi = highlight === name;
+    m.emissiveIntensity = isHi ? 0.45 + Math.sin(performance.now() * 0.006) * 0.12 : 0;
+    if (!isHi) m.color.set(base);
+  };
 
   useFrame(() => {
+    // Gate strip: lerp ink-brown → terracotta with V_G; pulse if highlighted.
     if (gateRef.current) {
-      const m = gateRef.current.material as THREE.MeshStandardMaterial;
-      const c = new THREE.Color(parchment.gate).lerp(new THREE.Color(parchment.gateOn), active ? on : 0);
-      m.color.copy(c);
-      m.emissive.set(parchment.gateOn);
-      m.emissiveIntensity = active ? on * 0.3 : 0;
+      const mat = gateRef.current.material as THREE.MeshStandardMaterial;
+      const c = new THREE.Color(parchment.gate).lerp(new THREE.Color(parchment.gateOn), gateOn);
+      mat.color.copy(c);
+      mat.emissive.set(parchment.gateOn);
+      const baseI = gateOn * 0.35;
+      const hiBoost = highlight === 'gate' ? 0.4 + Math.sin(performance.now() * 0.006) * 0.15 : 0;
+      mat.emissiveIntensity = baseI + hiBoost;
     }
+    // Oxide: opacity tracks V_G (more visible when active); extra brighten if highlighted.
+    if (oxideRef.current) {
+      const mat = oxideRef.current.material as THREE.MeshStandardMaterial;
+      mat.opacity = 0.18 + gateOn * 0.22 + (highlight === 'oxide' ? 0.25 : 0);
+      mat.emissive.set(parchment.gateOn);
+      mat.emissiveIntensity = highlight === 'oxide' ? 0.3 : 0;
+    }
+    // Channel under the oxide — glows when V_G high (the inversion layer).
+    // This is the visual stand-in for "carriers can flow now."
     if (channelRef.current) {
       const mat = channelRef.current.material as THREE.MeshStandardMaterial;
-      const intensity = active ? on : 0;
-      mat.emissiveIntensity = intensity * 0.45;
-      mat.opacity = 0.22 + intensity * 0.45;
+      mat.emissive.set(parchment.electronGlow);
+      mat.emissiveIntensity = gateOn * 0.55;
+      mat.opacity = 0.15 + gateOn * 0.5;
     }
-    if (groupRef.current) {
-      // Active MOSFET bobs subtly. Hovered MOSFET lifts a touch (clickability cue).
-      const lift = (hovered ? 0.15 : 0) + (active ? Math.sin(performance.now() * 0.003) * 0.04 : 0);
-      groupRef.current.position.y = position[1] + lift;
-    }
+    partGlow(sourceRef, 'source', parchment.doped);
+    partGlow(drainRef, 'drain', parchment.doped);
+    partGlow(substrateRef, 'substrate', parchment.substrate);
   });
 
   return (
-    <group
-      ref={groupRef}
-      position={position}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        onHover(idx);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        onHover(null);
-        document.body.style.cursor = 'auto';
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(idx);
-      }}
-    >
-      <mesh position={[0, -0.3, 0]}>
-        <boxGeometry args={[2.5, 0.4, 1]} />
-        <meshStandardMaterial color={parchment.substrate} roughness={0.85} />
+    <group>
+      <mesh ref={substrateRef} position={[0, -SUB_H / 2 - 0.05, 0]} onClick={() => onPickPart('substrate')}>
+        <boxGeometry args={[SUB_W, SUB_H, SUB_D]} />
+        <meshStandardMaterial color={parchment.substrate} roughness={0.85} metalness={0.05} />
       </mesh>
-      <mesh position={[-0.85, -0.05, 0]}>
-        <boxGeometry args={[0.6, 0.12, 0.85]} />
-        <meshStandardMaterial color={parchment.doped} />
+
+      <mesh ref={sourceRef} position={[-2.25, -0.05, 0]} onClick={() => onPickPart('source')}>
+        <boxGeometry args={[1.5, 0.18, SUB_D - 0.1]} />
+        <meshStandardMaterial color={parchment.doped} roughness={0.6} metalness={0.1} />
       </mesh>
-      <mesh position={[0.85, -0.05, 0]}>
-        <boxGeometry args={[0.6, 0.12, 0.85]} />
-        <meshStandardMaterial color={parchment.doped} />
+      <mesh ref={drainRef} position={[2.25, -0.05, 0]} onClick={() => onPickPart('drain')}>
+        <boxGeometry args={[1.5, 0.18, SUB_D - 0.1]} />
+        <meshStandardMaterial color={parchment.doped} roughness={0.6} metalness={0.1} />
       </mesh>
-      <mesh ref={channelRef} position={[0, 0.05, 0]}>
-        <boxGeometry args={[1.05, 0.08, 0.8]} />
-        <meshStandardMaterial color={parchment.electron} emissive={parchment.electronGlow} emissiveIntensity={0} transparent opacity={0.22} />
+
+      {/* The "channel" — inversion layer under the oxide. Glows when V_G high. */}
+      <mesh ref={channelRef} position={[0, 0.06, 0]}>
+        <boxGeometry args={[CHANNEL_X_MAX - CHANNEL_X_MIN, 0.04, SUB_D - 0.15]} />
+        <meshStandardMaterial
+          color={parchment.electron}
+          emissive={parchment.electronGlow}
+          emissiveIntensity={0}
+          transparent
+          opacity={0.15}
+        />
       </mesh>
-      <mesh ref={gateRef} position={[0, 0.18, 0]}>
-        <boxGeometry args={[0.4, 0.1, 1.1]} />
+
+      <mesh ref={oxideRef} position={[0, 0.18, 0]} onClick={() => onPickPart('oxide')}>
+        <boxGeometry args={[CHANNEL_X_MAX - CHANNEL_X_MIN + 0.3, 0.08, SUB_D - 0.05]} />
+        <meshStandardMaterial color={parchment.oxide} transparent opacity={0.25} roughness={0.3} metalness={0.1} />
+      </mesh>
+
+      <mesh ref={gateRef} position={[0, 0.32, 0]} onClick={() => onPickPart('gate')}>
+        <boxGeometry args={[CHANNEL_X_MAX - CHANNEL_X_MIN + 0.4, 0.16, SUB_D + 0.1]} />
         <meshStandardMaterial color={parchment.gate} emissive={parchment.gateOn} emissiveIntensity={0} roughness={0.55} metalness={0.2} />
       </mesh>
 
-      {/* Hover ring — cyan-tinted: "this is clickable" */}
-      {hovered && (
-        <mesh position={[0, -0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.40, 1.65, 32]} />
-          <meshBasicMaterial color={parchment.gateOn} transparent opacity={0.7} />
-        </mesh>
-      )}
+      <mesh position={[-2.7, 0.45, 0]}>
+        <boxGeometry args={[0.4, 0.6, 0.6]} />
+        <meshStandardMaterial color={parchment.contact} metalness={0.5} roughness={0.45} />
+      </mesh>
+      <mesh position={[2.7, 0.45, 0]}>
+        <boxGeometry args={[0.4, 0.6, 0.6]} />
+        <meshStandardMaterial color={parchment.contact} metalness={0.5} roughness={0.45} />
+      </mesh>
+      <mesh position={[0, 0.85, 0]}>
+        <boxGeometry args={[0.45, 0.65, 0.45]} />
+        <meshStandardMaterial color={parchment.contact} metalness={0.5} roughness={0.45} />
+      </mesh>
 
-      {/* Active ring — russet: "this is the current MOSFET" */}
-      {active && (
-        <mesh position={[0, -0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.45, 1.55, 32]} />
-          <meshBasicMaterial color={parchment.highlight} />
-        </mesh>
-      )}
+      <Text position={[-2.7, 1.0, 0]} fontSize={0.18} color={parchment.ink} anchorX="center">S</Text>
+      <Text position={[2.7, 1.0, 0]} fontSize={0.18} color={parchment.ink} anchorX="center">D</Text>
+      <Text position={[0, 1.4, 0]} fontSize={0.18} color={parchment.gateOn} anchorX="center">G</Text>
     </group>
   );
 }
 
-// Time-based camera fly. Frame-rate independent so Playwright (which can
-// throttle requestAnimationFrame in headless workers) reaches "arrived" in
-// real wall-clock time. Duration ≈ 1.0 s; a small extra hold before firing
-// onArrived ensures the cross-fade kicks in once the camera is visibly close.
-const FLY_DURATION_S = 1.0;
-
-function CameraRig({
-  targetIdx,
-  onArrived,
-}: {
-  targetIdx: number | null;
-  onArrived: (idx: number) => void;
-}) {
-  const camera = useThree((s) => s.camera);
-  const arrivedFor = useRef<number | null>(null);
-  const lastTarget = useRef<number | null>(null);
-  const flyStartMs = useRef<number | null>(null);
-  const startPos = useRef(new THREE.Vector3());
-  const startLook = useRef(new THREE.Vector3().copy(HOME_LOOK));
-  const lookVec = useRef(new THREE.Vector3().copy(HOME_LOOK));
-
-  useFrame(() => {
-    // On target change, snapshot start pose + reset timer.
-    if (lastTarget.current !== targetIdx) {
-      lastTarget.current = targetIdx;
-      flyStartMs.current = performance.now();
-      startPos.current.copy(camera.position);
-      startLook.current.copy(lookVec.current);
-      if (targetIdx === null) arrivedFor.current = null;
-    }
-
-    const want = targetIdx === null
-      ? { pos: HOME_POS, look: HOME_LOOK }
-      : targetPoseFor(targetIdx);
-    const elapsed = (performance.now() - (flyStartMs.current ?? 0)) / 1000;
-    const t = Math.min(1, elapsed / FLY_DURATION_S);
-    // Cubic ease-in-out for natural microscope feel.
-    const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-
-    camera.position.lerpVectors(startPos.current, want.pos, e);
-    lookVec.current.lerpVectors(startLook.current, want.look, e);
-    camera.lookAt(lookVec.current);
-
-    if (targetIdx !== null && arrivedFor.current !== targetIdx && t >= 1) {
-      arrivedFor.current = targetIdx;
-      onArrived(targetIdx);
-    }
-  });
-
-  return null;
-}
-
-function HoverTargets({
-  onHover,
-  onClick,
-}: {
-  onHover: (idx: number | null) => void;
-  onClick: (idx: number) => void;
-}) {
-  return (
-    <>
-      {POSITIONS.map((pos, i) => (
-        <Html key={i} position={[pos[0], 1.0, 0]} center distanceFactor={9}>
-          <button
-            data-testid={`zoom-target-${i}`}
-            aria-label={`zoom to transistor ${i}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick(i);
-            }}
-            onMouseEnter={() => onHover(i)}
-            onMouseLeave={() => onHover(null)}
-            style={hoverBtnStyle}
-          >
-            T{i}
-          </button>
-        </Html>
-      ))}
-    </>
-  );
-}
-
-interface Props {
-  zoomTarget: number | null;
-  onZoomTo: (idx: number) => void;
-  onArrived: (idx: number) => void;
-}
-
-export function LevelTransistor({ zoomTarget, onZoomTo, onArrived }: Props) {
+function useGateVoltage(): number {
   const cycle = useExecution((s) => s.cycle);
   const microStep = useExecution((s) => s.microStep);
-  const [hovered, setHovered] = useState<number | null>(null);
-
   const base = cycle % 2 === 0 ? 0 : 1;
   const ramp = Math.min(0.4, microStep * 0.08);
-  const gateOn = Math.max(0, Math.min(1, base + (base === 0 ? ramp : -ramp)));
-  // Picked transistor wins; otherwise auto-cycle on each clock tick.
-  const activeIdx = zoomTarget ?? cycle % 4;
+  return Math.max(0, Math.min(1, base + (base === 0 ? ramp : -ramp)));
+}
 
-  // Reset cursor on unmount in case hover leaves it pointer.
-  useEffect(() => {
-    return () => {
-      document.body.style.cursor = 'auto';
-    };
-  }, []);
+interface TransistorProps {
+  highlight: Part;
+  onHighlight: (p: Part) => void;
+}
+
+export function LevelTransistor({ highlight, onHighlight }: TransistorProps) {
+  const gateOn = useGateVoltage();
+  const setHighlight = onHighlight;
 
   return (
     <div style={containerStyle} data-testid="level-transistor">
-      <Canvas camera={{ position: [0, 5, 13], fov: 38 }} style={{ width: '100%', height: '100%', background: parchment.bg }}>
+      <Canvas
+        camera={{ position: [3, 3, 5], fov: 35 }}
+        style={{ width: '100%', height: '100%', background: parchment.bg }}
+      >
         <ambientLight intensity={0.65} />
-        <directionalLight position={[4, 8, 5]} intensity={0.9} />
-        <directionalLight position={[-4, 4, -3]} intensity={0.35} color={parchment.oxide} />
-        <CameraRig targetIdx={zoomTarget} onArrived={onArrived} />
-        {POSITIONS.map((pos, i) => (
-          <Mosfet
-            key={i}
-            position={pos}
-            idx={i}
-            hovered={hovered === i}
-            active={i === activeIdx}
-            on={gateOn}
-            onHover={setHovered}
-            onClick={onZoomTo}
-          />
-        ))}
-        <HoverTargets onHover={setHovered} onClick={onZoomTo} />
-        <Text position={[0, 2.0, 0]} fontSize={0.28} color={parchment.inkSoft} anchorX="center">
-          4× [T] — hover to highlight · click to dive in
-        </Text>
+        <directionalLight position={[5, 8, 4]} intensity={0.9} />
+        <directionalLight position={[-5, 4, -4]} intensity={0.35} color={parchment.oxide} />
+        <MOSFET gateOn={gateOn} highlight={highlight} onPickPart={setHighlight} />
+        <OrbitControls enablePan={false} minDistance={4} maxDistance={12} />
       </Canvas>
-
       <div style={overlayStyle}>
-        <strong style={{ color: parchment.ink }}>Transistor row</strong>
-        <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 4 }}>
-          Each cell is a clickable [T]. Hover any to highlight; click to fly the
-          camera toward it and zoom into the carrier-physics view.
+        <div>
+          <span style={{ color: parchment.gateOn, fontSize: 11 }}>V_G </span>
+          <span style={meterTrack}>
+            <span style={{ ...meterFill, width: `${gateOn * 100}%` }} data-testid="vg-meter-fill" />
+          </span>
+          <span style={{ color: parchment.ink, fontSize: 11, marginLeft: 6, fontFamily: 'ui-monospace, monospace' }}>
+            {gateOn.toFixed(2)}
+          </span>
         </div>
-        {hovered !== null && (
-          <div data-testid="hover-readout" style={{ color: parchment.gateOn, fontSize: 11, marginTop: 6 }}>
-            hovering: <strong>T{hovered}</strong>
+        <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 6 }}>
+          drag to orbit · scroll to zoom
+        </div>
+        {highlight && (
+          <div style={{ color: parchment.highlight, fontSize: 11, marginTop: 6 }} data-testid="highlight-readout">
+            highlighted: <strong>{highlight}</strong>
           </div>
         )}
+      </div>
+
+      <div style={partPickerStyle} data-testid="part-picker">
+        {(['gate', 'oxide', 'source', 'drain', 'substrate'] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setHighlight(p)}
+            data-testid={`pick-part-${p}`}
+            aria-pressed={highlight === p}
+            style={partBtn(highlight === p)}
+          >
+            {p}
+          </button>
+        ))}
+        <button
+          onClick={() => setHighlight(null)}
+          data-testid="pick-part-clear"
+          aria-pressed={highlight === null}
+          style={partBtn(highlight === null)}
+        >
+          clear
+        </button>
       </div>
     </div>
   );
@@ -291,18 +241,50 @@ const overlayStyle: React.CSSProperties = {
   border: `1px solid ${parchment.rule}`,
   borderRadius: 4,
   padding: '8px 12px',
-  width: 240,
+  pointerEvents: 'none',
+  width: 220,
 };
 
-const hoverBtnStyle: React.CSSProperties = {
-  padding: '4px 10px',
-  background: 'rgba(241,231,205,0.85)',
-  color: parchment.ink,
-  border: `1px solid ${parchment.gateOn}`,
-  borderRadius: 3,
-  cursor: 'pointer',
-  fontSize: 11,
-  fontFamily: 'inherit',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
+const meterTrack: React.CSSProperties = {
+  display: 'inline-block',
+  width: 100,
+  height: 6,
+  background: parchment.bgDeep,
+  border: `1px solid ${parchment.rule}`,
+  borderRadius: 2,
+  verticalAlign: 'middle',
 };
+
+const meterFill: React.CSSProperties = {
+  display: 'block',
+  height: '100%',
+  background: parchment.gateOn,
+  transition: 'width 80ms linear',
+};
+
+const partPickerStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 12,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  gap: 6,
+  padding: '6px 8px',
+  background: 'rgba(241,231,205,0.92)',
+  border: `1px solid ${parchment.rule}`,
+  borderRadius: 6,
+};
+
+function partBtn(active: boolean): React.CSSProperties {
+  return {
+    padding: '4px 10px',
+    background: active ? parchment.gateOn : 'transparent',
+    color: active ? '#fff' : parchment.ink,
+    border: `1px solid ${parchment.rule}`,
+    borderRadius: 3,
+    cursor: 'pointer',
+    fontSize: 11,
+    fontFamily: 'inherit',
+    fontWeight: active ? 600 : 400,
+  };
+}

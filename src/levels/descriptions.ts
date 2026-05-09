@@ -1,10 +1,11 @@
 // Contextual descriptions shown in the right-toolbar "Spotlight" card.
 // Each level has a default story (so landing makes sense without clicking),
-// and the Electrons level has per-part definitions tied to the part picker.
-//
-// Keep titles short. Body copy is ~2-3 sentences — long enough to ground the
-// concept, short enough to read at a glance.
+// and the Transistor level has per-part definitions tied to the part picker.
 
+// Names refer to terminals / regions of one MOSFET — these are the part
+// picker entries inside the Transistor level. (The "Gate" *level* — a logic
+// gate built from many transistors — is a separate concept; don't confuse
+// it with the *gate terminal* of one transistor.)
 export type ElectronsPart = 'gate' | 'oxide' | 'source' | 'drain' | 'substrate' | null;
 
 export interface Spotlight {
@@ -13,31 +14,31 @@ export interface Spotlight {
   body: string;
 }
 
-export const transistorSpotlight: Spotlight = {
-  title: 'A row of switches',
-  subtitle: '4× [T] — the smallest digital primitive',
+export const gateSpotlight: Spotlight = {
+  title: 'A logic gate',
+  subtitle: '4× [T] wired together',
   body:
-    "A transistor is a voltage-controlled switch. Modern chips have billions. " +
-    "Click any one to fly the camera in and watch its carriers — actual electrons — drift across the channel.",
+    "A logic gate computes a boolean function (NAND, AND, OR, NOT, XOR) from a small group of transistors. " +
+    "In CMOS, a NAND uses 4: two PMOS in parallel pulling up, two NMOS in series pulling down. " +
+    "Click any one to fly the camera in and look at the transistor itself.",
 };
 
-export const electronsDefaultSpotlight: Spotlight = {
-  title: 'Why electrons move',
-  subtitle: "this is what 'on' means",
+export const transistorDefaultSpotlight: Spotlight = {
+  title: 'A transistor',
+  subtitle: 'a voltage-controlled switch',
   body:
-    "Raise V_G → the gate's electric field pulls electrons from the n+ source into a thin channel under the oxide. " +
-    "They drift right to the drain. That's a logical 1. " +
-    "Lower V_G → no channel, no flow. That's a 0. " +
-    "Every binary value is built from this.",
+    "Raise V_G → the gate's electric field pulls the silicon under the oxide into a conducting channel between source and drain. That's a logical 1. " +
+    "Lower V_G → no channel, no path. That's a 0. " +
+    "Every binary value, every instruction, every register write is built from billions of these.",
 };
 
 export const partSpotlights: Record<Exclude<ElectronsPart, null>, Spotlight> = {
   gate: {
-    title: 'Gate',
-    subtitle: 'polysilicon — the control terminal',
+    title: 'Gate (terminal)',
+    subtitle: 'polysilicon — the control input',
     body:
       "Polysilicon — heavily-doped silicon, so it conducts. Holds the control voltage V_G. " +
-      "When high, its electric field reaches through the oxide and inverts the silicon below from p-type to n-type — opening a channel for electrons.",
+      "When high, its electric field reaches through the oxide and inverts the silicon below from p-type to n-type — opening a channel between source and drain.",
   },
   oxide: {
     title: 'Gate oxide',
@@ -48,20 +49,20 @@ export const partSpotlights: Record<Exclude<ElectronsPart, null>, Spotlight> = {
   },
   source: {
     title: 'Source (n+)',
-    subtitle: 'electron reservoir',
+    subtitle: 'reservoir of mobile electrons',
     body:
-      "Heavily n-doped silicon — silicon laced with phosphorus (or arsenic) so it has an excess of mobile electrons. " +
-      "When the channel opens, electrons enter the channel from here.",
+      "Heavily n-doped silicon — laced with phosphorus or arsenic so it has an excess of mobile electrons. " +
+      "When the channel opens, electrons enter from here.",
   },
   drain: {
     title: 'Drain (n+)',
-    subtitle: 'electron exit',
+    subtitle: 'where current exits',
     body:
       "Same n+ silicon as the source, on the other side. A small voltage V_DS between source and drain creates the field that pulls electrons across the now-conducting channel.",
   },
   substrate: {
     title: 'Substrate (p-type bulk)',
-    subtitle: 'silicon body — the default state',
+    subtitle: 'the silicon body — default OFF state',
     body:
       "Lightly p-doped silicon. By default the region under the oxide is p-type — electrons can't flow from the n+ source to the n+ drain because of the p-region in between. " +
       "The gate field temporarily inverts that region. That's the whole trick.",
