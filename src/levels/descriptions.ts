@@ -24,12 +24,13 @@ export const gateSpotlight: Spotlight = {
 };
 
 export const transistorDefaultSpotlight: Spotlight = {
-  title: 'A transistor',
-  subtitle: 'a voltage-controlled switch',
+  title: 'NMOS vs PMOS',
+  subtitle: 'two complementary switches',
   body:
-    "Raise V_G → the gate's electric field pulls the silicon under the oxide into a conducting channel between source and drain. That's a logical 1. " +
-    "Lower V_G → no channel, no path. That's a 0. " +
-    "Every binary value, every instruction, every register write is built from billions of these.",
+    "Two MOSFETs side by side, driven by the SAME V_G. Their channels invert OPPOSITELY: " +
+    "NMOS conducts when V_G = 1; PMOS conducts when V_G = 0. " +
+    "Tick the clock to flip V_G — one channel lights up, the other goes dark. " +
+    "Pairing them is what CMOS means.",
 };
 
 export const partSpotlights: Record<Exclude<ElectronsPart, null>, Spotlight> = {

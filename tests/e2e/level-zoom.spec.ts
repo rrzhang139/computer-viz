@@ -138,7 +138,7 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
   test('spotlight on transistor (no part selected): explains the switch', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('zoom-target-2').click();
-    await expect(page.getByTestId('spotlight-title')).toContainText('A transistor', { timeout: 5000 });
+    await expect(page.getByTestId('spotlight-title')).toContainText('NMOS vs PMOS', { timeout: 5000 });
     await expect(page.getByTestId('spotlight-body')).toContainText(/V_G/);
   });
 
@@ -194,7 +194,7 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     await page.getByTestId('pick-part-gate').click();
     await expect(page.getByTestId('spotlight-title')).toContainText('Gate');
     await page.getByTestId('pick-part-clear').click();
-    await expect(page.getByTestId('spotlight-title')).toContainText('A transistor');
+    await expect(page.getByTestId('spotlight-title')).toContainText('NMOS vs PMOS');
   });
 
   test('back button restores the gate spotlight', async ({ page }) => {
