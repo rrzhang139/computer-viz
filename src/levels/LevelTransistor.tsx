@@ -28,9 +28,14 @@ import {
   type ElectronsPart,
 } from './descriptions';
 import { LevelSummary } from './LevelSummary';
+import {
+  DOPING,
+  PART,
+  TRANSISTOR_TYPE,
+} from './symbols';
 
 type Part = ElectronsPart;
-type Kind = 'NMOS' | 'PMOS';
+type Kind = typeof TRANSISTOR_TYPE.NMOS | typeof TRANSISTOR_TYPE.PMOS;
 
 interface MosfetTheme {
   substrate: string;
@@ -46,7 +51,7 @@ const NMOS_THEME: MosfetTheme = {
   substrate: parchment.substrate,           // warm sepia = p-type silicon
   substrateLabel: 'p-type bulk',
   doped: parchment.doped,                   // slate-blue = n+
-  dopedLabel: 'n+',
+  dopedLabel: DOPING.n_plus,
   channelEmissive: parchment.electronGlow,
   conducts: (g) => g,                       // active HIGH
 };
@@ -55,7 +60,7 @@ const PMOS_THEME: MosfetTheme = {
   substrate: '#6e8a8c',                     // muted teal = n-type / n-well
   substrateLabel: 'n-type bulk',
   doped: '#b86b53',                         // warm coral = p+
-  dopedLabel: 'p+',
+  dopedLabel: DOPING.p_plus,
   channelEmissive: '#ffd28a',               // slightly warmer (just for distinction)
   conducts: (g) => 1 - g,                   // active LOW
 };
@@ -238,7 +243,7 @@ function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
         outlineWidth={0.012}
         outlineColor={parchment.bg}
       >
-        {kind === 'PMOS' ? '(active LOW)' : '(active HIGH)'}
+        {kind === TRANSISTOR_TYPE.PMOS ? '(active LOW)' : '(active HIGH)'}
       </Text>
       <Text
         position={[0, -1.1, 0.3]}
@@ -262,7 +267,7 @@ function useGateVoltage(): number {
 interface TransistorProps {
   // Tree branch — which type of transistor we drilled into. null = no
   // variant (e.g., test mode); we default to the side-by-side comparison.
-  variant: 'NMOS' | 'PMOS' | null;
+  variant: typeof TRANSISTOR_TYPE.NMOS | typeof TRANSISTOR_TYPE.PMOS | null;
   highlight: Part;
   onHighlight: (p: Part) => void;
 }
@@ -272,8 +277,8 @@ export function LevelTransistor({ variant, highlight, onHighlight }: TransistorP
   // When variant is set, render only that one MOSFET (tree branching).
   // When null, fall back to the side-by-side comparison view.
   const showCompare = variant === null;
-  const showNmos = showCompare || variant === 'NMOS';
-  const showPmos = showCompare || variant === 'PMOS';
+  const showNmos = showCompare || variant === TRANSISTOR_TYPE.NMOS;
+  const showPmos = showCompare || variant === TRANSISTOR_TYPE.PMOS;
   const cameraPos: [number, number, number] = showCompare ? [0, 2, 11] : [0, 1.5, 8];
 
   return (
@@ -318,12 +323,12 @@ export function LevelTransistor({ variant, highlight, onHighlight }: TransistorP
 
       <div style={overlayStyle}>
         <strong style={{ color: parchment.ink }}>
-          {showCompare ? 'NMOS vs PMOS' : variant === 'PMOS' ? 'PMOS branch' : 'NMOS branch'}
+          {showCompare ? 'NMOS vs PMOS' : variant === TRANSISTOR_TYPE.PMOS ? 'PMOS branch' : 'NMOS branch'}
         </strong>
         <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 4 }}>
           {showCompare
             ? 'Same V_G drives both. NMOS conducts when V_G = 1; PMOS when V_G = 0.'
-            : variant === 'PMOS'
+            : variant === TRANSISTOR_TYPE.PMOS
               ? 'P-channel — channel inverts when V_G drops to 0. Pulls its node UP to Vdd when ON.'
               : 'N-channel — channel inverts when V_G rises to 1. Pulls its node DOWN to GND when ON.'}
         </div>
@@ -357,16 +362,16 @@ export function LevelTransistor({ variant, highlight, onHighlight }: TransistorP
 
       <LevelSummary
         summary={
-          variant === 'PMOS'
+          variant === TRANSISTOR_TYPE.PMOS
             ? pmosLevelSummary
-            : variant === 'NMOS'
+            : variant === TRANSISTOR_TYPE.NMOS
               ? nmosLevelSummary
               : compareLevelSummary
         }
       />
 
       <div style={partPickerStyle} data-testid="part-picker">
-        {(['gate', 'oxide', 'channel', 'source', 'drain', 'substrate', 'contact'] as const).map((p) => (
+        {([PART.gate, PART.oxide, PART.channel, PART.source, PART.drain, PART.substrate, PART.contact] as const).map((p) => (
           <button
             key={p}
             onClick={() => onHighlight(p)}

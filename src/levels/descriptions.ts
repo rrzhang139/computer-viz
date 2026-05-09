@@ -6,15 +6,11 @@
 // picker entries inside the Transistor level. (The "Gate" *level* — a logic
 // gate built from many transistors — is a separate concept; don't confuse
 // it with the *gate terminal* of one transistor.)
-export type ElectronsPart =
-  | 'gate'
-  | 'oxide'
-  | 'source'
-  | 'drain'
-  | 'substrate'
-  | 'channel'
-  | 'contact'
-  | null;
+//
+// Implemented as `Part | null` where `Part` lives in `./symbols.ts` (the
+// single source of truth for every label string in the app).
+import type { Part } from './symbols';
+export type ElectronsPart = Part | null;
 
 export interface Spotlight {
   title: string;

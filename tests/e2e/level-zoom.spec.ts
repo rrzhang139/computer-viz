@@ -306,6 +306,39 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
 
   // ── NAND gate: truth table + clock + play/pause ─────────────────────────
 
+  // ── Y downstream meaning ─────────────────────────────────────────────────
+
+  test('y-downstream-note explains wire voltage when Y=1 and Y=0', async ({ page }) => {
+    await page.goto('/');
+    // Initial: A=0 B=0 → Y=1 → wire at Vdd
+    await expect(page.getByTestId('y-downstream-note')).toContainText(/Vdd/);
+    await expect(page.getByTestId('y-downstream-note')).toContainText(/reads 1/);
+    // Step twice: A=1 B=1 → Y=0 → wire at GND
+    await page.getByTestId('step-cycle').click();
+    await page.getByTestId('step-cycle').click();
+    await expect(page.getByTestId('bit-Y')).toContainText('Y = 0');
+    await expect(page.getByTestId('y-downstream-note')).toContainText(/GND/);
+    await expect(page.getByTestId('y-downstream-note')).toContainText(/reads 0/);
+  });
+
+  test('next-gate placeholder is rendered at the gate level', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('next-gate-placeholder')).toBeVisible();
+    await expect(page.getByTestId('next-gate-placeholder')).toContainText(/next NAND/);
+    await expect(page.getByTestId('next-gate-placeholder')).toContainText(/Y/);
+  });
+
+  test('phase explainer includes Downstream sentence in every state', async ({ page }) => {
+    await page.goto('/');
+    for (let i = 0; i < 4; i++) {
+      await expect(page.getByTestId('phase-downstream')).toContainText(/Downstream:/);
+      // Each phase has a non-trivial downstream paragraph that mentions either
+      // Vdd or GND (the wire's voltage in that state).
+      await expect(page.getByTestId('phase-downstream')).toContainText(/Vdd|GND/);
+      if (i < 3) await page.getByTestId('step-cycle').click();
+    }
+  });
+
   test('NAND gate shows A=0 B=0 → Y=1 at start', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('bit-A')).toContainText('A = 0');

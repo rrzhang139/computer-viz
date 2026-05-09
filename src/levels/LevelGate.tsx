@@ -20,24 +20,33 @@ import { parchment } from './parchment';
 import { TermText } from '../components/Term';
 import { gateLevelSummary } from './descriptions';
 import { LevelSummary } from './LevelSummary';
+import {
+  GATE_TYPE,
+  LOGIC,
+  SUPPLY,
+  TRANSISTOR_ROLE,
+  TRANSISTOR_TYPE,
+  type TransistorRole,
+} from './symbols';
 
 type Bit = 0 | 1;
 interface Inputs { A: Bit; B: Bit; Y: Bit }
 
 interface TransistorSpec {
   id: number;
-  role: 'P_A' | 'P_B' | 'N_A' | 'N_B';
-  kind: 'PMOS' | 'NMOS';
-  input: 'A' | 'B';
+  role: TransistorRole;
+  // Only PMOS or NMOS are placed in this gate (not CMOS / MOSFET as a whole).
+  kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS;
+  input: typeof LOGIC.A | typeof LOGIC.B;
   x: number;
   y: number;
 }
 
 const TRANSISTORS: readonly TransistorSpec[] = [
-  { id: 0, role: 'P_A', kind: 'PMOS', input: 'A', x: -1.6, y: 1.5 },
-  { id: 1, role: 'P_B', kind: 'PMOS', input: 'B', x:  1.6, y: 1.5 },
-  { id: 2, role: 'N_A', kind: 'NMOS', input: 'A', x:  0,   y: -0.6 },
-  { id: 3, role: 'N_B', kind: 'NMOS', input: 'B', x:  0,   y: -2.4 },
+  { id: 0, role: TRANSISTOR_ROLE.P_A, kind: TRANSISTOR_TYPE.PMOS, input: LOGIC.A, x: -1.6, y: 1.5 },
+  { id: 1, role: TRANSISTOR_ROLE.P_B, kind: TRANSISTOR_TYPE.PMOS, input: LOGIC.B, x:  1.6, y: 1.5 },
+  { id: 2, role: TRANSISTOR_ROLE.N_A, kind: TRANSISTOR_TYPE.NMOS, input: LOGIC.A, x:  0,   y: -0.6 },
+  { id: 3, role: TRANSISTOR_ROLE.N_B, kind: TRANSISTOR_TYPE.NMOS, input: LOGIC.B, x:  0,   y: -2.4 },
 ];
 
 const HOME_POS = new THREE.Vector3(0, 0, 9.5);
@@ -60,7 +69,7 @@ function inputsFor(cycle: number): Inputs {
 
 function isOn(t: TransistorSpec, inputs: Inputs): boolean {
   const v = inputs[t.input];
-  return t.kind === 'PMOS' ? v === 0 : v === 1;
+  return t.kind === TRANSISTOR_TYPE.PMOS ? v === 0 : v === 1;
 }
 
 const NET_HIGH_COLOR = parchment.gateOn;
@@ -75,7 +84,7 @@ interface MosfetProps {
   gateValue: Bit;
   hovered: boolean;
   onHover: (idx: number | null) => void;
-  onClick: (idx: number, kind: 'PMOS' | 'NMOS') => void;
+  onClick: (idx: number, kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS) => void;
 }
 
 function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
@@ -108,14 +117,14 @@ function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
       <mesh ref={bodyRef}>
         <boxGeometry args={[0.7, 0.5, 0.3]} />
         <meshStandardMaterial
-          color={t.kind === 'PMOS' ? '#7a8fa3' : parchment.gate}
+          color={t.kind === TRANSISTOR_TYPE.PMOS ? '#7a8fa3' : parchment.gate}
           emissive={PULSE_COLOR}
           emissiveIntensity={0}
           roughness={0.55}
           metalness={0.2}
         />
       </mesh>
-      <mesh position={[t.kind === 'PMOS' && t.x < 0 ? -0.45 : 0.45, 0, 0]}>
+      <mesh position={[t.kind === TRANSISTOR_TYPE.PMOS && t.x < 0 ? -0.45 : 0.45, 0, 0]}>
         <boxGeometry args={[0.18, 0.1, 0.32]} />
         <meshStandardMaterial color={parchment.gate} roughness={0.6} />
       </mesh>
@@ -149,7 +158,7 @@ function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
         outlineWidth={0.012}
         outlineColor={parchment.bg}
       >
-        {t.kind === 'PMOS' ? '(active LOW)' : '(active HIGH)'}
+        {t.kind === TRANSISTOR_TYPE.PMOS ? '(active LOW)' : '(active HIGH)'}
       </Text>
       {/* ON / OFF chip — below the body, also forward so wires can't cover.
           Includes "gate=0" or "gate=1" so the PMOS-inverted-rule is visible
@@ -185,35 +194,35 @@ interface WireSpec {
 }
 
 const WIRES: readonly WireSpec[] = [
-  { pts: [[-3, 3, 0], [3, 3, 0]], net: 'Vdd', flowWhen: () => false },
-  { pts: [[-1.6, 3, 0], [-1.6, 1.85, 0]], net: 'Vdd', flowWhen: (i) => i.A === 0 },
-  { pts: [[ 1.6, 3, 0], [ 1.6, 1.85, 0]], net: 'Vdd', flowWhen: (i) => i.B === 0 },
+  { pts: [[-3, 3, 0], [3, 3, 0]], net: SUPPLY.Vdd, flowWhen: () => false },
+  { pts: [[-1.6, 3, 0], [-1.6, 1.85, 0]], net: SUPPLY.Vdd, flowWhen: (i) => i.A === 0 },
+  { pts: [[ 1.6, 3, 0], [ 1.6, 1.85, 0]], net: SUPPLY.Vdd, flowWhen: (i) => i.B === 0 },
   // PMOS sources → Y junction (left arm + bottom + right arm)
-  { pts: [[-1.6, 1.15, 0], [-1.6, 0.5, 0], [1.6, 0.5, 0], [1.6, 1.15, 0]], net: 'Y', flowWhen: (i) => i.Y === 1 },
+  { pts: [[-1.6, 1.15, 0], [-1.6, 0.5, 0], [1.6, 0.5, 0], [1.6, 1.15, 0]], net: LOGIC.Y, flowWhen: (i) => i.Y === 1 },
   // Y → output marker
-  { pts: [[0, 0.5, 0], [3.0, 0.5, 0]], net: 'Y', flowWhen: () => true },
+  { pts: [[0, 0.5, 0], [3.0, 0.5, 0]], net: LOGIC.Y, flowWhen: () => true },
   // Y → N_A drain
-  { pts: [[0, 0.5, 0], [0, -0.25, 0]], net: 'Y', flowWhen: (i) => i.A === 1 && i.B === 1 },
+  { pts: [[0, 0.5, 0], [0, -0.25, 0]], net: LOGIC.Y, flowWhen: (i) => i.A === 1 && i.B === 1 },
   // N_A source → N_B drain
   { pts: [[0, -0.95, 0], [0, -2.05, 0]], net: 'mid', flowWhen: (i) => i.A === 1 && i.B === 1 },
   // N_B source → GND
-  { pts: [[0, -2.75, 0], [0, -3.5, 0]], net: 'GND', flowWhen: (i) => i.A === 1 && i.B === 1 },
-  { pts: [[-3, -3.5, 0], [3, -3.5, 0]], net: 'GND', flowWhen: () => false },
+  { pts: [[0, -2.75, 0], [0, -3.5, 0]], net: SUPPLY.GND, flowWhen: (i) => i.A === 1 && i.B === 1 },
+  { pts: [[-3, -3.5, 0], [3, -3.5, 0]], net: SUPPLY.GND, flowWhen: () => false },
   // A input wires
-  { pts: [[-4, 1.5, 0], [-2.05, 1.5, 0]], net: 'A', flowWhen: (i) => i.A === 1 },
-  { pts: [[-3.2, 1.5, 0], [-3.2, -0.6, 0], [-0.45, -0.6, 0]], net: 'A', flowWhen: (i) => i.A === 1 },
+  { pts: [[-4, 1.5, 0], [-2.05, 1.5, 0]], net: LOGIC.A, flowWhen: (i) => i.A === 1 },
+  { pts: [[-3.2, 1.5, 0], [-3.2, -0.6, 0], [-0.45, -0.6, 0]], net: LOGIC.A, flowWhen: (i) => i.A === 1 },
   // B input wires
-  { pts: [[ 4, 1.5, 0], [ 2.05, 1.5, 0]], net: 'B', flowWhen: (i) => i.B === 1 },
-  { pts: [[ 3.2, 1.5, 0], [ 3.2, -2.4, 0], [ 0.45, -2.4, 0]], net: 'B', flowWhen: (i) => i.B === 1 },
+  { pts: [[ 4, 1.5, 0], [ 2.05, 1.5, 0]], net: LOGIC.B, flowWhen: (i) => i.B === 1 },
+  { pts: [[ 3.2, 1.5, 0], [ 3.2, -2.4, 0], [ 0.45, -2.4, 0]], net: LOGIC.B, flowWhen: (i) => i.B === 1 },
 ];
 
 function netColorFor(net: WireSpec['net'], inputs: Inputs): string {
   switch (net) {
-    case 'Vdd': return RAIL_VDD_COLOR;
-    case 'GND': return RAIL_GND_COLOR;
-    case 'A': return inputs.A === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
-    case 'B': return inputs.B === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
-    case 'Y': return inputs.Y === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
+    case SUPPLY.Vdd: return RAIL_VDD_COLOR;
+    case SUPPLY.GND: return RAIL_GND_COLOR;
+    case LOGIC.A: return inputs.A === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
+    case LOGIC.B: return inputs.B === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
+    case LOGIC.Y: return inputs.Y === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
     case 'mid': return inputs.A === 1 && inputs.B === 1 ? RAIL_GND_COLOR : NET_LOW_COLOR;
   }
 }
@@ -270,7 +279,7 @@ function NandScene({
   inputs: Inputs;
   hovered: number | null;
   onHover: (i: number | null) => void;
-  onClick: (i: number, kind: 'PMOS' | 'NMOS') => void;
+  onClick: (i: number, kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS) => void;
 }) {
   return (
     <>
@@ -349,7 +358,61 @@ function NandScene({
             whiteSpace: 'nowrap',
           }}
         >
-          Y = {inputs.Y}
+          {LOGIC.Y} = {inputs.Y}
+        </div>
+      </Html>
+      {/* y-downstream-note — explains Y's wire-level meaning + propagation */}
+      <Html position={[3.9, 0.05, 0]} center distanceFactor={9} zIndexRange={[100, 0]}>
+        <div
+          data-testid="y-downstream-note"
+          style={{
+            background: 'rgba(241,231,205,0.95)',
+            color: parchment.ink,
+            padding: '4px 8px',
+            borderRadius: 4,
+            fontSize: 9,
+            lineHeight: 1.35,
+            fontFamily: 'inherit',
+            border: `1px solid ${parchment.rule}`,
+            maxWidth: 180,
+            textAlign: 'center',
+          }}
+        >
+          {inputs.Y === 1
+            ? `wire held at ${SUPPLY.Vdd} (~1.0 V) → next gate's input reads ${LOGIC.HIGH}`
+            : `wire held at ${SUPPLY.GND} (0 V) → next gate's input reads ${LOGIC.LOW}`}
+        </div>
+      </Html>
+      {/* next-gate placeholder — physically depicts that Y continues into
+          another logic stage. Drawn as a dashed grey box with one input wire
+          coming from the Y output line. Greyed-out to signal "out of scope". */}
+      <Line
+        points={[[3.0, 0.5, 0], [4.8, 0.5, 0]]}
+        color={inputs.Y === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR}
+        lineWidth={3.2}
+        dashed
+        dashSize={0.12}
+        gapSize={0.08}
+      />
+      <Html position={[5.4, 0.5, 0]} center distanceFactor={9} zIndexRange={[100, 0]}>
+        <div
+          data-testid="next-gate-placeholder"
+          style={{
+            background: 'rgba(241,231,205,0.85)',
+            color: parchment.inkSoft,
+            padding: '8px 10px',
+            borderRadius: 6,
+            fontSize: 10,
+            border: `1px dashed ${parchment.inkSoft}`,
+            textAlign: 'center',
+            minWidth: 70,
+            fontStyle: 'italic',
+          }}
+        >
+          <div style={{ fontWeight: 700, color: parchment.ink, fontStyle: 'normal' }}>
+            next {GATE_TYPE.NAND}
+          </div>
+          <div>(takes {LOGIC.Y} as one of its inputs)</div>
         </div>
       </Html>
     </>
@@ -404,7 +467,7 @@ function HoverTargets({
   onClick,
 }: {
   onHover: (i: number | null) => void;
-  onClick: (i: number, kind: 'PMOS' | 'NMOS') => void;
+  onClick: (i: number, kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS) => void;
 }) {
   return (
     <>
@@ -442,7 +505,7 @@ function HoverTargets({
 
 interface Props {
   zoomTarget: number | null;
-  onZoomTo: (idx: number, kind: 'PMOS' | 'NMOS') => void;
+  onZoomTo: (idx: number, kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS) => void;
   onArrived: (idx: number) => void;
 }
 
@@ -534,6 +597,19 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
           <div style={{ color: parchment.inkSoft, marginTop: 2 }}>
             {PHASE_TEXT[phaseKey(inputs)].body}
           </div>
+          <div
+            style={{
+              color: parchment.gateOn,
+              marginTop: 6,
+              paddingTop: 6,
+              borderTop: `1px dashed ${parchment.rule}`,
+              fontSize: 11,
+              lineHeight: 1.45,
+            }}
+            data-testid="phase-downstream"
+          >
+            <strong>Downstream:</strong> {PHASE_TEXT[phaseKey(inputs)].downstream}
+          </div>
         </div>
       </div>
     </div>
@@ -544,26 +620,37 @@ function phaseKey(i: Inputs): '00' | '01' | '11' | '10' {
   return `${i.A}${i.B}` as '00' | '01' | '11' | '10';
 }
 
-const PHASE_TEXT: Record<'00' | '01' | '11' | '10', { headline: string; body: string }> = {
+const PHASE_TEXT: Record<
+  '00' | '01' | '11' | '10',
+  { headline: string; body: string; downstream: string }
+> = {
   '00': {
     headline: 'Both inputs LOW → Y = 1',
     body:
       'Both PMOS conduct (PMOS is active LOW). Y is connected to Vdd through both pull-up paths in parallel. Both NMOS are off, so no path to GND.',
+    downstream:
+      "Y wire is held at Vdd (~1.0 V). The next gate's input reads a logical 1 — same as if A or B were directly connected to Vdd.",
   },
   '01': {
     headline: 'B flipped HIGH — Y stays at 1',
     body:
       'P_B turned OFF and N_B turned ON, but P_A is still ON (A is still 0), so Y stays connected to Vdd through P_A. The pull-down chain is broken (N_A off).',
+    downstream:
+      "Y wire is still held at Vdd. From the next gate's perspective, nothing changed — its input still reads 1. (NAND only cares when BOTH inputs are 1.)",
   },
   '11': {
     headline: 'Both inputs HIGH → Y = 0  ⤓',
     body:
       'Both PMOS are OFF — no path to Vdd. Both NMOS are ON, completing the SERIES chain to GND. Y is pulled down to ground. THIS is the only state that produces 0.',
+    downstream:
+      "Y wire is now held at GND (0 V). The next gate's input reads a logical 0 — exactly the state where this NAND signals 'both inputs were 1.' That 0 will switch the next gate's PMOS on / NMOS off, propagating the change forward.",
   },
   '10': {
     headline: 'B flipped LOW — Y back to 1',
     body:
       'A is still 1 (so P_A off, N_A on) but B = 0 means P_B is ON again. P_B alone is enough to pull Y up to Vdd. The NMOS series chain is broken (N_B off).',
+    downstream:
+      "Y wire snaps back to Vdd. The next gate's input reads 1 again. The previous '0' (from phase 3) is forgotten — gates are stateless; only their CURRENT input determines the output.",
   },
 };
 

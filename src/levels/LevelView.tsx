@@ -26,8 +26,9 @@ import {
   transistorDefaultSpotlight,
   type ElectronsPart,
 } from './descriptions';
+import { TRANSISTOR_TYPE } from './symbols';
 
-type TransistorVariant = 'NMOS' | 'PMOS' | null;
+type TransistorVariant = typeof TRANSISTOR_TYPE.NMOS | typeof TRANSISTOR_TYPE.PMOS | null;
 
 type LevelKey = 'gate' | 'transistor';
 
@@ -47,8 +48,8 @@ const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: num
 };
 
 function transistorTitleFor(variant: TransistorVariant): string {
-  if (variant === 'PMOS') return 'Transistor · PMOS branch';
-  if (variant === 'NMOS') return 'Transistor · NMOS branch';
+  if (variant === TRANSISTOR_TYPE.PMOS) return 'Transistor · PMOS branch';
+  if (variant === TRANSISTOR_TYPE.NMOS) return 'Transistor · NMOS branch';
   return 'Transistor';
 }
 
@@ -62,7 +63,7 @@ export function LevelView() {
   const stepCycle = useExecution((s) => s.stepCycle);
   const reset = useExecution((s) => s.reset);
 
-  const handleZoomTo = useCallback((idx: number, kind: 'PMOS' | 'NMOS') => {
+  const handleZoomTo = useCallback((idx: number, kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS) => {
     setZoomTarget(idx);
     setVariant(kind);
   }, []);
@@ -95,9 +96,9 @@ export function LevelView() {
   const transistorSpotlight =
     transistorHighlight
       ? partSpotlights[transistorHighlight]
-      : variant === 'PMOS'
+      : variant === TRANSISTOR_TYPE.PMOS
         ? pmosSpotlight
-        : variant === 'NMOS'
+        : variant === TRANSISTOR_TYPE.NMOS
           ? nmosSpotlight
           : transistorDefaultSpotlight;
   const spotlight = level === 'gate' ? gateSpotlight : transistorSpotlight;
