@@ -159,9 +159,11 @@ test.describe('Visual trace — capture dynamics for review', () => {
     await page.screenshot({ path: join(dir, 'frame-2.png') });
   });
 
-  test('step-stub: cycle counter increments visibly', async ({ page }) => {
+  test('step-stub: cycle counter increments visibly (dev panel)', async ({ page }) => {
     await page.goto('/');
     await waitForFirstPaint(page);
+    // Expand the dev panel — it's hidden inside <details> by default.
+    await page.locator('summary', { hasText: /dev panel/i }).click();
     const dir = join(OUT, 'step-stub');
     mkdirSync(dir, { recursive: true });
     await page.screenshot({ path: join(dir, 'frame-0.png') });

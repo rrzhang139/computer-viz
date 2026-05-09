@@ -22,10 +22,10 @@ describe('<Term>', () => {
   });
 
   it('shows definition for a term looked up by alias', () => {
-    render(<Term name="MOSFET">MOSFET</Term>);
-    fireEvent.mouseEnter(screen.getByText('MOSFET'));
-    // MOSFET is alias for transistor; definition mentions "voltage-controlled switch"
-    expect(screen.getByText(/voltage-controlled switch/i)).toBeInTheDocument();
+    render(<Term name="main memory">RAM</Term>);
+    fireEvent.mouseEnter(screen.getByText('RAM'));
+    // "main memory" is an alias for RAM; definition mentions "main memory"
+    expect(screen.getAllByText(/main memory/i).length).toBeGreaterThanOrEqual(1);
   });
 
   it('falls back to children when term is unknown', () => {

@@ -50,7 +50,40 @@ export const dictionary: Readonly<Record<string, TermDef>> = {
   },
   CMOS: {
     name: 'CMOS',
-    definition: 'Complementary MOS — every gate has a paired NMOS (pulls down) + PMOS (pulls up) network. Modern chips are universally CMOS.',
+    aliases: ['Complementary MOS'],
+    definition: 'Complementary MOS — every logic gate is built from a paired PMOS network (pull-up to Vdd) + NMOS network (pull-down to GND). At rest only one network conducts, so the gate draws almost no power. Modern chips are universally CMOS.',
+  },
+  NMOS: {
+    name: 'NMOS',
+    aliases: ['n-channel MOSFET', 'N-channel MOS'],
+    definition: 'N-channel MOSFET. Channel is normally off; turns ON when its gate is HIGH (≥ Vth). Used as a pull-DOWN switch — connects its node to GND when activated.',
+  },
+  PMOS: {
+    name: 'PMOS',
+    aliases: ['p-channel MOSFET', 'P-channel MOS'],
+    definition: 'P-channel MOSFET. The complement of NMOS — turns ON when its gate is LOW. Used as a pull-UP switch — connects its node to Vdd when activated.',
+  },
+  MOSFET: {
+    name: 'MOSFET',
+    aliases: ['Metal-Oxide-Semiconductor FET', 'metal–oxide–semiconductor field-effect transistor'],
+    definition: 'Metal-Oxide-Semiconductor Field-Effect Transistor — the modern transistor. The "metal-oxide-semiconductor" stack at the gate controls a channel between source and drain via a pure electric field; no current flows through the gate itself.',
+  },
+  Vdd: {
+    name: 'Vdd',
+    definition: 'The positive supply voltage rail — the source of "logical 1". Modern chips use ~0.8–1.2 V; older designs used 5 V or 3.3 V.',
+  },
+  GND: {
+    name: 'GND',
+    aliases: ['ground', 'Vss'],
+    definition: 'Ground — the 0 V reference. The other end of every signal. "Logical 0" means a wire is connected (more or less) to GND.',
+  },
+  'pull-up': {
+    name: 'pull-up',
+    definition: 'A network of PMOS transistors that, when activated, connects the output node to Vdd (driving it to logical 1).',
+  },
+  'pull-down': {
+    name: 'pull-down',
+    definition: 'A network of NMOS transistors that, when activated, connects the output node to GND (driving it to logical 0).',
   },
 
   // ── Cache hierarchy ─────────────────────────────────────────────────

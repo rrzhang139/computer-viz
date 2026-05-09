@@ -1,39 +1,23 @@
 // LevelGate — CMOS NAND gate, 4 transistors wired up.
 //
-// Topology:
-//   Vdd ────────────────────────────────────
-//          │                          │
-//         [P_A]────────────────────[P_B]    ← PMOS pull-up (parallel)
-//          │                          │
-//          └──────────┬───────────────┘
-//                     │
-//                     ● Y                   ← output node
-//                     │
-//                    [N_A]                  ← NMOS pull-down (series)
-//                     │
-//                    [N_B]
-//                     │
-//                    GND
+// Visual cues for the learner:
+//   - Wires turn terracotta (HIGH, ~Vdd) or dark sepia (LOW, ~GND) per their net.
+//   - Active wires (carrying current right now) get a glowing pulse traveling
+//     along them at ~1.5 s/loop, so you can SEE the path of charge.
+//   - Each transistor has an ON / OFF label above it.
+//   - A and B inputs show their value (= 0 or = 1) right at the input wire.
+//   - Vdd reads "1.0 V"; GND reads "0 V"; Y shows its current logic value.
+//   - Top-right legend explains color + pulse.
 //
-// Inputs A, B drive both the PMOS gates (turn on when input is LOW) and
-// the NMOS gates (turn on when input is HIGH). Output Y = NAND(A, B).
-//
-// Clock advances inputs through the truth table on each tick:
-//   cycle 0: A=0 B=0  →  Y=1
-//   cycle 1: A=0 B=1  →  Y=1
-//   cycle 2: A=1 B=1  →  Y=0
-//   cycle 3: A=1 B=0  →  Y=1
-//
-// Active transistors glow. Active wires (the path connecting Y to Vdd or
-// GND) carry the same color as their net potential. Click any transistor
-// to fly the camera into it and see the device itself.
+// Truth table cycles 00 → 01 → 11 → 10 on each clock tick.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
+import { TermText } from '../components/Term';
 
 type Bit = 0 | 1;
 interface Inputs { A: Bit; B: Bit; Y: Bit }
@@ -66,13 +50,7 @@ function targetPoseFor(idx: number): { pos: THREE.Vector3; look: THREE.Vector3 }
 }
 
 function inputsFor(cycle: number): Inputs {
-  // Gray code through the truth table: 00, 01, 11, 10
-  const seq: [Bit, Bit][] = [
-    [0, 0],
-    [0, 1],
-    [1, 1],
-    [1, 0],
-  ];
+  const seq: [Bit, Bit][] = [[0, 0], [0, 1], [1, 1], [1, 0]];
   const [A, B] = seq[((cycle % 4) + 4) % 4];
   const Y: Bit = A === 1 && B === 1 ? 0 : 1;
   return { A, B, Y };
@@ -80,14 +58,14 @@ function inputsFor(cycle: number): Inputs {
 
 function isOn(t: TransistorSpec, inputs: Inputs): boolean {
   const v = inputs[t.input];
-  // PMOS conducts when its gate is LOW; NMOS when HIGH.
   return t.kind === 'PMOS' ? v === 0 : v === 1;
 }
 
-const NET_HIGH_COLOR = parchment.gateOn;       // terracotta
-const NET_LOW_COLOR = parchment.ink;           // dark sepia
+const NET_HIGH_COLOR = parchment.gateOn;
+const NET_LOW_COLOR = '#5c4438';
 const RAIL_VDD_COLOR = parchment.gateOn;
 const RAIL_GND_COLOR = parchment.ink;
+const PULSE_COLOR = parchment.electronGlow;
 
 interface MosfetProps {
   t: TransistorSpec;
@@ -103,8 +81,8 @@ function Mosfet({ t, on, hovered, onHover, onClick }: MosfetProps) {
   useFrame(() => {
     if (!bodyRef.current) return;
     const m = bodyRef.current.material as THREE.MeshStandardMaterial;
-    m.emissive.set(t.kind === 'PMOS' ? parchment.gateOn : parchment.electronGlow);
-    m.emissiveIntensity = on ? 0.55 + Math.sin(performance.now() * 0.004) * 0.1 : 0;
+    m.emissive.set(PULSE_COLOR);
+    m.emissiveIntensity = on ? 0.7 + Math.sin(performance.now() * 0.005) * 0.15 : 0;
   });
 
   return (
@@ -124,32 +102,49 @@ function Mosfet({ t, on, hovered, onHover, onClick }: MosfetProps) {
         onClick(t.id);
       }}
     >
-      {/* the body — a small box; PMOS slightly bluer, NMOS warmer */}
       <mesh ref={bodyRef}>
         <boxGeometry args={[0.7, 0.5, 0.3]} />
         <meshStandardMaterial
           color={t.kind === 'PMOS' ? '#7a8fa3' : parchment.gate}
-          emissive={parchment.gateOn}
+          emissive={PULSE_COLOR}
           emissiveIntensity={0}
           roughness={0.55}
           metalness={0.2}
         />
       </mesh>
-      {/* gate stub on the side (visual cue for the input terminal) */}
       <mesh position={[t.kind === 'PMOS' && t.x < 0 ? -0.45 : 0.45, 0, 0]}>
         <boxGeometry args={[0.18, 0.1, 0.32]} />
         <meshStandardMaterial color={parchment.gate} roughness={0.6} />
       </mesh>
-      {/* hover ring (cyan/orange, "this is clickable") */}
       {hovered && (
         <mesh position={[0, 0, -0.12]}>
           <ringGeometry args={[0.55, 0.65, 24]} />
           <meshBasicMaterial color={parchment.gateOn} transparent opacity={0.7} />
         </mesh>
       )}
-      {/* role label */}
-      <Text position={[0, 0.55, 0]} fontSize={0.22} color={parchment.ink} anchorX="center">
-        {t.role}
+      {/* role label — above the body but pushed FORWARD in z so the
+          electron pulses on the supply stubs (z=0.05) can't occlude it
+          and create the "P_B → F_3" reading error. */}
+      <Text
+        position={[0, 0.55, 0.3]}
+        fontSize={0.2}
+        color={parchment.ink}
+        anchorX="center"
+        outlineWidth={0.014}
+        outlineColor={parchment.bg}
+      >
+        {t.role} · {t.kind}
+      </Text>
+      {/* ON / OFF chip — below the body, also forward so wires can't cover. */}
+      <Text
+        position={[0, -0.55, 0.3]}
+        fontSize={0.22}
+        color={on ? parchment.gateOn : parchment.inkSoft}
+        anchorX="center"
+        outlineWidth={0.014}
+        outlineColor={parchment.bg}
+      >
+        {on ? '● ON' : '○ OFF'}
       </Text>
     </group>
   );
@@ -157,35 +152,31 @@ function Mosfet({ t, on, hovered, onHover, onClick }: MosfetProps) {
 
 interface WireSpec {
   pts: [number, number, number][];
-  netLow: string;   // color when net is at low potential
-  netHigh: string;  // color when net is at high potential
   net: 'Vdd' | 'GND' | 'Y' | 'mid' | 'A' | 'B';
+  flowWhen?: (i: Inputs) => boolean; // when to render an electron pulse
 }
 
 const WIRES: readonly WireSpec[] = [
-  // Vdd rail (always high)
-  { pts: [[-3, 3, 0], [3, 3, 0]], netLow: RAIL_VDD_COLOR, netHigh: RAIL_VDD_COLOR, net: 'Vdd' },
-  // Vdd → PMOS drains
-  { pts: [[-1.6, 3, 0], [-1.6, 1.85, 0]], netLow: RAIL_VDD_COLOR, netHigh: RAIL_VDD_COLOR, net: 'Vdd' },
-  { pts: [[ 1.6, 3, 0], [ 1.6, 1.85, 0]], netLow: RAIL_VDD_COLOR, netHigh: RAIL_VDD_COLOR, net: 'Vdd' },
-  // PMOS sources → Y junction
-  { pts: [[-1.6, 1.15, 0], [-1.6, 0.5, 0], [1.6, 0.5, 0], [1.6, 1.15, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'Y' },
-  // Y → output marker (right of the gate)
-  { pts: [[0, 0.5, 0], [3.0, 0.5, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'Y' },
-  // Y junction → N_A drain
-  { pts: [[0, 0.5, 0], [0, -0.25, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'Y' },
-  // N_A source → N_B drain (mid net)
-  { pts: [[0, -0.95, 0], [0, -2.05, 0]], netLow: NET_LOW_COLOR, netHigh: NET_LOW_COLOR, net: 'mid' },
+  { pts: [[-3, 3, 0], [3, 3, 0]], net: 'Vdd', flowWhen: () => false },
+  { pts: [[-1.6, 3, 0], [-1.6, 1.85, 0]], net: 'Vdd', flowWhen: (i) => i.A === 0 },
+  { pts: [[ 1.6, 3, 0], [ 1.6, 1.85, 0]], net: 'Vdd', flowWhen: (i) => i.B === 0 },
+  // PMOS sources → Y junction (left arm + bottom + right arm)
+  { pts: [[-1.6, 1.15, 0], [-1.6, 0.5, 0], [1.6, 0.5, 0], [1.6, 1.15, 0]], net: 'Y', flowWhen: (i) => i.Y === 1 },
+  // Y → output marker
+  { pts: [[0, 0.5, 0], [3.0, 0.5, 0]], net: 'Y', flowWhen: () => true },
+  // Y → N_A drain
+  { pts: [[0, 0.5, 0], [0, -0.25, 0]], net: 'Y', flowWhen: (i) => i.A === 1 && i.B === 1 },
+  // N_A source → N_B drain
+  { pts: [[0, -0.95, 0], [0, -2.05, 0]], net: 'mid', flowWhen: (i) => i.A === 1 && i.B === 1 },
   // N_B source → GND
-  { pts: [[0, -2.75, 0], [0, -3.5, 0]], netLow: RAIL_GND_COLOR, netHigh: RAIL_GND_COLOR, net: 'GND' },
-  // GND rail
-  { pts: [[-3, -3.5, 0], [3, -3.5, 0]], netLow: RAIL_GND_COLOR, netHigh: RAIL_GND_COLOR, net: 'GND' },
-  // A input wires (gates of P_A and N_A)
-  { pts: [[-4, 1.5, 0], [-2.05, 1.5, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'A' },
-  { pts: [[-3.2, 1.5, 0], [-3.2, -0.6, 0], [-0.45, -0.6, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'A' },
-  // B input wires (gates of P_B and N_B)
-  { pts: [[ 4, 1.5, 0], [ 2.05, 1.5, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'B' },
-  { pts: [[ 3.2, 1.5, 0], [ 3.2, -2.4, 0], [ 0.45, -2.4, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'B' },
+  { pts: [[0, -2.75, 0], [0, -3.5, 0]], net: 'GND', flowWhen: (i) => i.A === 1 && i.B === 1 },
+  { pts: [[-3, -3.5, 0], [3, -3.5, 0]], net: 'GND', flowWhen: () => false },
+  // A input wires
+  { pts: [[-4, 1.5, 0], [-2.05, 1.5, 0]], net: 'A', flowWhen: (i) => i.A === 1 },
+  { pts: [[-3.2, 1.5, 0], [-3.2, -0.6, 0], [-0.45, -0.6, 0]], net: 'A', flowWhen: (i) => i.A === 1 },
+  // B input wires
+  { pts: [[ 4, 1.5, 0], [ 2.05, 1.5, 0]], net: 'B', flowWhen: (i) => i.B === 1 },
+  { pts: [[ 3.2, 1.5, 0], [ 3.2, -2.4, 0], [ 0.45, -2.4, 0]], net: 'B', flowWhen: (i) => i.B === 1 },
 ];
 
 function netColorFor(net: WireSpec['net'], inputs: Inputs): string {
@@ -195,11 +186,51 @@ function netColorFor(net: WireSpec['net'], inputs: Inputs): string {
     case 'A': return inputs.A === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
     case 'B': return inputs.B === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
     case 'Y': return inputs.Y === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
-    case 'mid': {
-      // mid is at GND when both NMOS conducting (path open to GND), otherwise floating
-      return inputs.A === 1 && inputs.B === 1 ? RAIL_GND_COLOR : NET_LOW_COLOR;
-    }
+    case 'mid': return inputs.A === 1 && inputs.B === 1 ? RAIL_GND_COLOR : NET_LOW_COLOR;
   }
+}
+
+function ElectronPulse({ pts, period = 1400 }: { pts: [number, number, number][]; period?: number }) {
+  const ref = useRef<THREE.Mesh>(null);
+  const lengths = useMemo(() => {
+    const ls = [0];
+    for (let i = 1; i < pts.length; i++) {
+      const dx = pts[i][0] - pts[i - 1][0];
+      const dy = pts[i][1] - pts[i - 1][1];
+      const dz = pts[i][2] - pts[i - 1][2];
+      ls.push(ls[i - 1] + Math.sqrt(dx * dx + dy * dy + dz * dz));
+    }
+    return ls;
+  }, [pts]);
+  const total = lengths[lengths.length - 1] || 1;
+
+  useFrame(() => {
+    if (!ref.current) return;
+    const t = (performance.now() % period) / period;
+    const target = t * total;
+    let i = 0;
+    while (i < lengths.length - 1 && lengths[i + 1] < target) i++;
+    if (i >= pts.length - 1) i = pts.length - 2;
+    const segLen = lengths[i + 1] - lengths[i];
+    const localT = segLen > 0.0001 ? (target - lengths[i]) / segLen : 0;
+    ref.current.position.set(
+      pts[i][0] + (pts[i + 1][0] - pts[i][0]) * localT,
+      pts[i][1] + (pts[i + 1][1] - pts[i][1]) * localT,
+      pts[i][2] + (pts[i + 1][2] - pts[i][2]) * localT + 0.05,
+    );
+  });
+
+  return (
+    <mesh ref={ref}>
+      <sphereGeometry args={[0.11, 16, 16]} />
+      <meshStandardMaterial
+        color={PULSE_COLOR}
+        emissive={PULSE_COLOR}
+        emissiveIntensity={1.4}
+        toneMapped={false}
+      />
+    </mesh>
+  );
 }
 
 function NandScene({
@@ -215,15 +246,14 @@ function NandScene({
 }) {
   return (
     <>
-      {/* wires */}
+      {/* wires + pulses */}
       {WIRES.map((w, i) => (
-        <Line
-          key={i}
-          points={w.pts}
-          color={netColorFor(w.net, inputs)}
-          lineWidth={3}
-        />
+        <group key={i}>
+          <Line points={w.pts} color={netColorFor(w.net, inputs)} lineWidth={3.2} />
+          {w.flowWhen?.(inputs) && <ElectronPulse pts={w.pts} />}
+        </group>
       ))}
+
       {/* transistors */}
       {TRANSISTORS.map((t) => (
         <Mosfet
@@ -235,22 +265,64 @@ function NandScene({
           onClick={onClick}
         />
       ))}
-      {/* labels */}
-      <Text position={[-3.4, 3.0, 0]} fontSize={0.28} color={RAIL_VDD_COLOR} anchorX="right">
-        Vdd
+
+      {/* Voltage / value labels */}
+      {/* Vdd rail tag */}
+      <Text position={[3.2, 3.05, 0]} fontSize={0.22} color={RAIL_VDD_COLOR} anchorX="left">
+        Vdd = 1.0 V
       </Text>
-      <Text position={[-3.4, -3.5, 0]} fontSize={0.28} color={RAIL_GND_COLOR} anchorX="right">
-        GND
+      {/* GND rail tag */}
+      <Text position={[3.2, -3.45, 0]} fontSize={0.22} color={RAIL_GND_COLOR} anchorX="left">
+        GND = 0 V
       </Text>
-      <Text position={[-4.2, 1.5, 0]} fontSize={0.32} color={parchment.ink} anchorX="right">
+      {/* A input label + value */}
+      <Text position={[-4.2, 1.5, 0]} fontSize={0.36} color={parchment.ink} anchorX="right">
         A
       </Text>
-      <Text position={[ 4.2, 1.5, 0]} fontSize={0.32} color={parchment.ink} anchorX="left">
+      <Text
+        position={[-4.2, 1.05, 0]}
+        fontSize={0.26}
+        color={inputs.A === 1 ? parchment.gateOn : parchment.inkSoft}
+        anchorX="right"
+      >
+        = {inputs.A}
+      </Text>
+      {/* B input label + value */}
+      <Text position={[4.2, 1.5, 0]} fontSize={0.36} color={parchment.ink} anchorX="left">
         B
       </Text>
-      <Text position={[ 3.2, 0.85, 0]} fontSize={0.32} color={parchment.ink} anchorX="left">
+      <Text
+        position={[4.2, 1.05, 0]}
+        fontSize={0.26}
+        color={inputs.B === 1 ? parchment.gateOn : parchment.inkSoft}
+        anchorX="left"
+      >
+        = {inputs.B}
+      </Text>
+      {/* Y output label */}
+      <Text position={[3.2, 0.95, 0.3]} fontSize={0.32} color={parchment.ink} anchorX="left" outlineWidth={0.01} outlineColor={parchment.bg}>
         Y
       </Text>
+      {/* Y output VALUE — rendered as an HTML pill so it's easy to read at any
+          zoom level and stands out as "this is the answer". */}
+      <Html position={[3.7, 0.45, 0]} center distanceFactor={9} zIndexRange={[100, 0]}>
+        <div
+          data-testid="y-output-chip"
+          style={{
+            background: inputs.Y === 1 ? parchment.gateOn : '#3d2f1e',
+            color: '#fff',
+            padding: '4px 10px',
+            borderRadius: 4,
+            fontSize: 12,
+            fontWeight: 700,
+            fontFamily: 'ui-monospace, monospace',
+            boxShadow: '0 2px 6px rgba(80,60,30,0.3)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Y = {inputs.Y}
+        </div>
+      </Html>
     </>
   );
 }
@@ -308,12 +380,7 @@ function HoverTargets({
   return (
     <>
       {TRANSISTORS.map((t) => (
-        <Html
-          key={t.id}
-          position={[t.x, t.y - 0.6, 0]}
-          center
-          distanceFactor={9}
-        >
+        <Html key={t.id} position={[t.x, t.y - 0.95, 0]} center distanceFactor={9}>
           <button
             data-testid={`zoom-target-${t.id}`}
             aria-label={`zoom to ${t.role}`}
@@ -376,11 +443,14 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
         <HoverTargets onHover={setHovered} onClick={onZoomTo} />
       </Canvas>
 
+      {/* TOP-LEFT — title + interaction copy (jargon hover-defined) */}
       <div style={overlayStyle}>
         <strong style={{ color: parchment.ink }}>NAND gate</strong>
         <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 4 }}>
-          2 PMOS pull-up (parallel) on top, 2 NMOS pull-down (series) on bottom.
-          Click any transistor to fly into it.
+          <TermText>
+            Built from 4 transistors in CMOS style: 2 PMOS pull-up on top,
+            2 NMOS pull-down on bottom. Click any transistor to fly into it.
+          </TermText>
         </div>
         {hovered !== null && (
           <div style={{ color: parchment.gateOn, fontSize: 11, marginTop: 6 }} data-testid="hover-readout">
@@ -389,18 +459,67 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
         )}
       </div>
 
-      {/* Truth-table state readout */}
+      {/* TOP-RIGHT — color legend */}
+      <div style={legendStyle} data-testid="legend">
+        <div style={{ color: parchment.inkSoft, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
+          legend
+        </div>
+        <LegendRow color={NET_HIGH_COLOR} label="HIGH wire (1, ~Vdd)" />
+        <LegendRow color={NET_LOW_COLOR} label="LOW wire (0, GND)" />
+        <LegendRow color={PULSE_COLOR} label="electron pulse — current path" round />
+        <LegendBox color="#7a8fa3" label="PMOS body (P_A, P_B)" />
+        <LegendBox color={parchment.gate} label="NMOS body (N_A, N_B)" />
+        <LegendRow color={parchment.gateOn} label="● ON  ○ OFF (per transistor)" />
+      </div>
+
+      {/* BOTTOM CENTER — truth-table state chip */}
       <div style={truthStyle} data-testid="nand-truth">
         <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
-          inputs
+          inputs · output
         </div>
         <div style={truthRowStyle}>
           <span style={bitChip(inputs.A === 1)} data-testid="bit-A">A = {inputs.A}</span>
           <span style={bitChip(inputs.B === 1)} data-testid="bit-B">B = {inputs.B}</span>
-          <span style={{ color: parchment.inkSoft, margin: '0 4px' }}>→</span>
+          <span style={{ color: parchment.inkSoft, margin: '0 4px' }}>NAND →</span>
           <span style={bitChip(inputs.Y === 1)} data-testid="bit-Y">Y = {inputs.Y}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LegendRow({ color, label, round = false }: { color: string; label: string; round?: boolean }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: parchment.ink, marginTop: 2 }}>
+      <span
+        style={{
+          display: 'inline-block',
+          width: 14,
+          height: round ? 8 : 4,
+          background: color,
+          borderRadius: round ? 4 : 1,
+          boxShadow: round ? `0 0 6px ${color}` : 'none',
+        }}
+      />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function LegendBox({ color, label }: { color: string; label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: parchment.ink, marginTop: 2 }}>
+      <span
+        style={{
+          display: 'inline-block',
+          width: 12,
+          height: 9,
+          background: color,
+          border: `1px solid ${parchment.rule}`,
+          borderRadius: 1,
+        }}
+      />
+      <span>{label}</span>
     </div>
   );
 }
@@ -423,17 +542,27 @@ const overlayStyle: React.CSSProperties = {
   width: 240,
 };
 
+const legendStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: 12,
+  right: 12,
+  background: 'rgba(241,231,205,0.92)',
+  border: `1px solid ${parchment.rule}`,
+  borderRadius: 4,
+  padding: '6px 10px',
+  width: 190,
+};
+
 const truthStyle: React.CSSProperties = {
   position: 'absolute',
   bottom: 12,
-  left: '50%',
-  transform: 'translateX(-50%)',
+  left: 12,
   display: 'flex',
   flexDirection: 'column',
   gap: 4,
-  alignItems: 'center',
+  alignItems: 'flex-start',
   padding: '6px 12px',
-  background: 'rgba(241,231,205,0.92)',
+  background: 'rgba(241,231,205,0.95)',
   border: `1px solid ${parchment.rule}`,
   borderRadius: 6,
 };

@@ -48,9 +48,11 @@ function App() {
         </p>
       </section>
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, color: colors.data, margin: '0 0 8px' }}>Execution state (stub)</h2>
-        <pre style={{ color: colors.fg, background: '#1a1f26', padding: 12, borderRadius: 6, fontSize: fontSize.label }}>
+      <details style={{ marginBottom: 24 }}>
+        <summary style={{ fontSize: 13, color: colors.edge, cursor: 'pointer' }}>
+          dev panel: raw execution state (advance internal cycle / step instr counter; not part of the lesson)
+        </summary>
+        <pre style={{ color: colors.fg, background: '#1a1f26', padding: 12, borderRadius: 6, fontSize: fontSize.label, marginTop: 8 }}>
 {`cycle:           ${cycle}
 retiredInstrs:   ${retired}`}
         </pre>
@@ -59,7 +61,7 @@ retiredInstrs:   ${retired}`}
           <button onClick={stepCycle} style={btn(colors.data)}>step cycle</button>
           <button onClick={reset} style={btn(colors.passive)}>reset</button>
         </div>
-      </section>
+      </details>
 
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 16, color: colors.control, margin: '0 0 8px' }}>Term + Unit demo</h2>

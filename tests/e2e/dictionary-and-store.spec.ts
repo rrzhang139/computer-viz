@@ -26,9 +26,18 @@ test.describe('Dictionary terms and units', () => {
   });
 });
 
-test.describe('Execution stepper', () => {
+test.describe('Execution stepper (dev panel)', () => {
+  // The exec-state panel is hidden inside a <details> element by default
+  // (it's not part of the learning UI — it's a dev counter). Each test
+  // expands the panel before interacting.
+  async function openPanel(page: import('@playwright/test').Page): Promise<void> {
+    const summary = page.locator('summary', { hasText: /dev panel/i });
+    await summary.click();
+  }
+
   test('step instr advances retiredInstrs and cycle', async ({ page }) => {
     await page.goto('/');
+    await openPanel(page);
     await expect(page.locator('pre').filter({ hasText: 'cycle:' })).toContainText('cycle:           0');
     await page.getByRole('button', { name: 'step instr' }).click();
     await expect(page.locator('pre').filter({ hasText: 'cycle:' })).toContainText('cycle:           5');
@@ -37,6 +46,7 @@ test.describe('Execution stepper', () => {
 
   test('step cycle advances cycle by 1', async ({ page }) => {
     await page.goto('/');
+    await openPanel(page);
     await page.getByRole('button', { name: 'step cycle' }).click();
     await page.getByRole('button', { name: 'step cycle' }).click();
     await expect(page.locator('pre').filter({ hasText: 'cycle:' })).toContainText('cycle:           2');
@@ -44,10 +54,9 @@ test.describe('Execution stepper', () => {
 
   test('reset returns counters to zero', async ({ page }) => {
     await page.goto('/');
+    await openPanel(page);
     await page.getByRole('button', { name: 'step instr' }).click();
     await page.getByRole('button', { name: 'step instr' }).click();
-    // Two "reset" buttons exist now (clock reset on the level toolbar + the
-    // exec-state stub button below). Click the bottom one explicitly.
     await page.getByRole('button', { name: 'reset', exact: true }).click();
     await expect(page.locator('pre').filter({ hasText: 'cycle:' })).toContainText('cycle:           0');
     await expect(page.locator('pre').filter({ hasText: 'retiredInstrs' })).toContainText('retiredInstrs:   0');
