@@ -18,9 +18,9 @@ export const gateSpotlight: Spotlight = {
   title: 'A logic gate',
   subtitle: '4× [T] wired together',
   body:
-    "A logic gate computes a boolean function (NAND, AND, OR, NOT, XOR) from a small group of transistors. " +
-    "In CMOS, a NAND uses 4: two PMOS in parallel pulling up, two NMOS in series pulling down. " +
-    "Click any one to fly the camera in and look at the transistor itself.",
+    "A small group of transistors that computes a boolean function. " +
+    "This NAND has 4: 2 PMOS pulling up to Vdd, 2 NMOS pulling down to GND. " +
+    "Click any to fly into it.",
 };
 
 export const transistorDefaultSpotlight: Spotlight = {

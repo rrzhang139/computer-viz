@@ -70,12 +70,13 @@ const PULSE_COLOR = parchment.electronGlow;
 interface MosfetProps {
   t: TransistorSpec;
   on: boolean;
+  gateValue: Bit;
   hovered: boolean;
   onHover: (idx: number | null) => void;
   onClick: (idx: number) => void;
 }
 
-function Mosfet({ t, on, hovered, onHover, onClick }: MosfetProps) {
+function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
   const bodyRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
@@ -135,16 +136,41 @@ function Mosfet({ t, on, hovered, onHover, onClick }: MosfetProps) {
       >
         {t.role} · {t.kind}
       </Text>
-      {/* ON / OFF chip — below the body, also forward so wires can't cover. */}
+      {/* The inversion rule, RIGHT ON the transistor — so a beginner doesn't
+          have to map sidebar text back to the diagram. PMOS = active LOW
+          (turns ON when gate goes 0). NMOS = active HIGH (turns ON when 1). */}
+      <Text
+        position={[0, 0.32, 0.3]}
+        fontSize={0.13}
+        color={parchment.gateOn}
+        anchorX="center"
+        outlineWidth={0.012}
+        outlineColor={parchment.bg}
+      >
+        {t.kind === 'PMOS' ? '(active LOW)' : '(active HIGH)'}
+      </Text>
+      {/* ON / OFF chip — below the body, also forward so wires can't cover.
+          Includes "gate=0" or "gate=1" so the PMOS-inverted-rule is visible
+          inline (a beginner can SEE that PMOS turns OFF as gate goes 0→1). */}
       <Text
         position={[0, -0.55, 0.3]}
-        fontSize={0.22}
+        fontSize={0.2}
         color={on ? parchment.gateOn : parchment.inkSoft}
         anchorX="center"
         outlineWidth={0.014}
         outlineColor={parchment.bg}
       >
         {on ? '● ON' : '○ OFF'}
+      </Text>
+      <Text
+        position={[0, -0.85, 0.3]}
+        fontSize={0.15}
+        color={parchment.inkSoft}
+        anchorX="center"
+        outlineWidth={0.012}
+        outlineColor={parchment.bg}
+      >
+        gate = {gateValue}
       </Text>
     </group>
   );
@@ -260,6 +286,7 @@ function NandScene({
           key={t.id}
           t={t}
           on={isOn(t, inputs)}
+          gateValue={inputs[t.input]}
           hovered={hovered === t.id}
           onHover={onHover}
           onClick={onClick}
@@ -459,17 +486,32 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
         )}
       </div>
 
-      {/* TOP-RIGHT — color legend */}
+      {/* TOP-RIGHT — color legend + the all-important PMOS/NMOS rule.
+          Without this rule a beginner can't predict the diagram. */}
       <div style={legendStyle} data-testid="legend">
         <div style={{ color: parchment.inkSoft, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
           legend
         </div>
-        <LegendRow color={NET_HIGH_COLOR} label="HIGH wire (1, ~Vdd)" />
-        <LegendRow color={NET_LOW_COLOR} label="LOW wire (0, GND)" />
-        <LegendRow color={PULSE_COLOR} label="electron pulse — current path" round />
-        <LegendBox color="#7a8fa3" label="PMOS body (P_A, P_B)" />
-        <LegendBox color={parchment.gate} label="NMOS body (N_A, N_B)" />
+        <LegendRow color={NET_HIGH_COLOR} label="wire HIGH (1, ~Vdd)" />
+        <LegendRow color={NET_LOW_COLOR} label="wire LOW (0, GND)" />
+        <LegendRow color={PULSE_COLOR} label="charge flow on active wire" round />
+        <LegendBox color="#7a8fa3" label="PMOS transistor body" />
+        <LegendBox color={parchment.gate} label="NMOS transistor body" />
         <LegendRow color={parchment.gateOn} label="● ON  ○ OFF (per transistor)" />
+        <div
+          style={{
+            marginTop: 6,
+            paddingTop: 6,
+            borderTop: `1px dashed ${parchment.rule}`,
+            color: parchment.ink,
+            fontSize: 10,
+            lineHeight: 1.45,
+          }}
+        >
+          <strong>The rule:</strong>
+          <div>PMOS turns <strong>ON</strong> when its gate is <strong>0</strong>.</div>
+          <div>NMOS turns <strong>ON</strong> when its gate is <strong>1</strong>.</div>
+        </div>
       </div>
 
       {/* BOTTOM CENTER — truth-table state chip */}
@@ -512,11 +554,11 @@ function LegendBox({ color, label }: { color: string; label: string }) {
       <span
         style={{
           display: 'inline-block',
-          width: 12,
-          height: 9,
+          width: 16,
+          height: 12,
           background: color,
-          border: `1px solid ${parchment.rule}`,
-          borderRadius: 1,
+          border: `1px solid ${parchment.ink}`,
+          borderRadius: 2,
         }}
       />
       <span>{label}</span>
