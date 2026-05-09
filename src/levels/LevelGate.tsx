@@ -18,6 +18,8 @@ import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
 import { TermText } from '../components/Term';
+import { gateLevelSummary } from './descriptions';
+import { LevelSummary } from './LevelSummary';
 
 type Bit = 0 | 1;
 interface Inputs { A: Bit; B: Bit; Y: Bit }
@@ -514,7 +516,9 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
         </div>
       </div>
 
-      {/* BOTTOM CENTER — phase explainer (truth-table state + WHY) */}
+      <LevelSummary summary={gateLevelSummary} />
+
+      {/* phase explainer — truth-table state + per-phase WHY */}
       <div style={truthStyle} data-testid="nand-truth">
         <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
           phase {((cycle % 4) + 4) % 4 + 1} of 4 · inputs · output
@@ -629,9 +633,10 @@ const legendStyle: React.CSSProperties = {
 };
 
 const truthStyle: React.CSSProperties = {
+  // moved to bottom-RIGHT to make room for the LevelSummary at bottom-LEFT.
   position: 'absolute',
   bottom: 12,
-  left: 12,
+  right: 12,
   display: 'flex',
   flexDirection: 'column',
   gap: 4,
@@ -640,7 +645,7 @@ const truthStyle: React.CSSProperties = {
   background: 'rgba(241,231,205,0.95)',
   border: `1px solid ${parchment.rule}`,
   borderRadius: 6,
-  maxWidth: 360,
+  maxWidth: 320,
 };
 
 const explainerStyle: React.CSSProperties = {

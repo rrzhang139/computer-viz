@@ -6,13 +6,60 @@
 // picker entries inside the Transistor level. (The "Gate" *level* — a logic
 // gate built from many transistors — is a separate concept; don't confuse
 // it with the *gate terminal* of one transistor.)
-export type ElectronsPart = 'gate' | 'oxide' | 'source' | 'drain' | 'substrate' | null;
+export type ElectronsPart =
+  | 'gate'
+  | 'oxide'
+  | 'source'
+  | 'drain'
+  | 'substrate'
+  | 'channel'
+  | 'contact'
+  | null;
 
 export interface Spotlight {
   title: string;
   subtitle: string;
   body: string;
 }
+
+// Structured summary card shown at the bottom-left of each level. The point
+// is to answer four questions for the learner without requiring them to
+// hunt through prose: what is this, why does it exist, where do its inputs
+// come from, where does its output go.
+export interface LevelSummary {
+  what: string;
+  why: string;
+  inputs: string;
+  outputs: string;
+}
+
+export const gateLevelSummary: LevelSummary = {
+  what: 'A NAND gate — 4 transistors in CMOS, computing Y = NOT(A AND B).',
+  why: 'Universal logic primitive — every boolean function reduces to a tree of NANDs. Modern CPUs have billions.',
+  inputs: 'Two binary signals A and B (each 0 or 1) coming from a previous logic stage.',
+  outputs: 'One binary signal Y. Goes to the next gate\'s input. Y = 0 only when A = 1 AND B = 1; otherwise Y = 1.',
+};
+
+export const pmosLevelSummary: LevelSummary = {
+  what: 'A P-channel MOSFET (PMOS) — a voltage-controlled switch with inverted polarity.',
+  why: 'The pull-UP half of CMOS. Drives its drain toward Vdd when active. Pairing PMOS with NMOS is what makes static logic possible with near-zero idle current.',
+  inputs: 'Gate (V_G) — the control signal. Source — typically tied to Vdd.',
+  outputs: 'Drain — connected to source (≈ Vdd) when V_G is LOW; high-impedance ("floating") when V_G is HIGH.',
+};
+
+export const nmosLevelSummary: LevelSummary = {
+  what: 'An N-channel MOSFET (NMOS) — the intuitive voltage-controlled switch.',
+  why: 'The pull-DOWN half of CMOS. Drives its drain toward GND when active. Originally the only kind in early NMOS-only logic; CMOS pairs it with a PMOS.',
+  inputs: 'Gate (V_G) — control signal. Source — typically tied to GND.',
+  outputs: 'Drain — connected to source (≈ GND) when V_G is HIGH; floating when V_G is LOW.',
+};
+
+export const compareLevelSummary: LevelSummary = {
+  what: 'Two complementary MOSFETs side-by-side: NMOS (active HIGH) and PMOS (active LOW).',
+  why: 'The "C" in CMOS. Their complementary behavior means at most one is conducting at a time — that\'s what kills static current.',
+  inputs: 'The SAME V_G drives both gate terminals.',
+  outputs: 'Two drain potentials — they invert OPPOSITELY as V_G flips.',
+};
 
 export const gateSpotlight: Spotlight = {
   title: 'A logic gate',
@@ -84,5 +131,19 @@ export const partSpotlights: Record<Exclude<ElectronsPart, null>, Spotlight> = {
     body:
       "Lightly p-doped silicon. By default the region under the oxide is p-type — electrons can't flow from the n+ source to the n+ drain because of the p-region in between. " +
       "The gate field temporarily inverts that region. That's the whole trick.",
+  },
+  channel: {
+    title: 'Channel (inversion layer)',
+    subtitle: 'the conducting bridge that forms when V_G crosses Vth',
+    body:
+      "A thin (~1–3 nm) sheet at the silicon-oxide interface. When V_G goes past the threshold V_th, the gate's electric field pulls minority carriers into this sheet, FLIPPING its type (p→n in NMOS, n→p in PMOS). " +
+      "When the channel exists, source and drain are connected. When V_G drops below V_th, the channel disappears and the device is OFF.",
+  },
+  contact: {
+    title: 'Metal contact',
+    subtitle: 'how the transistor wires up to the next layer',
+    body:
+      "Tungsten or copper plug that connects the doped silicon (or polysilicon) underneath to the metal layers above. Without these, the device is unwired silicon — no signals in or out. " +
+      "Modern processes have 10+ stacked metal layers connected by vias; the contacts you see here are the very first interface between silicon and the wiring above.",
   },
 };

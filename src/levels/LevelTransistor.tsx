@@ -21,7 +21,13 @@ import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
-import type { ElectronsPart } from './descriptions';
+import {
+  compareLevelSummary,
+  nmosLevelSummary,
+  pmosLevelSummary,
+  type ElectronsPart,
+} from './descriptions';
+import { LevelSummary } from './LevelSummary';
 
 type Part = ElectronsPart;
 type Kind = 'NMOS' | 'PMOS';
@@ -140,8 +146,8 @@ function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
         <meshStandardMaterial color={theme.doped} roughness={0.6} metalness={0.1} />
       </mesh>
 
-      {/* inversion-layer channel under the oxide */}
-      <mesh ref={channelRef} position={[0, 0.06, 0]}>
+      {/* inversion-layer channel under the oxide — clickable */}
+      <mesh ref={channelRef} position={[0, 0.06, 0]} onClick={(e) => { e.stopPropagation(); onPickPart('channel'); }}>
         <boxGeometry args={[CHANNEL_X_MAX - CHANNEL_X_MIN, 0.04, SUB_D - 0.15]} />
         <meshStandardMaterial
           color={theme.channelEmissive}
@@ -164,19 +170,39 @@ function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
         <meshStandardMaterial color={parchment.gate} emissive={parchment.gateOn} emissiveIntensity={0} roughness={0.55} metalness={0.2} />
       </mesh>
 
-      {/* metal contacts */}
-      <mesh position={[-2.0, 0.4, 0]}>
-        <boxGeometry args={[0.35, 0.55, 0.55]} />
-        <meshStandardMaterial color={parchment.contact} metalness={0.5} roughness={0.45} />
-      </mesh>
-      <mesh position={[2.0, 0.4, 0]}>
-        <boxGeometry args={[0.35, 0.55, 0.55]} />
-        <meshStandardMaterial color={parchment.contact} metalness={0.5} roughness={0.45} />
-      </mesh>
-      <mesh position={[0, 0.78, 0]}>
-        <boxGeometry args={[0.4, 0.6, 0.4]} />
-        <meshStandardMaterial color={parchment.contact} metalness={0.5} roughness={0.45} />
-      </mesh>
+      {/* metal contacts — clickable as one logical "contact" group */}
+      <group onClick={(e) => { e.stopPropagation(); onPickPart('contact'); }}>
+        <mesh position={[-2.0, 0.4, 0]}>
+          <boxGeometry args={[0.35, 0.55, 0.55]} />
+          <meshStandardMaterial
+            color={parchment.contact}
+            emissive={parchment.gateOn}
+            emissiveIntensity={highlight === 'contact' ? 0.45 : 0}
+            metalness={0.5}
+            roughness={0.45}
+          />
+        </mesh>
+        <mesh position={[2.0, 0.4, 0]}>
+          <boxGeometry args={[0.35, 0.55, 0.55]} />
+          <meshStandardMaterial
+            color={parchment.contact}
+            emissive={parchment.gateOn}
+            emissiveIntensity={highlight === 'contact' ? 0.45 : 0}
+            metalness={0.5}
+            roughness={0.45}
+          />
+        </mesh>
+        <mesh position={[0, 0.78, 0]}>
+          <boxGeometry args={[0.4, 0.6, 0.4]} />
+          <meshStandardMaterial
+            color={parchment.contact}
+            emissive={parchment.gateOn}
+            emissiveIntensity={highlight === 'contact' ? 0.45 : 0}
+            metalness={0.5}
+            roughness={0.45}
+          />
+        </mesh>
+      </group>
 
       {/* terminal letters S, D, G */}
       <Text position={[-2.0, 0.88, 0.3]} fontSize={0.18} color={parchment.ink} anchorX="center" outlineWidth={0.012} outlineColor={parchment.bg}>
@@ -329,8 +355,18 @@ export function LevelTransistor({ variant, highlight, onHighlight }: TransistorP
         <LegendBox color={parchment.gate} label="polysilicon gate" />
       </div>
 
+      <LevelSummary
+        summary={
+          variant === 'PMOS'
+            ? pmosLevelSummary
+            : variant === 'NMOS'
+              ? nmosLevelSummary
+              : compareLevelSummary
+        }
+      />
+
       <div style={partPickerStyle} data-testid="part-picker">
-        {(['gate', 'oxide', 'source', 'drain', 'substrate'] as const).map((p) => (
+        {(['gate', 'oxide', 'channel', 'source', 'drain', 'substrate', 'contact'] as const).map((p) => (
           <button
             key={p}
             onClick={() => onHighlight(p)}
@@ -420,10 +456,11 @@ const meterFill: React.CSSProperties = {
 };
 
 const partPickerStyle: React.CSSProperties = {
+  // moved to bottom-CENTER beneath the canvas content; the LevelSummary
+  // takes the bottom-left.
   position: 'absolute',
   bottom: 12,
-  left: '50%',
-  transform: 'translateX(-50%)',
+  left: 312,
   display: 'flex',
   gap: 6,
   padding: '6px 8px',

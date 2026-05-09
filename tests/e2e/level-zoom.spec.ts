@@ -244,6 +244,66 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     }
   });
 
+  // ── Coverage: every clickable component has a non-empty spotlight ──────
+
+  test('every Layer 0 part has a non-empty spotlight description (NMOS branch)', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    const parts = ['gate', 'oxide', 'channel', 'source', 'drain', 'substrate', 'contact'] as const;
+    for (const p of parts) {
+      await page.getByTestId(`pick-part-${p}`).click();
+      const title = await page.getByTestId('spotlight-title').textContent();
+      const body = await page.getByTestId('spotlight-body').textContent();
+      expect(title?.trim().length, `pick-part-${p} should populate spotlight title`).toBeGreaterThan(0);
+      expect(body?.trim().length, `pick-part-${p} should populate spotlight body`).toBeGreaterThan(20);
+    }
+  });
+
+  test('every Layer 0 part has a non-empty spotlight description (PMOS branch)', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-0').click();
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    const parts = ['gate', 'oxide', 'channel', 'source', 'drain', 'substrate', 'contact'] as const;
+    for (const p of parts) {
+      await page.getByTestId(`pick-part-${p}`).click();
+      const body = await page.getByTestId('spotlight-body').textContent();
+      expect(body?.trim().length, `pick-part-${p} should populate spotlight body`).toBeGreaterThan(20);
+    }
+  });
+
+  // Both panes stay mounted (cross-fade); scope summary lookup to the
+  // currently-active pane.
+  test('LevelSummary card present at gate level', async ({ page }) => {
+    await page.goto('/');
+    const gate = page.getByTestId('level-pane-gate');
+    await expect(gate.getByTestId('level-summary')).toBeVisible();
+    await expect(gate.getByTestId('level-summary-what')).toContainText(/NAND|gate|transistors/i);
+    await expect(gate.getByTestId('level-summary-in')).toContainText(/[Aa]/);
+    await expect(gate.getByTestId('level-summary-out')).toContainText(/Y/);
+  });
+
+  test('LevelSummary card on Transistor PMOS branch describes pull-up role', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-0').click();
+    const trans = page.getByTestId('level-pane-transistor');
+    await expect(trans).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await expect(trans.getByTestId('level-summary-what')).toContainText(/PMOS|P-channel/i);
+    await expect(trans.getByTestId('level-summary-why')).toContainText(/pull-UP|pull up/i);
+    await expect(trans.getByTestId('level-summary-in')).toContainText(/V_G|gate/i);
+    await expect(trans.getByTestId('level-summary-out')).toContainText(/[Dd]rain|Vdd/);
+  });
+
+  test('LevelSummary card on Transistor NMOS branch describes pull-down role', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-2').click();
+    const trans = page.getByTestId('level-pane-transistor');
+    await expect(trans).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    await expect(trans.getByTestId('level-summary-what')).toContainText(/NMOS|N-channel/i);
+    await expect(trans.getByTestId('level-summary-why')).toContainText(/pull-DOWN|pull down/i);
+    await expect(trans.getByTestId('level-summary-out')).toContainText(/[Dd]rain|GND/);
+  });
+
   // ── NAND gate: truth table + clock + play/pause ─────────────────────────
 
   test('NAND gate shows A=0 B=0 → Y=1 at start', async ({ page }) => {
