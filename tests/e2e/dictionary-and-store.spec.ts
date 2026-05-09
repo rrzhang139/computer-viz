@@ -46,7 +46,9 @@ test.describe('Execution stepper', () => {
     await page.goto('/');
     await page.getByRole('button', { name: 'step instr' }).click();
     await page.getByRole('button', { name: 'step instr' }).click();
-    await page.getByRole('button', { name: 'reset' }).click();
+    // Two "reset" buttons exist now (clock reset on the level toolbar + the
+    // exec-state stub button below). Click the bottom one explicitly.
+    await page.getByRole('button', { name: 'reset', exact: true }).click();
     await expect(page.locator('pre').filter({ hasText: 'cycle:' })).toContainText('cycle:           0');
     await expect(page.locator('pre').filter({ hasText: 'retiredInstrs' })).toContainText('retiredInstrs:   0');
   });

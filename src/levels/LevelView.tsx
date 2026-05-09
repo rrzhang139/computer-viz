@@ -27,16 +27,18 @@ import {
 
 type LevelKey = 'gate' | 'transistor';
 
+// Depth = abstraction rung. 0 = the lowest level (a single transistor),
+// 1 = next level up (a logic gate built from transistors), etc.
 const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: number }> = {
-  gate: {
-    title: 'Gate',
-    subtitle: 'a logic gate (4× [T])',
-    depth: 6,
-  },
   transistor: {
     title: 'Transistor',
     subtitle: 'a voltage-controlled switch ([T])',
-    depth: 7,
+    depth: 0,
+  },
+  gate: {
+    title: 'Gate',
+    subtitle: 'a logic gate (4× [T])',
+    depth: 1,
   },
 };
 
@@ -44,8 +46,9 @@ export function LevelView() {
   const [level, setLevel] = useState<LevelKey>('gate');
   const [zoomTarget, setZoomTarget] = useState<number | null>(null);
   const [transistorHighlight, setTransistorHighlight] = useState<ElectronsPart>(null);
+  const [playing, setPlaying] = useState(false);
   const stepCycle = useExecution((s) => s.stepCycle);
-  const stepMicro = useExecution((s) => s.stepMicro);
+  const reset = useExecution((s) => s.reset);
 
   const handleZoomTo = useCallback((idx: number) => {
     setZoomTarget(idx);
@@ -58,6 +61,19 @@ export function LevelView() {
     setZoomTarget(null);
     setTransistorHighlight(null);
   }, []);
+
+  // Auto-step the clock when "playing" — one tick every 900ms so the user
+  // can see each toggle. Stops when paused or reset.
+  useEffect(() => {
+    if (!playing) return;
+    const id = window.setInterval(() => stepCycle(), 900);
+    return () => window.clearInterval(id);
+  }, [playing, stepCycle]);
+
+  const handleReset = useCallback(() => {
+    setPlaying(false);
+    reset();
+  }, [reset]);
 
   // Spotlight: level + (when on Transistor) part highlight.
   const spotlight =
@@ -147,16 +163,29 @@ export function LevelView() {
             clock
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={stepCycle} style={clockBtn} data-testid="step-cycle">
-              tick
+            <button
+              onClick={() => setPlaying((p) => !p)}
+              style={clockBtn}
+              data-testid="play-pause"
+              aria-pressed={playing}
+            >
+              {playing ? '⏸ pause' : '▶ play'}
             </button>
-            <button onClick={stepMicro} style={clockBtn} data-testid="step-micro">
-              µ-tick
+            <button onClick={stepCycle} style={clockBtn} data-testid="step-cycle">
+              ⏭ step
             </button>
           </div>
+          <button
+            onClick={handleReset}
+            style={{ ...clockBtn, marginTop: 6, width: '100%' }}
+            data-testid="reset-clock"
+          >
+            ↺ reset
+          </button>
           <div style={{ color: parchment.inkSoft, fontSize: 10, marginTop: 8, lineHeight: 1.4 }}>
-            tick: full cycle (gate flips)<br />
-            µ-tick: sub-cycle ramp
+            ▶ play: auto-step every 0.9 s.<br />
+            ⏭ step: advance one cycle.<br />
+            Each cycle the gate flips on/off.
           </div>
         </div>
 

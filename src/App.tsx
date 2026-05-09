@@ -43,8 +43,8 @@ function App() {
         </h2>
         <LevelView />
         <p style={{ color: colors.edge, fontSize: 12, marginTop: 10 }}>
-          Click any of the four MOSFETs in the gate (level 6) to fly the camera in to one transistor (level 7).
-          Use the tick / µ-tick buttons to pulse V_G; the polysilicon strip warms and the channel under the oxide glows.
+          Click any of the four MOSFETs in the gate (level 1) to fly the camera into one transistor (level 0).
+          Use ▶ play to auto-cycle the inputs through the NAND truth table, or ⏭ step one cycle at a time.
         </p>
       </section>
 

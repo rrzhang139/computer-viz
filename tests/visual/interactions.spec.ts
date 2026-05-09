@@ -86,21 +86,20 @@ test.describe('Visual trace — capture dynamics for review', () => {
     await captureSequence(page, 'electrons-tick', [200, 1200, 2400]);
   });
 
-  test('electrons-microtick-x3: gate ramp accumulates', async ({ page }) => {
+  test('clock-step: step toggles V_G between off and on', async ({ page }) => {
     await page.goto('/');
     await waitForFirstPaint(page);
     await page.getByTestId('zoom-target-2').click();
     await page.waitForTimeout(SETTLE_MS);
-    const dir = join(OUT, 'electrons-microtick-x3');
+    const dir = join(OUT, 'clock-step');
     mkdirSync(dir, { recursive: true });
-    await page.screenshot({ path: join(dir, 'frame-0.png') });
-    await page.getByTestId('step-micro').click();
-    await page.waitForTimeout(700);
-    await page.screenshot({ path: join(dir, 'frame-1.png') });
-    await page.getByTestId('step-micro').click();
-    await page.getByTestId('step-micro').click();
-    await page.waitForTimeout(700);
-    await page.screenshot({ path: join(dir, 'frame-2.png') });
+    await page.screenshot({ path: join(dir, 'frame-0.png') }); // V_G = 0
+    await page.getByTestId('step-cycle').click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(dir, 'frame-1.png') }); // V_G = 1
+    await page.getByTestId('step-cycle').click();
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: join(dir, 'frame-2.png') }); // V_G = 0 again
   });
 
   test('escape-key-zoom-out: Escape returns to transistor', async ({ page }) => {
@@ -211,10 +210,10 @@ test.describe('Visual trace — capture dynamics for review', () => {
 });
 
 test.describe('Click highlights (pure assertions)', () => {
-  test('hovering zoom-target-2 sets hover-readout to T2', async ({ page }) => {
+  test('hovering zoom-target-2 sets hover-readout to its role', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('zoom-target-2').hover();
-    await expect(page.getByTestId('hover-readout')).toContainText('T2');
+    await expect(page.getByTestId('hover-readout')).toContainText('N_A');
   });
 
   test('hover-readout clears when leaving the target', async ({ page }) => {

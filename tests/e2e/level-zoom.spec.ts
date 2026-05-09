@@ -41,7 +41,7 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false');
     await expect(page.getByTestId('level-pane-gate')).toHaveAttribute('aria-hidden', 'true');
     await expect(page.getByTestId('level-breadcrumb')).toContainText('Transistor');
-    await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 7/i);
+    await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 0/i);
   });
 
   test('all four zoom targets work', async ({ page }) => {
@@ -78,10 +78,10 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
   test('round-trip: T0 → back → T3 → back', async ({ page }) => {
     await page.goto('/');
     const sequence: Array<{ click: string; expectedHidden: string; expectedDepth: RegExp }> = [
-      { click: 'zoom-target-0', expectedHidden: 'level-pane-gate', expectedDepth: /level 7/i },
-      { click: 'back', expectedHidden: 'level-pane-transistor', expectedDepth: /level 6/i },
-      { click: 'zoom-target-3', expectedHidden: 'level-pane-gate', expectedDepth: /level 7/i },
-      { click: 'back', expectedHidden: 'level-pane-transistor', expectedDepth: /level 6/i },
+      { click: 'zoom-target-0', expectedHidden: 'level-pane-gate', expectedDepth: /level 0/i },
+      { click: 'back', expectedHidden: 'level-pane-transistor', expectedDepth: /level 1/i },
+      { click: 'zoom-target-3', expectedHidden: 'level-pane-gate', expectedDepth: /level 0/i },
+      { click: 'back', expectedHidden: 'level-pane-transistor', expectedDepth: /level 1/i },
     ];
     for (const { click, expectedHidden, expectedDepth } of sequence) {
       await page.getByTestId(click).click();
@@ -91,17 +91,17 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     }
   });
 
-  test('hovering an overlay button shows the hover-readout', async ({ page }) => {
+  test('hovering an overlay button shows the hover-readout (transistor role)', async ({ page }) => {
     await page.goto('/');
+    // Transistor at index 2 = N_A in the new NAND topology.
     await page.getByTestId('zoom-target-2').hover();
-    await expect(page.getByTestId('hover-readout')).toContainText('T2');
+    await expect(page.getByTestId('hover-readout')).toContainText('N_A');
   });
 
   test('hover-readout disappears when no longer hovering', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('zoom-target-1').hover();
     await expect(page.getByTestId('hover-readout')).toBeVisible();
-    // Move pointer away from any zoom target.
     await page.getByTestId('level-breadcrumb').hover();
     await expect(page.getByTestId('hover-readout')).toBeHidden();
   });
@@ -221,6 +221,68 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
       await page.getByTestId(p.id).click();
       await expect(page.getByTestId('spotlight-title')).toHaveText(p.expected);
     }
+  });
+
+  // ── NAND gate: truth table + clock + play/pause ─────────────────────────
+
+  test('NAND gate shows A=0 B=0 → Y=1 at start', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('bit-A')).toContainText('A = 0');
+    await expect(page.getByTestId('bit-B')).toContainText('B = 0');
+    await expect(page.getByTestId('bit-Y')).toContainText('Y = 1');
+  });
+
+  test('step advances through full NAND truth table', async ({ page }) => {
+    await page.goto('/');
+    // Gray-code sequence: 00 → 01 → 11 → 10
+    const expected = [
+      { A: 0, B: 0, Y: 1 },
+      { A: 0, B: 1, Y: 1 },
+      { A: 1, B: 1, Y: 0 },
+      { A: 1, B: 0, Y: 1 },
+    ];
+    for (let i = 0; i < expected.length; i++) {
+      const e = expected[i];
+      await expect(page.getByTestId('bit-A')).toContainText(`A = ${e.A}`);
+      await expect(page.getByTestId('bit-B')).toContainText(`B = ${e.B}`);
+      await expect(page.getByTestId('bit-Y')).toContainText(`Y = ${e.Y}`);
+      await page.getByTestId('step-cycle').click();
+    }
+  });
+
+  test('reset returns to A=0 B=0 Y=1', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('step-cycle').click();
+    await page.getByTestId('step-cycle').click();
+    await expect(page.getByTestId('bit-A')).toContainText('A = 1');
+    await page.getByTestId('reset-clock').click();
+    await expect(page.getByTestId('bit-A')).toContainText('A = 0');
+    await expect(page.getByTestId('bit-Y')).toContainText('Y = 1');
+  });
+
+  test('play auto-steps the clock; pause stops it', async ({ page }) => {
+    await page.goto('/');
+    const initialA = await page.getByTestId('bit-A').textContent();
+    await page.getByTestId('play-pause').click();
+    await expect(page.getByTestId('play-pause')).toHaveAttribute('aria-pressed', 'true');
+    // Wait long enough for at least 2 auto-steps (≥ 1.8 s).
+    await page.waitForTimeout(2200);
+    // After ~2.4 steps the truth-table state should have advanced.
+    const movedA = await page.getByTestId('bit-A').textContent();
+    const movedB = await page.getByTestId('bit-B').textContent();
+    expect(`${movedA}|${movedB}`).not.toBe(`${initialA}|A = 0`); // something changed
+    await page.getByTestId('play-pause').click();
+    await expect(page.getByTestId('play-pause')).toHaveAttribute('aria-pressed', 'false');
+    // Now it should stay put while paused.
+    const pausedState = `${await page.getByTestId('bit-A').textContent()}|${await page.getByTestId('bit-B').textContent()}`;
+    await page.waitForTimeout(1500);
+    expect(`${await page.getByTestId('bit-A').textContent()}|${await page.getByTestId('bit-B').textContent()}`).toBe(pausedState);
+  });
+
+  test('clock controls have no µ-tick (was confusing — removed)', async ({ page }) => {
+    await page.goto('/');
+    // step-micro testid should NOT exist anymore.
+    await expect(page.getByTestId('step-micro')).toHaveCount(0);
   });
 
   test('camera state is reset on page reload (deterministic test target)', async ({ page }) => {

@@ -153,11 +153,11 @@ function MOSFET({
 }
 
 function useGateVoltage(): number {
+  // V_G = cycle parity. Tick toggles between 0 and 1, end of story. The
+  // µ-tick concept was confusing (it pulled V_G in the wrong direction
+  // after a tick) and has been removed.
   const cycle = useExecution((s) => s.cycle);
-  const microStep = useExecution((s) => s.microStep);
-  const base = cycle % 2 === 0 ? 0 : 1;
-  const ramp = Math.min(0.4, microStep * 0.08);
-  return Math.max(0, Math.min(1, base + (base === 0 ? ramp : -ramp)));
+  return cycle % 2 === 0 ? 0 : 1;
 }
 
 interface TransistorProps {

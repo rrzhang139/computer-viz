@@ -51,7 +51,7 @@ describe('<LevelView>', () => {
     render(<LevelView />);
     expect(gatePane()).toHaveAttribute('aria-hidden', 'false');
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 6/i);
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 1/i);
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Gate/);
   });
 
@@ -71,7 +71,7 @@ describe('<LevelView>', () => {
     act(() => arrivedCb!(2));
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'false');
     expect(gatePane()).toHaveAttribute('aria-hidden', 'true');
-    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 7/i);
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 0/i);
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Transistor/);
   });
 
@@ -120,9 +120,22 @@ describe('<LevelView>', () => {
     expect(gatePane().style.pointerEvents).toBe('none');
   });
 
-  it('exposes tick and µ-tick clock controls', () => {
+  it('exposes step / play-pause / reset clock controls', () => {
     render(<LevelView />);
-    expect(screen.getByTestId('step-cycle')).toHaveTextContent('tick');
-    expect(screen.getByTestId('step-micro')).toHaveTextContent('µ-tick');
+    expect(screen.getByTestId('step-cycle')).toHaveTextContent(/step/i);
+    expect(screen.getByTestId('play-pause')).toHaveTextContent(/play|pause/i);
+    expect(screen.getByTestId('reset-clock')).toHaveTextContent(/reset/i);
+  });
+
+  it('clicking play toggles aria-pressed', () => {
+    render(<LevelView />);
+    const playBtn = screen.getByTestId('play-pause');
+    expect(playBtn).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(playBtn);
+    expect(playBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(playBtn).toHaveTextContent(/pause/i);
+    fireEvent.click(playBtn);
+    expect(playBtn).toHaveAttribute('aria-pressed', 'false');
+    expect(playBtn).toHaveTextContent(/play/i);
   });
 });

@@ -1,87 +1,118 @@
-// LevelGate — Tier 2 view of a logic gate built from 4 MOSFETs.
+// LevelGate — CMOS NAND gate, 4 transistors wired up.
 //
-// In CMOS, a NAND gate uses 2 PMOS (pull-up) + 2 NMOS (pull-down) — 4
-// transistors. We render them as a row for now (the proper CMOS floorplan
-// can replace this later); each MOSFET is a clickable zoom target.
+// Topology:
+//   Vdd ────────────────────────────────────
+//          │                          │
+//         [P_A]────────────────────[P_B]    ← PMOS pull-up (parallel)
+//          │                          │
+//          └──────────┬───────────────┘
+//                     │
+//                     ● Y                   ← output node
+//                     │
+//                    [N_A]                  ← NMOS pull-down (series)
+//                     │
+//                    [N_B]
+//                     │
+//                    GND
 //
-// Interaction model:
-//   - Hover a MOSFET (or its anchored Html button) → highlight + cursor pointer.
-//   - Click → camera flies toward that MOSFET, and once it gets close, the
-//     parent (LevelView) swaps to LevelTransistor (single MOSFET, level 7).
-//   - No "zoom in" button — the meshes themselves are the zoom targets.
+// Inputs A, B drive both the PMOS gates (turn on when input is LOW) and
+// the NMOS gates (turn on when input is HIGH). Output Y = NAND(A, B).
 //
-// Test handles: each MOSFET has an <Html> overlay button with
-// data-testid="zoom-target-{i}". Buttons are anchored at the mesh's world
-// position so they follow the camera. Tests can click them deterministically.
+// Clock advances inputs through the truth table on each tick:
+//   cycle 0: A=0 B=0  →  Y=1
+//   cycle 1: A=0 B=1  →  Y=1
+//   cycle 2: A=1 B=1  →  Y=0
+//   cycle 3: A=1 B=0  →  Y=1
+//
+// Active transistors glow. Active wires (the path connecting Y to Vdd or
+// GND) carry the same color as their net potential. Click any transistor
+// to fly the camera into it and see the device itself.
 
 import { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Html, Text } from '@react-three/drei';
+import { Html, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
 
-const POSITIONS: readonly [number, number, number][] = [
-  [-3.6, 0, 0],
-  [-1.2, 0, 0],
-  [1.2, 0, 0],
-  [3.6, 0, 0],
+type Bit = 0 | 1;
+interface Inputs { A: Bit; B: Bit; Y: Bit }
+
+interface TransistorSpec {
+  id: number;
+  role: 'P_A' | 'P_B' | 'N_A' | 'N_B';
+  kind: 'PMOS' | 'NMOS';
+  input: 'A' | 'B';
+  x: number;
+  y: number;
+}
+
+const TRANSISTORS: readonly TransistorSpec[] = [
+  { id: 0, role: 'P_A', kind: 'PMOS', input: 'A', x: -1.6, y: 1.5 },
+  { id: 1, role: 'P_B', kind: 'PMOS', input: 'B', x:  1.6, y: 1.5 },
+  { id: 2, role: 'N_A', kind: 'NMOS', input: 'A', x:  0,   y: -0.6 },
+  { id: 3, role: 'N_B', kind: 'NMOS', input: 'B', x:  0,   y: -2.4 },
 ];
 
-const HOME_POS = new THREE.Vector3(0, 5, 13);
+const HOME_POS = new THREE.Vector3(0, 0, 9.5);
 const HOME_LOOK = new THREE.Vector3(0, 0, 0);
 
 function targetPoseFor(idx: number): { pos: THREE.Vector3; look: THREE.Vector3 } {
-  const x = POSITIONS[idx][0];
+  const t = TRANSISTORS[idx];
   return {
-    pos: new THREE.Vector3(x, 2, 4.5), // close to the picked MOSFET
-    look: new THREE.Vector3(x, 0, 0),
+    pos: new THREE.Vector3(t.x, t.y, 3.0),
+    look: new THREE.Vector3(t.x, t.y, 0),
   };
 }
 
+function inputsFor(cycle: number): Inputs {
+  // Gray code through the truth table: 00, 01, 11, 10
+  const seq: [Bit, Bit][] = [
+    [0, 0],
+    [0, 1],
+    [1, 1],
+    [1, 0],
+  ];
+  const [A, B] = seq[((cycle % 4) + 4) % 4];
+  const Y: Bit = A === 1 && B === 1 ? 0 : 1;
+  return { A, B, Y };
+}
+
+function isOn(t: TransistorSpec, inputs: Inputs): boolean {
+  const v = inputs[t.input];
+  // PMOS conducts when its gate is LOW; NMOS when HIGH.
+  return t.kind === 'PMOS' ? v === 0 : v === 1;
+}
+
+const NET_HIGH_COLOR = parchment.gateOn;       // terracotta
+const NET_LOW_COLOR = parchment.ink;           // dark sepia
+const RAIL_VDD_COLOR = parchment.gateOn;
+const RAIL_GND_COLOR = parchment.ink;
+
 interface MosfetProps {
-  position: [number, number, number];
-  idx: number;
+  t: TransistorSpec;
+  on: boolean;
   hovered: boolean;
-  active: boolean;
-  on: number;
   onHover: (idx: number | null) => void;
   onClick: (idx: number) => void;
 }
 
-function Mosfet({ position, idx, hovered, active, on, onHover, onClick }: MosfetProps) {
-  const gateRef = useRef<THREE.Mesh>(null);
-  const channelRef = useRef<THREE.Mesh>(null);
-  const groupRef = useRef<THREE.Group>(null);
+function Mosfet({ t, on, hovered, onHover, onClick }: MosfetProps) {
+  const bodyRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
-    if (gateRef.current) {
-      const m = gateRef.current.material as THREE.MeshStandardMaterial;
-      const c = new THREE.Color(parchment.gate).lerp(new THREE.Color(parchment.gateOn), active ? on : 0);
-      m.color.copy(c);
-      m.emissive.set(parchment.gateOn);
-      m.emissiveIntensity = active ? on * 0.3 : 0;
-    }
-    if (channelRef.current) {
-      const mat = channelRef.current.material as THREE.MeshStandardMaterial;
-      const intensity = active ? on : 0;
-      mat.emissiveIntensity = intensity * 0.45;
-      mat.opacity = 0.22 + intensity * 0.45;
-    }
-    if (groupRef.current) {
-      // Active MOSFET bobs subtly. Hovered MOSFET lifts a touch (clickability cue).
-      const lift = (hovered ? 0.15 : 0) + (active ? Math.sin(performance.now() * 0.003) * 0.04 : 0);
-      groupRef.current.position.y = position[1] + lift;
-    }
+    if (!bodyRef.current) return;
+    const m = bodyRef.current.material as THREE.MeshStandardMaterial;
+    m.emissive.set(t.kind === 'PMOS' ? parchment.gateOn : parchment.electronGlow);
+    m.emissiveIntensity = on ? 0.55 + Math.sin(performance.now() * 0.004) * 0.1 : 0;
   });
 
   return (
     <group
-      ref={groupRef}
-      position={position}
+      position={[t.x, t.y, 0]}
       onPointerOver={(e) => {
         e.stopPropagation();
-        onHover(idx);
+        onHover(t.id);
         document.body.style.cursor = 'pointer';
       }}
       onPointerOut={() => {
@@ -90,55 +121,141 @@ function Mosfet({ position, idx, hovered, active, on, onHover, onClick }: Mosfet
       }}
       onClick={(e) => {
         e.stopPropagation();
-        onClick(idx);
+        onClick(t.id);
       }}
     >
-      <mesh position={[0, -0.3, 0]}>
-        <boxGeometry args={[2.5, 0.4, 1]} />
-        <meshStandardMaterial color={parchment.substrate} roughness={0.85} />
+      {/* the body — a small box; PMOS slightly bluer, NMOS warmer */}
+      <mesh ref={bodyRef}>
+        <boxGeometry args={[0.7, 0.5, 0.3]} />
+        <meshStandardMaterial
+          color={t.kind === 'PMOS' ? '#7a8fa3' : parchment.gate}
+          emissive={parchment.gateOn}
+          emissiveIntensity={0}
+          roughness={0.55}
+          metalness={0.2}
+        />
       </mesh>
-      <mesh position={[-0.85, -0.05, 0]}>
-        <boxGeometry args={[0.6, 0.12, 0.85]} />
-        <meshStandardMaterial color={parchment.doped} />
+      {/* gate stub on the side (visual cue for the input terminal) */}
+      <mesh position={[t.kind === 'PMOS' && t.x < 0 ? -0.45 : 0.45, 0, 0]}>
+        <boxGeometry args={[0.18, 0.1, 0.32]} />
+        <meshStandardMaterial color={parchment.gate} roughness={0.6} />
       </mesh>
-      <mesh position={[0.85, -0.05, 0]}>
-        <boxGeometry args={[0.6, 0.12, 0.85]} />
-        <meshStandardMaterial color={parchment.doped} />
-      </mesh>
-      <mesh ref={channelRef} position={[0, 0.05, 0]}>
-        <boxGeometry args={[1.05, 0.08, 0.8]} />
-        <meshStandardMaterial color={parchment.electron} emissive={parchment.electronGlow} emissiveIntensity={0} transparent opacity={0.22} />
-      </mesh>
-      <mesh ref={gateRef} position={[0, 0.18, 0]}>
-        <boxGeometry args={[0.4, 0.1, 1.1]} />
-        <meshStandardMaterial color={parchment.gate} emissive={parchment.gateOn} emissiveIntensity={0} roughness={0.55} metalness={0.2} />
-      </mesh>
-
-      {/* Hover ring — cyan-tinted: "this is clickable" */}
+      {/* hover ring (cyan/orange, "this is clickable") */}
       {hovered && (
-        <mesh position={[0, -0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.40, 1.65, 32]} />
+        <mesh position={[0, 0, -0.12]}>
+          <ringGeometry args={[0.55, 0.65, 24]} />
           <meshBasicMaterial color={parchment.gateOn} transparent opacity={0.7} />
         </mesh>
       )}
-
-      {/* Active ring — russet: "this is the current MOSFET" */}
-      {active && (
-        <mesh position={[0, -0.28, 0]} rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[1.45, 1.55, 32]} />
-          <meshBasicMaterial color={parchment.highlight} />
-        </mesh>
-      )}
+      {/* role label */}
+      <Text position={[0, 0.55, 0]} fontSize={0.22} color={parchment.ink} anchorX="center">
+        {t.role}
+      </Text>
     </group>
   );
 }
 
-// Time-based camera fly. Frame-rate independent so Playwright (which can
-// throttle requestAnimationFrame in headless workers) reaches "arrived" in
-// real wall-clock time. Duration ≈ 1.0 s; a small extra hold before firing
-// onArrived ensures the cross-fade kicks in once the camera is visibly close.
-const FLY_DURATION_S = 1.0;
+interface WireSpec {
+  pts: [number, number, number][];
+  netLow: string;   // color when net is at low potential
+  netHigh: string;  // color when net is at high potential
+  net: 'Vdd' | 'GND' | 'Y' | 'mid' | 'A' | 'B';
+}
 
+const WIRES: readonly WireSpec[] = [
+  // Vdd rail (always high)
+  { pts: [[-3, 3, 0], [3, 3, 0]], netLow: RAIL_VDD_COLOR, netHigh: RAIL_VDD_COLOR, net: 'Vdd' },
+  // Vdd → PMOS drains
+  { pts: [[-1.6, 3, 0], [-1.6, 1.85, 0]], netLow: RAIL_VDD_COLOR, netHigh: RAIL_VDD_COLOR, net: 'Vdd' },
+  { pts: [[ 1.6, 3, 0], [ 1.6, 1.85, 0]], netLow: RAIL_VDD_COLOR, netHigh: RAIL_VDD_COLOR, net: 'Vdd' },
+  // PMOS sources → Y junction
+  { pts: [[-1.6, 1.15, 0], [-1.6, 0.5, 0], [1.6, 0.5, 0], [1.6, 1.15, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'Y' },
+  // Y → output marker (right of the gate)
+  { pts: [[0, 0.5, 0], [3.0, 0.5, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'Y' },
+  // Y junction → N_A drain
+  { pts: [[0, 0.5, 0], [0, -0.25, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'Y' },
+  // N_A source → N_B drain (mid net)
+  { pts: [[0, -0.95, 0], [0, -2.05, 0]], netLow: NET_LOW_COLOR, netHigh: NET_LOW_COLOR, net: 'mid' },
+  // N_B source → GND
+  { pts: [[0, -2.75, 0], [0, -3.5, 0]], netLow: RAIL_GND_COLOR, netHigh: RAIL_GND_COLOR, net: 'GND' },
+  // GND rail
+  { pts: [[-3, -3.5, 0], [3, -3.5, 0]], netLow: RAIL_GND_COLOR, netHigh: RAIL_GND_COLOR, net: 'GND' },
+  // A input wires (gates of P_A and N_A)
+  { pts: [[-4, 1.5, 0], [-2.05, 1.5, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'A' },
+  { pts: [[-3.2, 1.5, 0], [-3.2, -0.6, 0], [-0.45, -0.6, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'A' },
+  // B input wires (gates of P_B and N_B)
+  { pts: [[ 4, 1.5, 0], [ 2.05, 1.5, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'B' },
+  { pts: [[ 3.2, 1.5, 0], [ 3.2, -2.4, 0], [ 0.45, -2.4, 0]], netLow: NET_LOW_COLOR, netHigh: NET_HIGH_COLOR, net: 'B' },
+];
+
+function netColorFor(net: WireSpec['net'], inputs: Inputs): string {
+  switch (net) {
+    case 'Vdd': return RAIL_VDD_COLOR;
+    case 'GND': return RAIL_GND_COLOR;
+    case 'A': return inputs.A === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
+    case 'B': return inputs.B === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
+    case 'Y': return inputs.Y === 1 ? NET_HIGH_COLOR : NET_LOW_COLOR;
+    case 'mid': {
+      // mid is at GND when both NMOS conducting (path open to GND), otherwise floating
+      return inputs.A === 1 && inputs.B === 1 ? RAIL_GND_COLOR : NET_LOW_COLOR;
+    }
+  }
+}
+
+function NandScene({
+  inputs,
+  hovered,
+  onHover,
+  onClick,
+}: {
+  inputs: Inputs;
+  hovered: number | null;
+  onHover: (i: number | null) => void;
+  onClick: (i: number) => void;
+}) {
+  return (
+    <>
+      {/* wires */}
+      {WIRES.map((w, i) => (
+        <Line
+          key={i}
+          points={w.pts}
+          color={netColorFor(w.net, inputs)}
+          lineWidth={3}
+        />
+      ))}
+      {/* transistors */}
+      {TRANSISTORS.map((t) => (
+        <Mosfet
+          key={t.id}
+          t={t}
+          on={isOn(t, inputs)}
+          hovered={hovered === t.id}
+          onHover={onHover}
+          onClick={onClick}
+        />
+      ))}
+      {/* labels */}
+      <Text position={[-3.4, 3.0, 0]} fontSize={0.28} color={RAIL_VDD_COLOR} anchorX="right">
+        Vdd
+      </Text>
+      <Text position={[-3.4, -3.5, 0]} fontSize={0.28} color={RAIL_GND_COLOR} anchorX="right">
+        GND
+      </Text>
+      <Text position={[-4.2, 1.5, 0]} fontSize={0.32} color={parchment.ink} anchorX="right">
+        A
+      </Text>
+      <Text position={[ 4.2, 1.5, 0]} fontSize={0.32} color={parchment.ink} anchorX="left">
+        B
+      </Text>
+      <Text position={[ 3.2, 0.85, 0]} fontSize={0.32} color={parchment.ink} anchorX="left">
+        Y
+      </Text>
+    </>
+  );
+}
+
+const FLY_DURATION_S = 1.0;
 function CameraRig({
   targetIdx,
   onArrived,
@@ -155,7 +272,6 @@ function CameraRig({
   const lookVec = useRef(new THREE.Vector3().copy(HOME_LOOK));
 
   useFrame(() => {
-    // On target change, snapshot start pose + reset timer.
     if (lastTarget.current !== targetIdx) {
       lastTarget.current = targetIdx;
       flyStartMs.current = performance.now();
@@ -163,13 +279,11 @@ function CameraRig({
       startLook.current.copy(lookVec.current);
       if (targetIdx === null) arrivedFor.current = null;
     }
-
     const want = targetIdx === null
       ? { pos: HOME_POS, look: HOME_LOOK }
       : targetPoseFor(targetIdx);
     const elapsed = (performance.now() - (flyStartMs.current ?? 0)) / 1000;
     const t = Math.min(1, elapsed / FLY_DURATION_S);
-    // Cubic ease-in-out for natural microscope feel.
     const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
     camera.position.lerpVectors(startPos.current, want.pos, e);
@@ -181,7 +295,6 @@ function CameraRig({
       onArrived(targetIdx);
     }
   });
-
   return null;
 }
 
@@ -189,25 +302,41 @@ function HoverTargets({
   onHover,
   onClick,
 }: {
-  onHover: (idx: number | null) => void;
-  onClick: (idx: number) => void;
+  onHover: (i: number | null) => void;
+  onClick: (i: number) => void;
 }) {
   return (
     <>
-      {POSITIONS.map((pos, i) => (
-        <Html key={i} position={[pos[0], 1.0, 0]} center distanceFactor={9}>
+      {TRANSISTORS.map((t) => (
+        <Html
+          key={t.id}
+          position={[t.x, t.y - 0.6, 0]}
+          center
+          distanceFactor={9}
+        >
           <button
-            data-testid={`zoom-target-${i}`}
-            aria-label={`zoom to transistor ${i}`}
+            data-testid={`zoom-target-${t.id}`}
+            aria-label={`zoom to ${t.role}`}
             onClick={(e) => {
               e.stopPropagation();
-              onClick(i);
+              onClick(t.id);
             }}
-            onMouseEnter={() => onHover(i)}
+            onMouseEnter={() => onHover(t.id)}
             onMouseLeave={() => onHover(null)}
-            style={hoverBtnStyle}
+            style={{
+              padding: '4px 10px',
+              background: 'rgba(241,231,205,0.9)',
+              color: parchment.ink,
+              border: `1px solid ${parchment.gateOn}`,
+              borderRadius: 3,
+              cursor: 'pointer',
+              fontSize: 11,
+              fontFamily: 'inherit',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
           >
-            T{i}
+            {t.role}
           </button>
         </Html>
       ))}
@@ -223,16 +352,9 @@ interface Props {
 
 export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
   const cycle = useExecution((s) => s.cycle);
-  const microStep = useExecution((s) => s.microStep);
   const [hovered, setHovered] = useState<number | null>(null);
+  const inputs = inputsFor(cycle);
 
-  const base = cycle % 2 === 0 ? 0 : 1;
-  const ramp = Math.min(0.4, microStep * 0.08);
-  const gateOn = Math.max(0, Math.min(1, base + (base === 0 ? ramp : -ramp)));
-  // Picked transistor wins; otherwise auto-cycle on each clock tick.
-  const activeIdx = zoomTarget ?? cycle % 4;
-
-  // Reset cursor on unmount in case hover leaves it pointer.
   useEffect(() => {
     return () => {
       document.body.style.cursor = 'auto';
@@ -241,40 +363,43 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
 
   return (
     <div style={containerStyle} data-testid="level-gate">
-      <Canvas camera={{ position: [0, 5, 13], fov: 38 }} style={{ width: '100%', height: '100%', background: parchment.bg }}>
-        <ambientLight intensity={0.65} />
-        <directionalLight position={[4, 8, 5]} intensity={0.9} />
-        <directionalLight position={[-4, 4, -3]} intensity={0.35} color={parchment.oxide} />
+      <Canvas camera={{ position: [0, 0, 9.5], fov: 45 }} style={{ width: '100%', height: '100%', background: parchment.bg }}>
+        <ambientLight intensity={0.85} />
+        <directionalLight position={[3, 5, 5]} intensity={0.6} />
         <CameraRig targetIdx={zoomTarget} onArrived={onArrived} />
-        {POSITIONS.map((pos, i) => (
-          <Mosfet
-            key={i}
-            position={pos}
-            idx={i}
-            hovered={hovered === i}
-            active={i === activeIdx}
-            on={gateOn}
-            onHover={setHovered}
-            onClick={onZoomTo}
-          />
-        ))}
+        <NandScene
+          inputs={inputs}
+          hovered={hovered}
+          onHover={setHovered}
+          onClick={onZoomTo}
+        />
         <HoverTargets onHover={setHovered} onClick={onZoomTo} />
-        <Text position={[0, 2.0, 0]} fontSize={0.28} color={parchment.inkSoft} anchorX="center">
-          4× [T] — hover to highlight · click to dive in
-        </Text>
       </Canvas>
 
       <div style={overlayStyle}>
-        <strong style={{ color: parchment.ink }}>Logic gate</strong>
+        <strong style={{ color: parchment.ink }}>NAND gate</strong>
         <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 4 }}>
-          A NAND-style gate built from 4 transistors. Hover any one to highlight;
-          click to fly the camera toward it and see the transistor itself.
+          2 PMOS pull-up (parallel) on top, 2 NMOS pull-down (series) on bottom.
+          Click any transistor to fly into it.
         </div>
         {hovered !== null && (
-          <div data-testid="hover-readout" style={{ color: parchment.gateOn, fontSize: 11, marginTop: 6 }}>
-            hovering: <strong>T{hovered}</strong>
+          <div style={{ color: parchment.gateOn, fontSize: 11, marginTop: 6 }} data-testid="hover-readout">
+            hovering: <strong>{TRANSISTORS[hovered].role}</strong>
           </div>
         )}
+      </div>
+
+      {/* Truth-table state readout */}
+      <div style={truthStyle} data-testid="nand-truth">
+        <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
+          inputs
+        </div>
+        <div style={truthRowStyle}>
+          <span style={bitChip(inputs.A === 1)} data-testid="bit-A">A = {inputs.A}</span>
+          <span style={bitChip(inputs.B === 1)} data-testid="bit-B">B = {inputs.B}</span>
+          <span style={{ color: parchment.inkSoft, margin: '0 4px' }}>→</span>
+          <span style={bitChip(inputs.Y === 1)} data-testid="bit-Y">Y = {inputs.Y}</span>
+        </div>
       </div>
     </div>
   );
@@ -298,15 +423,36 @@ const overlayStyle: React.CSSProperties = {
   width: 240,
 };
 
-const hoverBtnStyle: React.CSSProperties = {
-  padding: '4px 10px',
-  background: 'rgba(241,231,205,0.85)',
-  color: parchment.ink,
-  border: `1px solid ${parchment.gateOn}`,
-  borderRadius: 3,
-  cursor: 'pointer',
-  fontSize: 11,
-  fontFamily: 'inherit',
-  fontWeight: 600,
-  whiteSpace: 'nowrap',
+const truthStyle: React.CSSProperties = {
+  position: 'absolute',
+  bottom: 12,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 4,
+  alignItems: 'center',
+  padding: '6px 12px',
+  background: 'rgba(241,231,205,0.92)',
+  border: `1px solid ${parchment.rule}`,
+  borderRadius: 6,
 };
+
+const truthRowStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  fontFamily: 'ui-monospace, "SF Mono", Consolas, monospace',
+  fontSize: 12,
+};
+
+function bitChip(active: boolean): React.CSSProperties {
+  return {
+    padding: '2px 8px',
+    background: active ? parchment.gateOn : 'transparent',
+    color: active ? '#fff' : parchment.ink,
+    border: `1px solid ${active ? parchment.gateOn : parchment.rule}`,
+    borderRadius: 3,
+    fontWeight: 600,
+  };
+}
