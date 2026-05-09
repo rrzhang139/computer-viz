@@ -20,10 +20,14 @@ import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
 import {
   gateSpotlight,
+  nmosSpotlight,
   partSpotlights,
+  pmosSpotlight,
   transistorDefaultSpotlight,
   type ElectronsPart,
 } from './descriptions';
+
+type TransistorVariant = 'NMOS' | 'PMOS' | null;
 
 type LevelKey = 'gate' | 'transistor';
 
@@ -42,16 +46,25 @@ const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: num
   },
 };
 
+function transistorTitleFor(variant: TransistorVariant): string {
+  if (variant === 'PMOS') return 'Transistor · PMOS branch';
+  if (variant === 'NMOS') return 'Transistor · NMOS branch';
+  return 'Transistor';
+}
+
 export function LevelView() {
   const [level, setLevel] = useState<LevelKey>('gate');
   const [zoomTarget, setZoomTarget] = useState<number | null>(null);
+  // The "branch" of the tree we drilled into — PMOS or NMOS.
+  const [variant, setVariant] = useState<TransistorVariant>(null);
   const [transistorHighlight, setTransistorHighlight] = useState<ElectronsPart>(null);
   const [playing, setPlaying] = useState(false);
   const stepCycle = useExecution((s) => s.stepCycle);
   const reset = useExecution((s) => s.reset);
 
-  const handleZoomTo = useCallback((idx: number) => {
+  const handleZoomTo = useCallback((idx: number, kind: 'PMOS' | 'NMOS') => {
     setZoomTarget(idx);
+    setVariant(kind);
   }, []);
   const handleArrived = useCallback(() => {
     setLevel('transistor');
@@ -59,6 +72,7 @@ export function LevelView() {
   const handleBack = useCallback(() => {
     setLevel('gate');
     setZoomTarget(null);
+    setVariant(null);
     setTransistorHighlight(null);
   }, []);
 
@@ -75,15 +89,20 @@ export function LevelView() {
     reset();
   }, [reset]);
 
-  // Spotlight: level + (when on Transistor) part highlight.
-  const spotlight =
-    level === 'gate'
-      ? gateSpotlight
-      : transistorHighlight
-        ? partSpotlights[transistorHighlight]
-        : transistorDefaultSpotlight;
+  // Spotlight: level → (within Transistor) variant → part highlight.
+  // Tree: gate ┬→ pmos ─┬─ part highlight
+  //            └→ nmos ─┴─ part highlight
+  const transistorSpotlight =
+    transistorHighlight
+      ? partSpotlights[transistorHighlight]
+      : variant === 'PMOS'
+        ? pmosSpotlight
+        : variant === 'NMOS'
+          ? nmosSpotlight
+          : transistorDefaultSpotlight;
+  const spotlight = level === 'gate' ? gateSpotlight : transistorSpotlight;
   const spotlightKey =
-    level === 'gate' ? 'gate' : transistorHighlight ?? 'transistor-default';
+    level === 'gate' ? 'gate' : transistorHighlight ?? `transistor-${variant ?? 'default'}`;
 
   // Esc returns to gate (only meaningful when zoomed into a transistor).
   useEffect(() => {
@@ -133,7 +152,7 @@ export function LevelView() {
           aria-hidden={level !== 'transistor'}
           data-testid="level-pane-transistor"
         >
-          <LevelTransistor highlight={transistorHighlight} onHighlight={setTransistorHighlight} />
+          <LevelTransistor variant={variant} highlight={transistorHighlight} onHighlight={setTransistorHighlight} />
         </motion.div>
       </div>
 
@@ -142,7 +161,9 @@ export function LevelView() {
           <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
             level {meta.depth}
           </div>
-          <div style={{ color: parchment.ink, fontSize: 16, fontWeight: 600 }}>{meta.title}</div>
+          <div style={{ color: parchment.ink, fontSize: 16, fontWeight: 600 }}>
+            {level === 'transistor' ? transistorTitleFor(variant) : meta.title}
+          </div>
           <div style={{ color: parchment.inkSoft, fontSize: 11 }}>{meta.subtitle}</div>
         </div>
 

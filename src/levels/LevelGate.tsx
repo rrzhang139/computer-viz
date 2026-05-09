@@ -73,7 +73,7 @@ interface MosfetProps {
   gateValue: Bit;
   hovered: boolean;
   onHover: (idx: number | null) => void;
-  onClick: (idx: number) => void;
+  onClick: (idx: number, kind: 'PMOS' | 'NMOS') => void;
 }
 
 function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
@@ -100,7 +100,7 @@ function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
       }}
       onClick={(e) => {
         e.stopPropagation();
-        onClick(t.id);
+        onClick(t.id, t.kind);
       }}
     >
       <mesh ref={bodyRef}>
@@ -268,7 +268,7 @@ function NandScene({
   inputs: Inputs;
   hovered: number | null;
   onHover: (i: number | null) => void;
-  onClick: (i: number) => void;
+  onClick: (i: number, kind: 'PMOS' | 'NMOS') => void;
 }) {
   return (
     <>
@@ -402,7 +402,7 @@ function HoverTargets({
   onClick,
 }: {
   onHover: (i: number | null) => void;
-  onClick: (i: number) => void;
+  onClick: (i: number, kind: 'PMOS' | 'NMOS') => void;
 }) {
   return (
     <>
@@ -413,7 +413,7 @@ function HoverTargets({
             aria-label={`zoom to ${t.role}`}
             onClick={(e) => {
               e.stopPropagation();
-              onClick(t.id);
+              onClick(t.id, t.kind);
             }}
             onMouseEnter={() => onHover(t.id)}
             onMouseLeave={() => onHover(null)}
@@ -440,7 +440,7 @@ function HoverTargets({
 
 interface Props {
   zoomTarget: number | null;
-  onZoomTo: (idx: number) => void;
+  onZoomTo: (idx: number, kind: 'PMOS' | 'NMOS') => void;
   onArrived: (idx: number) => void;
 }
 
@@ -514,10 +514,10 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
         </div>
       </div>
 
-      {/* BOTTOM CENTER — truth-table state chip */}
+      {/* BOTTOM CENTER — phase explainer (truth-table state + WHY) */}
       <div style={truthStyle} data-testid="nand-truth">
         <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
-          inputs · output
+          phase {((cycle % 4) + 4) % 4 + 1} of 4 · inputs · output
         </div>
         <div style={truthRowStyle}>
           <span style={bitChip(inputs.A === 1)} data-testid="bit-A">A = {inputs.A}</span>
@@ -525,10 +525,43 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
           <span style={{ color: parchment.inkSoft, margin: '0 4px' }}>NAND →</span>
           <span style={bitChip(inputs.Y === 1)} data-testid="bit-Y">Y = {inputs.Y}</span>
         </div>
+        <div style={explainerStyle} data-testid="phase-explainer">
+          <strong style={{ color: parchment.ink }}>{PHASE_TEXT[phaseKey(inputs)].headline}</strong>
+          <div style={{ color: parchment.inkSoft, marginTop: 2 }}>
+            {PHASE_TEXT[phaseKey(inputs)].body}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+
+function phaseKey(i: Inputs): '00' | '01' | '11' | '10' {
+  return `${i.A}${i.B}` as '00' | '01' | '11' | '10';
+}
+
+const PHASE_TEXT: Record<'00' | '01' | '11' | '10', { headline: string; body: string }> = {
+  '00': {
+    headline: 'Both inputs LOW → Y = 1',
+    body:
+      'Both PMOS conduct (PMOS is active LOW). Y is connected to Vdd through both pull-up paths in parallel. Both NMOS are off, so no path to GND.',
+  },
+  '01': {
+    headline: 'B flipped HIGH — Y stays at 1',
+    body:
+      'P_B turned OFF and N_B turned ON, but P_A is still ON (A is still 0), so Y stays connected to Vdd through P_A. The pull-down chain is broken (N_A off).',
+  },
+  '11': {
+    headline: 'Both inputs HIGH → Y = 0  ⤓',
+    body:
+      'Both PMOS are OFF — no path to Vdd. Both NMOS are ON, completing the SERIES chain to GND. Y is pulled down to ground. THIS is the only state that produces 0.',
+  },
+  '10': {
+    headline: 'B flipped LOW — Y back to 1',
+    body:
+      'A is still 1 (so P_A off, N_A on) but B = 0 means P_B is ON again. P_B alone is enough to pull Y up to Vdd. The NMOS series chain is broken (N_B off).',
+  },
+};
 
 function LegendRow({ color, label, round = false }: { color: string; label: string; round?: boolean }) {
   return (
@@ -603,10 +636,21 @@ const truthStyle: React.CSSProperties = {
   flexDirection: 'column',
   gap: 4,
   alignItems: 'flex-start',
-  padding: '6px 12px',
+  padding: '8px 12px',
   background: 'rgba(241,231,205,0.95)',
   border: `1px solid ${parchment.rule}`,
   borderRadius: 6,
+  maxWidth: 360,
+};
+
+const explainerStyle: React.CSSProperties = {
+  marginTop: 6,
+  paddingTop: 6,
+  borderTop: `1px dashed ${parchment.rule}`,
+  fontSize: 11,
+  lineHeight: 1.45,
+  color: parchment.inkSoft,
+  width: '100%',
 };
 
 const truthRowStyle: React.CSSProperties = {

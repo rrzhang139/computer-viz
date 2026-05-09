@@ -234,48 +234,72 @@ function useGateVoltage(): number {
 }
 
 interface TransistorProps {
+  // Tree branch — which type of transistor we drilled into. null = no
+  // variant (e.g., test mode); we default to the side-by-side comparison.
+  variant: 'NMOS' | 'PMOS' | null;
   highlight: Part;
   onHighlight: (p: Part) => void;
 }
 
-export function LevelTransistor({ highlight, onHighlight }: TransistorProps) {
+export function LevelTransistor({ variant, highlight, onHighlight }: TransistorProps) {
   const gateOn = useGateVoltage();
+  // When variant is set, render only that one MOSFET (tree branching).
+  // When null, fall back to the side-by-side comparison view.
+  const showCompare = variant === null;
+  const showNmos = showCompare || variant === 'NMOS';
+  const showPmos = showCompare || variant === 'PMOS';
+  const cameraPos: [number, number, number] = showCompare ? [0, 2, 11] : [0, 1.5, 8];
 
   return (
-    <div style={containerStyle} data-testid="level-transistor">
+    <div style={containerStyle} data-testid="level-transistor" data-variant={variant ?? 'compare'}>
       <Canvas
-        camera={{ position: [0, 2, 11], fov: 50 }}
+        camera={{ position: cameraPos, fov: 50 }}
         style={{ width: '100%', height: '100%', background: parchment.bg }}
       >
         <ambientLight intensity={0.7} />
         <directionalLight position={[5, 8, 4]} intensity={0.9} />
         <directionalLight position={[-5, 4, -4]} intensity={0.35} color={parchment.oxide} />
 
-        {/* NMOS on the LEFT */}
-        <group position={[-3.5, 0, 0]}>
-          <Mosfet kind="NMOS" theme={NMOS_THEME} gateOn={gateOn} highlight={highlight} onPickPart={onHighlight} />
-        </group>
-        {/* PMOS on the RIGHT */}
-        <group position={[3.5, 0, 0]}>
-          <Mosfet kind="PMOS" theme={PMOS_THEME} gateOn={gateOn} highlight={highlight} onPickPart={onHighlight} />
-        </group>
+        {showNmos && (
+          <group position={[showCompare ? -3.5 : 0, 0, 0]}>
+            <Mosfet kind="NMOS" theme={NMOS_THEME} gateOn={gateOn} highlight={highlight} onPickPart={onHighlight} />
+          </group>
+        )}
+        {showPmos && (
+          <group position={[showCompare ? 3.5 : 0, 0, 0]}>
+            <Mosfet kind="PMOS" theme={PMOS_THEME} gateOn={gateOn} highlight={highlight} onPickPart={onHighlight} />
+          </group>
+        )}
 
-        {/* Big shared V_G label between them */}
-        <Text position={[0, 1.7, 0.3]} fontSize={0.36} color={parchment.gateOn} anchorX="center" outlineWidth={0.014} outlineColor={parchment.bg}>
-          {`V_G = ${gateOn}`}
-        </Text>
-        <Text position={[0, 1.25, 0.3]} fontSize={0.16} color={parchment.inkSoft} anchorX="center" outlineWidth={0.012} outlineColor={parchment.bg}>
-          (same input drives both gates)
-        </Text>
+        {/* V_G label — between the two when comparing, above when single */}
+        {showCompare ? (
+          <>
+            <Text position={[0, 1.7, 0.3]} fontSize={0.36} color={parchment.gateOn} anchorX="center" outlineWidth={0.014} outlineColor={parchment.bg}>
+              {`V_G = ${gateOn}`}
+            </Text>
+            <Text position={[0, 1.25, 0.3]} fontSize={0.16} color={parchment.inkSoft} anchorX="center" outlineWidth={0.012} outlineColor={parchment.bg}>
+              (same input drives both gates)
+            </Text>
+          </>
+        ) : (
+          <Text position={[0, 2.4, 0.3]} fontSize={0.32} color={parchment.gateOn} anchorX="center" outlineWidth={0.014} outlineColor={parchment.bg}>
+            {`V_G = ${gateOn}`}
+          </Text>
+        )}
 
-        <OrbitControls enablePan={false} minDistance={6} maxDistance={16} />
+        <OrbitControls enablePan={false} minDistance={5} maxDistance={16} />
       </Canvas>
 
       <div style={overlayStyle}>
-        <strong style={{ color: parchment.ink }}>NMOS vs PMOS</strong>
+        <strong style={{ color: parchment.ink }}>
+          {showCompare ? 'NMOS vs PMOS' : variant === 'PMOS' ? 'PMOS branch' : 'NMOS branch'}
+        </strong>
         <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 4 }}>
-          Same V_G drives both. NMOS conducts when V_G = 1; PMOS conducts when V_G = 0.
-          Tick the clock — they flip OPPOSITELY.
+          {showCompare
+            ? 'Same V_G drives both. NMOS conducts when V_G = 1; PMOS when V_G = 0.'
+            : variant === 'PMOS'
+              ? 'P-channel — channel inverts when V_G drops to 0. Pulls its node UP to Vdd when ON.'
+              : 'N-channel — channel inverts when V_G rises to 1. Pulls its node DOWN to GND when ON.'}
         </div>
         <div style={{ marginTop: 8 }}>
           <span style={{ color: parchment.gateOn, fontSize: 11 }}>V_G </span>
@@ -293,15 +317,15 @@ export function LevelTransistor({ highlight, onHighlight }: TransistorProps) {
         )}
       </div>
 
-      {/* TOP-RIGHT — color legend keyed for both transistors */}
+      {/* TOP-RIGHT — color legend (only the colors actually shown) */}
       <div style={legendStyle} data-testid="t-legend">
         <div style={{ color: parchment.inkSoft, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
           legend
         </div>
-        <LegendBox color={NMOS_THEME.substrate} label="NMOS bulk · p-type Si" />
-        <LegendBox color={NMOS_THEME.doped} label="NMOS source/drain · n+" />
-        <LegendBox color={PMOS_THEME.substrate} label="PMOS bulk · n-type Si" />
-        <LegendBox color={PMOS_THEME.doped} label="PMOS source/drain · p+" />
+        {showNmos && <LegendBox color={NMOS_THEME.substrate} label="NMOS bulk · p-type Si" />}
+        {showNmos && <LegendBox color={NMOS_THEME.doped} label="NMOS source/drain · n+" />}
+        {showPmos && <LegendBox color={PMOS_THEME.substrate} label="PMOS bulk · n-type Si" />}
+        {showPmos && <LegendBox color={PMOS_THEME.doped} label="PMOS source/drain · p+" />}
         <LegendBox color={parchment.gate} label="polysilicon gate" />
       </div>
 

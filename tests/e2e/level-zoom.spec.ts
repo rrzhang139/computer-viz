@@ -135,11 +135,30 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     await expect(page.getByTestId('spotlight-body')).toContainText(/boolean function|NAND|transistors/i);
   });
 
-  test('spotlight on transistor (no part selected): explains the switch', async ({ page }) => {
+  test('spotlight on transistor: clicking N_A drills to NMOS branch', async ({ page }) => {
     await page.goto('/');
+    // zoom-target-2 = N_A (NMOS branch).
     await page.getByTestId('zoom-target-2').click();
-    await expect(page.getByTestId('spotlight-title')).toContainText('NMOS vs PMOS', { timeout: 5000 });
+    await expect(page.getByTestId('spotlight-title')).toContainText('NMOS', { timeout: 5000 });
     await expect(page.getByTestId('spotlight-body')).toContainText(/V_G/);
+  });
+
+  test('spotlight on transistor: clicking P_A drills to PMOS branch', async ({ page }) => {
+    await page.goto('/');
+    // zoom-target-0 = P_A (PMOS branch).
+    await page.getByTestId('zoom-target-0').click();
+    await expect(page.getByTestId('spotlight-title')).toContainText('PMOS', { timeout: 5000 });
+    await expect(page.getByTestId('spotlight-body')).toContainText(/V_G/);
+  });
+
+  test('breadcrumb labels the variant: PMOS vs NMOS branch', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('zoom-target-0').click();
+    await expect(page.getByTestId('level-breadcrumb')).toContainText('PMOS branch', { timeout: 5000 });
+    await page.getByTestId('back').click();
+    await page.waitForTimeout(1700);
+    await page.getByTestId('zoom-target-3').click();
+    await expect(page.getByTestId('level-breadcrumb')).toContainText('NMOS branch', { timeout: 5000 });
   });
 
   test('clicking gate updates spotlight to gate definition', async ({ page }) => {
@@ -194,7 +213,9 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     await page.getByTestId('pick-part-gate').click();
     await expect(page.getByTestId('spotlight-title')).toContainText('Gate');
     await page.getByTestId('pick-part-clear').click();
-    await expect(page.getByTestId('spotlight-title')).toContainText('NMOS vs PMOS');
+    // After clearing the part highlight while in NMOS branch, the variant
+    // spotlight returns (not the compare view).
+    await expect(page.getByTestId('spotlight-title')).toContainText('NMOS');
   });
 
   test('back button restores the gate spotlight', async ({ page }) => {

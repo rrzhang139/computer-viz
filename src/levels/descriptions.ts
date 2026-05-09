@@ -29,8 +29,25 @@ export const transistorDefaultSpotlight: Spotlight = {
   body:
     "Two MOSFETs side by side, driven by the SAME V_G. Their channels invert OPPOSITELY: " +
     "NMOS conducts when V_G = 1; PMOS conducts when V_G = 0. " +
-    "Tick the clock to flip V_G — one channel lights up, the other goes dark. " +
     "Pairing them is what CMOS means.",
+};
+
+export const pmosSpotlight: Spotlight = {
+  title: 'PMOS — active LOW',
+  subtitle: "you arrived here by clicking a P_ transistor",
+  body:
+    "P-channel MOSFET. The channel inverts (conducts) when V_G = 0 — opposite of NMOS. " +
+    "Used as a PULL-UP: when on, it connects its node to Vdd. " +
+    "Tick the clock and watch — the channel glows when V_G drops to 0.",
+};
+
+export const nmosSpotlight: Spotlight = {
+  title: 'NMOS — active HIGH',
+  subtitle: "you arrived here by clicking an N_ transistor",
+  body:
+    "N-channel MOSFET. The channel inverts (conducts) when V_G = 1 — the intuitive case. " +
+    "Used as a PULL-DOWN: when on, it connects its node to GND. " +
+    "Tick the clock and watch — the channel glows when V_G goes to 1.",
 };
 
 export const partSpotlights: Record<Exclude<ElectronsPart, null>, Spotlight> = {
