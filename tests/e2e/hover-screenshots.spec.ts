@@ -73,10 +73,11 @@ test.describe('hover-state visual trace', () => {
 
   test('dff level: hover master latch and capture mini visual', async ({ page }) => {
     await page.goto('/');
-    await page.getByTestId('back').click();
-    await page.waitForTimeout(1800);
-    await page.getByTestId('back').click();
-    await page.waitForTimeout(1800);
+    // gate → latch → dlatch → dff (3 back-clicks).
+    for (let i = 0; i < 3; i++) {
+      await page.getByTestId('back').click();
+      await page.waitForTimeout(1800);
+    }
     await page.getByTestId('master-latch').hover();
     await page.waitForTimeout(300);
     mkdirSync(OUT, { recursive: true });

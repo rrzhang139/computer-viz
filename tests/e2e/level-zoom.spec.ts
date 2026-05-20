@@ -147,11 +147,11 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
 
   test('clicking back at the dff (disabled) is a no-op', async ({ page }) => {
     await page.goto('/');
-    // gate → latch → dff
-    await page.getByTestId('back').click();
-    await page.waitForTimeout(SETTLE_MS);
-    await page.getByTestId('back').click();
-    await page.waitForTimeout(SETTLE_MS);
+    // gate → latch → dlatch → dff (3 back-clicks).
+    for (let i = 0; i < 3; i++) {
+      await page.getByTestId('back').click();
+      await page.waitForTimeout(SETTLE_MS);
+    }
     await expect(page.getByTestId('level-pane-dff')).toHaveAttribute('aria-hidden', 'false');
     // Now force-click the (disabled) back button — should stay at dff.
     await page.getByTestId('back').click({ force: true });
@@ -336,13 +336,6 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
 
   // ── NAND gate: truth table + clock + play/pause ─────────────────────────
   // Phase prose + meters live in the right-toolbar spotlight panel now.
-
-  test('next-gate placeholder is rendered at the gate level', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByTestId('next-gate-placeholder')).toBeVisible();
-    await expect(page.getByTestId('next-gate-placeholder')).toContainText(/next NAND/);
-    await expect(page.getByTestId('next-gate-placeholder')).toContainText(/Y/);
-  });
 
   test('NAND gate spotlight: cycle 0 = default; first step → phase 01 (Y stays 1)', async ({ page }) => {
     await page.goto('/');

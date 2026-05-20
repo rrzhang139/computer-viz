@@ -26,8 +26,6 @@ const RAIL_VDD = parchment.gateOn;
 const RAIL_GND = parchment.ink;
 const PULSE_COLOR = parchment.electronGlow;
 
-type Bit = 0 | 1;
-
 interface TransistorSpec {
   role: TransistorRole;
   kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS;
@@ -102,11 +100,13 @@ export function NandSceneSvg({ inputs, textScale = 1, testid }: Props) {
         );
       })}
 
-      {/* Transistors. Each is a small rectangle with role/state labels. */}
+      {/* Transistors. Each is a small rectangle with role/state labels.
+          Body color = parchment.bgDeep (same as the latch's NAND body fill) so
+          the gate's transistor symbols read as the same visual family as
+          the NAND symbol they live inside. */}
       {TRANSISTORS.map((t) => {
         const on = isOn(t, inputs);
-        const bodyFill = t.kind === TRANSISTOR_TYPE.PMOS ? '#7a8fa3' : parchment.gate;
-        const labelGap = 0.07;
+        const bodyFill = parchment.bgDeep;
         const fs = textScale;
         return (
           <g key={t.role} transform={`translate(${t.x}, ${t.y})`}>
@@ -143,51 +143,18 @@ export function NandSceneSvg({ inputs, textScale = 1, testid }: Props) {
               </rect>
             )}
 
-            {/* Role label ABOVE body (positive world Y). Each <text> is
-                wrapped in scale(1, -1) so it renders right-side-up despite
-                the parent's negative-y scale flipping the world Y axis. */}
-            <g transform={`translate(0, ${0.25 + 0.25 * fs}) scale(1, -1)`}>
+            {/* Role label centered INSIDE the body. Each <text> is wrapped
+                in scale(1, -1) so it renders right-side-up despite the
+                parent's negative-y scale flipping the world Y axis. */}
+            <g transform={`translate(0, ${0.05}) scale(1, -1)`}>
               <text
-                fontSize={0.2 * fs}
+                fontSize={0.18 * fs}
                 fill={parchment.ink}
                 textAnchor="middle"
                 fontFamily="serif"
-                fontWeight={600}
+                fontWeight={700}
               >
-                {t.role} · {t.kind}
-              </text>
-            </g>
-            <g transform={`translate(0, ${0.25 + 0.25 * fs + 0.18 * fs + labelGap}) scale(1, -1)`}>
-              <text
-                fontSize={0.13 * fs}
-                fill={parchment.gateOn}
-                textAnchor="middle"
-                fontFamily="serif"
-              >
-                ({t.kind === TRANSISTOR_TYPE.PMOS ? 'active LOW' : 'active HIGH'})
-              </text>
-            </g>
-
-            {/* ON/OFF chip BELOW body (negative world Y). */}
-            <g transform={`translate(0, ${-(0.25 + 0.25 * fs)}) scale(1, -1)`}>
-              <text
-                fontSize={0.2 * fs}
-                fill={on ? parchment.gateOn : parchment.inkSoft}
-                textAnchor="middle"
-                fontFamily="serif"
-                fontWeight={600}
-              >
-                {on ? '● ON' : '○ OFF'}
-              </text>
-            </g>
-            <g transform={`translate(0, ${-(0.25 + 0.25 * fs + 0.18 * fs + labelGap)}) scale(1, -1)`}>
-              <text
-                fontSize={0.13 * fs}
-                fill={parchment.inkSoft}
-                textAnchor="middle"
-                fontFamily="serif"
-              >
-                gate = {inputs[t.input]}
+                {t.role}
               </text>
             </g>
           </g>

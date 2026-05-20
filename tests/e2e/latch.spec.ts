@@ -12,6 +12,7 @@ import { test, expect } from '@playwright/test';
 const SETTLE_MS = 1800;
 
 async function gotoLatch(page: import('@playwright/test').Page): Promise<void> {
+  // Default landing is gate; back once = latch.
   await page.goto('/');
   await page.getByTestId('back').click();
   await page.waitForTimeout(SETTLE_MS);
@@ -35,12 +36,12 @@ test.describe('Latch level (SR latch — 2 cross-coupled NANDs)', () => {
     await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 2/i);
   });
 
-  test('back from the latch goes UP to the dff (latch is no longer top)', async ({ page }) => {
+  test('back from the latch goes UP to the d-latch (latch is no longer top)', async ({ page }) => {
     await gotoLatch(page);
     await expect(page.getByTestId('back')).toBeEnabled();
     await page.getByTestId('back').click();
     await page.waitForTimeout(SETTLE_MS);
-    await expect(page.getByTestId('level-pane-dff')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.getByTestId('level-pane-dlatch')).toHaveAttribute('aria-hidden', 'false');
   });
 
   test('latch scene renders both NAND gates and all four signals', async ({ page }) => {
@@ -77,10 +78,11 @@ test.describe('Latch level (SR latch — 2 cross-coupled NANDs)', () => {
   test('Q and Q̄ are always opposite during normal operation', async ({ page }) => {
     await gotoLatch(page);
     const pane = activePane(page);
+    const bit = (raw: string | null): string => (raw ?? '').replace(/[^01]/g, '');
     for (let i = 0; i < 4; i++) {
-      const q = await pane.getByTestId('output-q-value').textContent();
-      const qbar = await pane.getByTestId('output-qbar-value').textContent();
-      expect(q?.trim() === '0' ? '1' : '0', `cycle ${i}: Q=${q}, Q̄=${qbar} should be opposite`).toBe(qbar?.trim());
+      const q = bit(await pane.getByTestId('output-q-value').textContent());
+      const qbar = bit(await pane.getByTestId('output-qbar-value').textContent());
+      expect(q === '0' ? '1' : '0', `cycle ${i}: Q=${q}, Q̄=${qbar} should be opposite`).toBe(qbar);
       if (i < 3) await page.getByTestId('step-cycle').click();
     }
   });

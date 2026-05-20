@@ -90,8 +90,6 @@ export function ConnectedMosfet({
   // coords; we wrap them in a group at (cx, cy, cz). For a horizontal
   // body we'd want to rotate, but since the gate-level layout is purely
   // vertical-bodied, we keep things axis-aligned.
-  const sourceLocalY = source[1] - cy;
-  const drainLocalY = drain[1] - cy;
   const dopedH = Math.min(0.22, length * 0.35);
 
   // Channel + electron refs.

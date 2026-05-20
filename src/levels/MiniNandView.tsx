@@ -41,7 +41,12 @@ export function MiniNandView({
   const bColor = b === 1 ? parchment.gateOn : '#5c4438';
 
   return (
-    <g data-testid={testid}>
+    // Outer wrapper has NO testid (just grouping). The canonical
+    // `${testid}` element is the mini box itself, rendered by
+    // GATE_MODULE.renderMini below — so existing tests that locate
+    // `nand-1-detailed` and then look for `nand-1-detailed-scene`
+    // inside continue to work.
+    <g>
       {GATE_MODULE.renderMini({
         cx, cy, w, h,
         inputs: { A: a, B: b, Y: y },

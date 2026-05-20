@@ -23,8 +23,11 @@ export type Inputs = { A: 0 | 1; B: 0 | 1; Y: 0 | 1 };
 // Named-node coordinate table. Every WIRES entry references these by key.
 // If a node moves, you change it here and every wire end-point follows.
 export const WIRE_NODES = {
-  // Vdd rail
-  Vdd_rail_left:  [-3,    3,    0] as [number, number, number],
+  // Vdd rail — LEFT end touches the vertical Vdd pillar (at x=-5 in the
+  // standalone Gate level), so the horizontal rail T-junctions into it.
+  // RIGHT end terminates at the last tap (PB at x=1.6) area, stopping
+  // short of the GND pillar at x=+5 to avoid net-crossing visuals.
+  Vdd_rail_left:  [-5,    3,    0] as [number, number, number],
   Vdd_rail_right: [ 3,    3,    0] as [number, number, number],
   Vdd_tap_PA:     [-1.6,  3,    0] as [number, number, number],
   Vdd_tap_PB:     [ 1.6,  3,    0] as [number, number, number],
@@ -45,8 +48,10 @@ export const WIRE_NODES = {
   NB_drain:  [0, -2.05, 0] as [number, number, number],
   NB_source: [0, -2.75, 0] as [number, number, number],
   GND_tap_NB:     [0, -3.5, 0] as [number, number, number],
+  // GND rail — LEFT end terminates at last tap area; RIGHT end touches
+  // the vertical GND pillar (at x=+5 in the standalone Gate level).
   GND_rail_left:  [-3, -3.5, 0] as [number, number, number],
-  GND_rail_right: [ 3, -3.5, 0] as [number, number, number],
+  GND_rail_right: [ 5, -3.5, 0] as [number, number, number],
 
   // A input network — A enters from the LEFT (matches the latch's S̄/R̄
   // entering from the left into NAND1/NAND2).

@@ -225,9 +225,37 @@ export const dffLevelSummary: LevelSummary = {
 
 export const dffSpotlight: Spotlight = {
   title: 'A D flip-flop',
-  subtitle: 'master-slave: 2 latches + a clock inverter',
+  subtitle: 'master-slave: 2 D latches + a clock inverter',
   body:
-    "Two SR latches stacked. The MASTER latch is enabled while CLK is LOW (it tracks D). The SLAVE latch is enabled while CLK is HIGH (it passes the master’s frozen value to Q). On the rising clock edge, the master locks and the slave starts passing — that is the EDGE where Q updates. Click either latch to drill in.",
+    "Two D latches stacked. The MASTER latch is enabled while CLK is LOW (its EN = !CLK; it tracks D). The SLAVE latch is enabled while CLK is HIGH (its EN = CLK; it passes the master's frozen value to Q). On the rising clock edge, the master locks and the slave starts passing — that is the EDGE where Q updates. Click either latch to drill into the D latch (1 SR latch + 2 gating NANDs + inverter).",
+};
+
+export const dlatchLevelSummary: LevelSummary = {
+  what: 'A D latch — one SR latch + two gating NANDs + an inverter. When EN=1 the output Q tracks D; when EN=0 the latch HOLDS.',
+  why: 'The SR latch has TWO inputs (S̄, R̄) and a forbidden state (both LOW). A D latch wraps it with gating so you only have to think about one data input D and one enable EN. Two of these in master-slave configuration give you an edge-triggered D flip-flop.',
+  inputs: 'D (the bit to store) and EN (the gate — typically a clock signal).',
+  outputs: 'Q (follows D when EN=1, holds when EN=0) and Q̄.',
+};
+
+export const dlatchSpotlight: Spotlight = {
+  title: 'A D latch',
+  subtitle: '1 SR latch + 2 gating NANDs + inverter',
+  body:
+    "When EN=1 (latch is enabled): the gating NANDs convert D into the SR-latch inputs as S̄=!D, R̄=D, so the latch follows D. When EN=0: both gating NANDs see a 0 on their EN input, which forces their outputs to 1, which forces both S̄ and R̄ to 1 — the latch's 'hold' state. CLK doesn't physically enter the SR latch; the EN signal poisons the input network so no changes reach the cross-coupled core. Click anywhere to drill into the SR latch core.",
+};
+
+export const masterDLatchSpotlight: Spotlight = {
+  title: 'Master D-latch',
+  subtitle: 'EN = !CLK — transparent while CLK is LOW',
+  body:
+    "The master D-latch's enable is the INVERTED clock. So while CLK=0, the master is transparent and tracks D continuously. When CLK rises to 1, EN drops to 0 and the master FREEZES whatever D was at the instant of the edge. That captured value is what the slave then passes on as Q.",
+};
+
+export const slaveDLatchSpotlight: Spotlight = {
+  title: 'Slave D-latch',
+  subtitle: 'EN = CLK — transparent while CLK is HIGH',
+  body:
+    "The slave D-latch's enable is the clock directly. While CLK=0 the slave is HELD (so Q stays stable at the old value while the master is tracking new data). When CLK rises to 1, the master freezes AND the slave becomes transparent, passing the master's frozen value to Q. The combination of opposite enables on the two latches is what makes the DFF edge-triggered.",
 };
 
 export const masterLatchSpotlight: Spotlight = {
@@ -259,7 +287,7 @@ export const latchSpotlight: Spotlight = {
 };
 
 export const nand1Spotlight: Spotlight = {
-  title: 'NAND gate',
+  title: 'NAND1 (from the latch)',
   subtitle: 'Y = NOT(A AND B) — the universal logic primitive',
   body:
     "A NAND gate outputs 0 only when both inputs are 1; otherwise it outputs 1. Four CMOS transistors compute this: a PMOS pull-up network ties Y to Vdd whenever either input is 0, and an NMOS pull-down chain only completes the path to GND when both inputs are 1. " +
@@ -268,7 +296,7 @@ export const nand1Spotlight: Spotlight = {
 };
 
 export const nand2Spotlight: Spotlight = {
-  title: 'NAND gate',
+  title: 'NAND2 (from the latch)',
   subtitle: 'Y = NOT(A AND B) — the universal logic primitive',
   body:
     "A NAND gate outputs 0 only when both inputs are 1; otherwise it outputs 1. Four CMOS transistors compute this: a PMOS pull-up network ties Y to Vdd whenever either input is 0, and an NMOS pull-down chain only completes the path to GND when both inputs are 1. " +

@@ -98,20 +98,31 @@ describe('<LevelView>', () => {
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Latch/);
   });
 
-  it('back from latch flips active pane to dff (depth 3)', () => {
+  it('back from latch flips active pane to dlatch (depth 3)', () => {
     render(<LevelView />);
     fireEvent.click(screen.getByTestId('back')); // gate → latch
-    fireEvent.click(screen.getByTestId('back')); // latch → dff
-    expect(dffPane()).toHaveAttribute('aria-hidden', 'false');
+    fireEvent.click(screen.getByTestId('back')); // latch → dlatch
+    expect(screen.getByTestId('level-pane-dlatch')).toHaveAttribute('aria-hidden', 'false');
     expect(latchPane()).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 3/i);
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/D Latch/);
+  });
+
+  it('back from dlatch flips active pane to dff (depth 4)', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back')); // gate → latch
+    fireEvent.click(screen.getByTestId('back')); // latch → dlatch
+    fireEvent.click(screen.getByTestId('back')); // dlatch → dff
+    expect(dffPane()).toHaveAttribute('aria-hidden', 'false');
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 4/i);
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Flip-Flop/);
   });
 
   it('back from the dff is disabled (it is the top of the tree)', () => {
     render(<LevelView />);
     fireEvent.click(screen.getByTestId('back')); // gate → latch
-    fireEvent.click(screen.getByTestId('back')); // latch → dff
+    fireEvent.click(screen.getByTestId('back')); // latch → dlatch
+    fireEvent.click(screen.getByTestId('back')); // dlatch → dff
     expect(screen.getByTestId('back')).toBeDisabled();
   });
 
@@ -123,12 +134,13 @@ describe('<LevelView>', () => {
     expect(latchPane()).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('clicking a latch in the dff flips active pane to latch', () => {
+  it('clicking a latch in the dff flips active pane to dlatch', () => {
     render(<LevelView />);
     fireEvent.click(screen.getByTestId('back')); // gate → latch
-    fireEvent.click(screen.getByTestId('back')); // latch → dff
+    fireEvent.click(screen.getByTestId('back')); // latch → dlatch
+    fireEvent.click(screen.getByTestId('back')); // dlatch → dff
     act(() => dffZoomCb!('master'));
-    expect(latchPane()).toHaveAttribute('aria-hidden', 'false');
+    expect(screen.getByTestId('level-pane-dlatch')).toHaveAttribute('aria-hidden', 'false');
     expect(dffPane()).toHaveAttribute('aria-hidden', 'true');
   });
 
@@ -163,17 +175,18 @@ describe('<LevelView>', () => {
     expect(latchPane()).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('Escape from latch goes up to the dff', () => {
+  it('Escape from latch goes up to dlatch', () => {
     render(<LevelView />);
     fireEvent.click(screen.getByTestId('back')); // gate → latch
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(dffPane()).toHaveAttribute('aria-hidden', 'false');
+    expect(screen.getByTestId('level-pane-dlatch')).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('Escape on the dff is a no-op (already at the top)', () => {
     render(<LevelView />);
     fireEvent.click(screen.getByTestId('back')); // gate → latch
-    fireEvent.click(screen.getByTestId('back')); // latch → dff
+    fireEvent.click(screen.getByTestId('back')); // latch → dlatch
+    fireEvent.click(screen.getByTestId('back')); // dlatch → dff
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(dffPane()).toHaveAttribute('aria-hidden', 'false');
   });

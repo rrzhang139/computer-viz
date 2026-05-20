@@ -29,6 +29,19 @@ If you are a sub-agent picking up work in this repo, **read this file first**. T
 
 21. **Connected-hover preview pattern** (used everywhere child sub-components can be drilled into): when the user hovers a child block on level N, the simple block SWAPS in place for a "connected" component that shows level-(N−1)'s internals fitted to the parent's wire endpoints, with electron pulses on the conducting branches. Pure data flow — no rotation hacks, no overlay popovers.
 
+22. **New-layer checklist** (MANDATORY for every level you add — `tests/e2e/dlatch-preview.spec.ts` is the reference suite):
+    1. **Scene module**: create `<x>WireGraph.ts` (named WIRE_NODES, WIRES with `from`/`to`, derived `SCENE_BOUNDS`/`SCENE_CENTER`/`SCENE_SIZE`, `<X>_EXTERNAL_TERMINALS`, `<X>_ABSORBED_TERMINALS`) + `<X>SceneSvg.tsx` (pure SVG renderer at world coords) + `<x>Module.tsx` (`<X>_MODULE = new LevelModule(...)`).
+    2. **Navigable level**: `Level<X>.tsx` that calls `<X>_MODULE.renderMini` at viewport scale. Wire into `LevelView`: extend `LevelKey`, `LEVEL_META`, `depthOf`, back/Esc traversal, spotlight + summary resolution, cross-fade pane.
+    3. **Hover preview**: every drill-down child element in `Level<X>.tsx` must have a hit area that (a) sets hovered state via `useHoveredChild`, (b) swaps in `<CHILD>_MODULE.renderMini` covering that area while hovered, (c) calls the appropriate `onZoomTo<Child>` on click.
+    4. **Required test suite** (one spec per level — copy/adapt `tests/e2e/dlatch-preview.spec.ts`):
+       - container renders at full size,
+       - hover shows the child preview (DOM test),
+       - moving cursor away dismisses it,
+       - click drills into the child level (`level-pane-<child>` becomes active),
+       - preview overlaps the parent scene viewport (no off-screen).
+    5. **Required pixel-precise tests** at the level's PARENT boundary (copy `tests/e2e/wire-connection-dff.spec.ts` + `tests/e2e/loose-ends-dff.spec.ts`): every parent wire that lands on this level's external terminal must be < 2 px from the projected position; every external terminal must have a parent wire (no loose ends).
+    6. **LLM-judge gate**: spawn the `claude` subagent with screenshots of the new level + the parent's hover preview and ask it to evaluate four contracts (hover works, click navigates correctly, wires connect, no loose ends). It must return PASS before the level is considered done.
+
     **The reusable building blocks** (`src/levels/connectedHover.ts`):
     - `Point2 | Point3`, `TerminalConnection<P>`, `ChildConnections<P, K>` — shared geometry/type contract.
     - `useHoveredChild<Id>()` — hover-state hook with `enter` / `leaveIf` (race-safe leave) / `leaveAll`. Every level reuses this.

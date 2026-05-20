@@ -45,6 +45,10 @@ export interface MiniLevelViewProps {
   testid?: string;
   /** Optional border stroke color; omit for no visible frame. */
   frameStroke?: string;
+  /** Optional opaque background fill — used for hover-overlay minis that
+   * must COVER the parent's underlying symbols (otherwise the parent's
+   * version and the preview's version of the same component overlap). */
+  frameFill?: string;
   /** The child scene content, rendered in world coordinates. */
   children: ReactNode;
 }
@@ -87,7 +91,7 @@ export function projectSceneToMini(
 }
 
 export function MiniLevelView({
-  cx, cy, w, h, geometry, margin = 1.2, testid, frameStroke, children,
+  cx, cy, w, h, geometry, margin = 1.2, testid, frameStroke, frameFill, children,
 }: MiniLevelViewProps) {
   const { pxPerWorld } = fitForGeometry(w, h, geometry, margin);
   const left = cx - w / 2;
@@ -99,7 +103,7 @@ export function MiniLevelView({
   return (
     <g data-testid={testid}>
       {frameStroke !== undefined && (
-        <rect x={left} y={top} width={w} height={h} fill="none" stroke={frameStroke} strokeWidth={1} rx={4} />
+        <rect x={left} y={top} width={w} height={h} fill={frameFill ?? 'none'} stroke={frameStroke} strokeWidth={1} rx={4} />
       )}
       <g transform={transform}>{children}</g>
     </g>

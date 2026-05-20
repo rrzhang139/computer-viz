@@ -25,6 +25,7 @@ import {
   projectSceneToMini,
   fitForGeometry,
 } from './MiniLevelView';
+import { parchment } from './parchment';
 
 export interface Point2 { x: number; y: number }
 
@@ -44,7 +45,7 @@ export interface LevelModuleConfig<TerminalName extends string, Inputs> {
   Scene: ComponentType<{ inputs: Inputs; testid?: string }>;
 }
 
-export interface ConnectionMap<TerminalName extends string> {
+export interface ConnectionMap {
   /** Required: each external terminal name → parent-supplied connection
    * description. Used by tests + by future auto-wire-drawing logic. */
   [terminal: string]: TerminalConnection;
@@ -122,11 +123,18 @@ export class LevelModule<TerminalName extends string, Inputs> {
     margin?: number;
     testid: string;
     frameStroke?: string;
+    /** When true the underlying Scene suppresses Vdd/GND rail labels and
+     * other parent-level signage that would otherwise duplicate. */
+    embedded?: boolean;
     /** Optional extra SVG content rendered ABOVE the scene (parent labels,
      * per-child anchors, etc.). */
     overlay?: ReactNode;
   }): ReactNode {
     const Scene = this.Scene;
+    // Cast to permit passing `embedded` even though TypeScript doesn't
+    // know whether the Scene component's props include it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const sceneProps: any = { inputs: props.inputs, testid: `${props.testid}-scene`, embedded: props.embedded };
     return (
       <MiniLevelView
         cx={props.cx}
@@ -137,8 +145,13 @@ export class LevelModule<TerminalName extends string, Inputs> {
         margin={props.margin ?? 1.2}
         testid={props.testid}
         frameStroke={props.frameStroke}
+        // When the mini is being rendered as a hover overlay (embedded),
+        // fill the frame with the parchment background so it COVERS the
+        // parent's underlying symbols. Otherwise the parent + preview
+        // both draw the same NANDs and they pile up.
+        frameFill={props.embedded ? parchment.bg : undefined}
       >
-        <Scene inputs={props.inputs} testid={`${props.testid}-scene`} />
+        <Scene {...sceneProps} />
       </MiniLevelView>
     );
     // (overlay rendering happens at the parent level — kept out of the
@@ -148,7 +161,7 @@ export class LevelModule<TerminalName extends string, Inputs> {
   /** Asserts every external terminal of this module is covered by the
    * parent's connection map. Surfaces missing connections at runtime
    * (and in tests). Returns the list of missing terminals (empty = OK). */
-  validateConnections(connections: ConnectionMap<TerminalName>): TerminalName[] {
+  validateConnections(connections: ConnectionMap): TerminalName[] {
     const missing: TerminalName[] = [];
     for (const name of this.terminalNames) {
       if (!connections[name]) missing.push(name);

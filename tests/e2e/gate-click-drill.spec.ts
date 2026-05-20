@@ -34,10 +34,12 @@ test.describe('Gate (level 1) → Transistor (level 0): every label preview dril
 
   test('clicking somewhere OFF the label preview does NOT drill (cursor stays default)', async ({ page }) => {
     await gotoGate(page);
-    // Click the canvas at a position FAR from any label preview (top-left).
-    const canvas = page.locator('[aria-hidden="false"][data-testid^="level-pane-"] canvas').first();
-    const box = await canvas.boundingBox();
-    if (!box) throw new Error('no canvas');
+    // Click the gate-scene SVG at a position FAR from any label preview
+    // (top-left corner). Only the per-transistor chip rects are clickable;
+    // the surrounding canvas is inert.
+    const scene = page.getByTestId('gate-scene');
+    const box = await scene.boundingBox();
+    if (!box) throw new Error('no gate-scene');
     await page.mouse.click(box.x + 30, box.y + 30);
     await page.waitForTimeout(700);
     expect(await isAtLevel(page, 1), 'still at gate level').toBe(true);
@@ -58,9 +60,9 @@ test.describe('Latch (level 2) → Gate (level 1): every NAND drills down', () =
 test.describe('Cursor hygiene: no flicker across the gate canvas', () => {
   test('moving the cursor across the canvas only sets pointer over labels', async ({ page }) => {
     await gotoGate(page);
-    const canvas = page.locator('[aria-hidden="false"][data-testid^="level-pane-"] canvas').first();
-    const box = await canvas.boundingBox();
-    if (!box) throw new Error('no canvas');
+    const scene = page.getByTestId('gate-scene');
+    const box = await scene.boundingBox();
+    if (!box) throw new Error('no gate-scene');
 
     // Sample cursor at non-label positions — should NOT be pointer.
     const offLabel: { x: number; y: number; cursor: string }[] = [];

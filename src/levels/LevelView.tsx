@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { LevelDff } from './LevelDff';
+import { LevelDLatch } from './LevelDLatch';
 import { LevelGate } from './LevelGate';
 import { LevelLatch } from './LevelLatch';
 import { LevelSummary } from './LevelSummary';
@@ -29,6 +30,10 @@ import {
   dffLevelSummary,
   dffPhaseFor,
   dffSpotlight,
+  dlatchLevelSummary,
+  dlatchSpotlight,
+  masterDLatchSpotlight,
+  slaveDLatchSpotlight,
   gateLevelSummary,
   gatePhaseFor,
   gateSpotlight,
@@ -55,7 +60,7 @@ import { TRANSISTOR_TYPE } from './symbols';
 type TransistorVariant = typeof TRANSISTOR_TYPE.NMOS | typeof TRANSISTOR_TYPE.PMOS | null;
 type LatchEntry = 'master' | 'slave' | null;
 
-type LevelKey = 'dff' | 'latch' | 'gate' | 'transistor';
+type LevelKey = 'dff' | 'dlatch' | 'latch' | 'gate' | 'transistor';
 
 // Depth = abstraction rung. 0 = lowest (transistor); higher = more composite.
 const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: number }> = {
@@ -74,10 +79,15 @@ const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: num
     subtitle: 'an SR latch (2× NAND, cross-coupled)',
     depth: 2,
   },
+  dlatch: {
+    title: 'D Latch',
+    subtitle: '1 SR latch + 2 gating NANDs + inverter (gated by EN)',
+    depth: 3,
+  },
   dff: {
     title: 'D Flip-Flop',
-    subtitle: 'master + slave latches, edge-triggered by CLK',
-    depth: 3,
+    subtitle: 'master + slave D latches, edge-triggered by CLK',
+    depth: 4,
   },
 };
 
@@ -112,11 +122,17 @@ export function LevelView() {
     setActiveNand(which);
     setLevel('gate');
   }, []);
-  const handleZoomToLatch = useCallback((which: 'master' | 'slave') => {
+  // DFF clicks → drill into D LATCH (not directly into the SR latch).
+  const handleZoomToDLatch = useCallback((which: 'master' | 'slave') => {
     setActiveLatch(which);
+    setLevel('dlatch');
+  }, []);
+  // D-latch clicks → drill into the SR latch (its inner core).
+  const handleZoomToLatch = useCallback(() => {
     setLevel('latch');
   }, []);
-  // "back" goes UP one level: transistor → gate → latch → dff. From dff it's disabled.
+  // "back" goes UP one level: transistor → gate → latch → dlatch → dff.
+  // From dff it's disabled.
   const handleBack = useCallback(() => {
     setLevel((prev) => {
       if (prev === 'transistor') {
@@ -130,6 +146,9 @@ export function LevelView() {
         return 'latch';
       }
       if (prev === 'latch') {
+        return 'dlatch';
+      }
+      if (prev === 'dlatch') {
         setActiveLatch(null);
         return 'dff';
       }
@@ -159,6 +178,13 @@ export function LevelView() {
 
   const defaultSpotlight: Spotlight = useMemo(() => {
     if (level === 'dff') return dffSpotlight;
+    if (level === 'dlatch') {
+      return activeLatch === 'master'
+        ? masterDLatchSpotlight
+        : activeLatch === 'slave'
+          ? slaveDLatchSpotlight
+          : dlatchSpotlight;
+    }
     if (level === 'latch') {
       return activeLatch === 'master'
         ? masterLatchSpotlight
@@ -209,6 +235,7 @@ export function LevelView() {
   // be just the diagram.
   const summary: LevelSummaryData = useMemo(() => {
     if (level === 'dff') return dffLevelSummary;
+    if (level === 'dlatch') return dlatchLevelSummary;
     if (level === 'latch') return latchLevelSummary;
     if (level === 'gate') return gateLevelSummary;
     if (variant === TRANSISTOR_TYPE.PMOS) return pmosLevelSummary;
@@ -220,7 +247,7 @@ export function LevelView() {
   // to go. From the dff (top of tree) it's a no-op.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && level !== 'dff') {
+      if (e.key === 'Escape' && level !== 'dff' /* depth 4 is top */) {
         handleBack();
       }
     };
@@ -234,7 +261,7 @@ export function LevelView() {
   // Conceptually: the abstraction tree is dff (top) > latch > gate > transistor.
   // When we're below a level, that level scales UP (zoomed past, blurred away).
   // When we're above a level, that level scales DOWN (we haven't reached it yet).
-  const depthOf: Record<LevelKey, number> = { dff: 3, latch: 2, gate: 1, transistor: 0 };
+  const depthOf: Record<LevelKey, number> = { dff: 4, dlatch: 3, latch: 2, gate: 1, transistor: 0 };
   const currentDepth = depthOf[level];
   const paneAnim = (paneLevel: LevelKey) => {
     const pd = depthOf[paneLevel];
@@ -246,6 +273,7 @@ export function LevelView() {
     };
   };
   const dffAnim = paneAnim('dff');
+  const dlatchAnim = paneAnim('dlatch');
   const latchAnim = paneAnim('latch');
   const gateAnim = paneAnim('gate');
   const transistorAnim = paneAnim('transistor');
@@ -262,7 +290,20 @@ export function LevelView() {
           aria-hidden={level !== 'dff'}
           data-testid="level-pane-dff"
         >
-          <LevelDff onZoomToLatch={handleZoomToLatch} />
+          <LevelDff onZoomToLatch={handleZoomToDLatch} />
+        </motion.div>
+        <motion.div
+          initial={false}
+          animate={dlatchAnim}
+          transition={transition}
+          style={{ ...paneStyle, pointerEvents: level === 'dlatch' ? 'auto' : 'none' }}
+          aria-hidden={level !== 'dlatch'}
+          data-testid="level-pane-dlatch"
+        >
+          <LevelDLatch
+            onZoomToLatch={handleZoomToLatch}
+            onZoomToGate={() => setLevel('gate')}
+          />
         </motion.div>
         <motion.div
           initial={false}

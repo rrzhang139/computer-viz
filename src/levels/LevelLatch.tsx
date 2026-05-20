@@ -19,6 +19,8 @@
 import { useMemo } from 'react';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
+import { PinDot } from './PinDot';
+import { IOPin } from './IOPin';
 import { NAND_CONNECTIONS } from './nandConnections';
 import { useHoveredChild } from './connectedHover';
 import { MiniNandView } from './MiniNandView';
@@ -94,14 +96,6 @@ const NAND1_VDD_Y = N1.Vdd_rail_left.y;
 const NAND2_VDD_Y = N2.Vdd_rail_left.y;
 const NAND1_GND_Y = N1.GND_rail_left.y;
 const NAND2_GND_Y = N2.GND_rail_left.y;
-// X-range of each latch rail — span comfortably wider than the mini boxes
-// so a label can sit at the edge and so the rails read as global buses.
-const RAIL_X_LEFT = 30;
-const RAIL_X_RIGHT = 570;
-// Connecting wires between NAND1's rail-y and NAND2's rail-y run on the
-// far-left side, just inside the SVG (outside both mini boxes).
-const RAIL_BUS_X = 30;
-
 export function LevelLatch({ onZoomToGate }: Props) {
   const cycle = useExecution((s) => s.cycle);
   const state = useMemo(() => latchStateFor(cycle), [cycle]);
@@ -128,15 +122,26 @@ export function LevelLatch({ onZoomToGate }: Props) {
             T-junction stub). Two rails per supply because NAND1 and
             NAND2 are at different y's; a vertical bus on the left side
             connects each pair. */}
-        <line x1={RAIL_X_LEFT} y1={NAND1_VDD_Y} x2={RAIL_X_RIGHT} y2={NAND1_VDD_Y} stroke={NET_HIGH} strokeWidth={2.5} data-testid="latch-vdd-rail-1" />
-        <line x1={RAIL_X_LEFT} y1={NAND2_VDD_Y} x2={RAIL_X_RIGHT} y2={NAND2_VDD_Y} stroke={NET_HIGH} strokeWidth={2.5} data-testid="latch-vdd-rail-2" />
-        <line x1={RAIL_BUS_X} y1={NAND1_VDD_Y} x2={RAIL_BUS_X} y2={NAND2_VDD_Y} stroke={NET_HIGH} strokeWidth={2.5} data-testid="latch-vdd-bus" />
-        <line x1={RAIL_X_LEFT} y1={NAND1_GND_Y} x2={RAIL_X_RIGHT} y2={NAND1_GND_Y} stroke={parchment.ink} strokeWidth={2.5} data-testid="latch-gnd-rail-1" />
-        <line x1={RAIL_X_LEFT} y1={NAND2_GND_Y} x2={RAIL_X_RIGHT} y2={NAND2_GND_Y} stroke={parchment.ink} strokeWidth={2.5} data-testid="latch-gnd-rail-2" />
-        <line x1={RAIL_BUS_X} y1={NAND1_GND_Y} x2={RAIL_BUS_X} y2={NAND2_GND_Y} stroke={parchment.ink} strokeWidth={2.5} data-testid="latch-gnd-bus" />
-        {/* Supply rail labels at the right edge of the latch */}
-        <text x={RAIL_X_RIGHT + 4} y={NAND1_VDD_Y + 4} fontSize={11} fontWeight={700} fill={NET_HIGH} fontFamily="serif">Vdd</text>
-        <text x={RAIL_X_RIGHT + 4} y={NAND2_GND_Y + 4} fontSize={11} fontWeight={700} fill={parchment.ink} fontFamily="serif">GND</text>
+        {/* Vertical supply PILLARS on the canvas sides (top-to-bottom) —
+            never clipped by anything inside the scene. Labeled at the top. */}
+        <line x1={15} y1={20} x2={15} y2={385} stroke={NET_HIGH} strokeWidth={3} data-testid="latch-vdd-pillar" />
+        <text x={2} y={14} fontSize={11} fontWeight={700} fill={NET_HIGH} fontFamily="serif">Vdd</text>
+        <line x1={585} y1={20} x2={585} y2={385} stroke={parchment.ink} strokeWidth={3} data-testid="latch-gnd-pillar" />
+        <text x={572} y={14} fontSize={11} fontWeight={700} fill={parchment.ink} fontFamily="serif">GND</text>
+
+        {/* Horizontal in-row supplies. Vdd rails T-junction into the
+            LEFT Vdd pillar (at x=15) and stop 5px short of the GND
+            pillar (at x=585) so they don't visually cross the opposite-
+            net pillar. GND rails do the mirror. */}
+        <line x1={15} y1={NAND1_VDD_Y} x2={580} y2={NAND1_VDD_Y} stroke={NET_HIGH} strokeWidth={2.5} data-testid="latch-vdd-rail-1" />
+        <line x1={15} y1={NAND2_VDD_Y} x2={580} y2={NAND2_VDD_Y} stroke={NET_HIGH} strokeWidth={2.5} data-testid="latch-vdd-rail-2" />
+        <line x1={20} y1={NAND1_GND_Y} x2={585} y2={NAND1_GND_Y} stroke={parchment.ink} strokeWidth={2.5} data-testid="latch-gnd-rail-1" />
+        <line x1={20} y1={NAND2_GND_Y} x2={585} y2={NAND2_GND_Y} stroke={parchment.ink} strokeWidth={2.5} data-testid="latch-gnd-rail-2" />
+        {/* Pin dots at every rail ↔ pillar T-junction */}
+        <PinDot cx={15} cy={NAND1_VDD_Y} fill={NET_HIGH} testid="latch-vdd-junction-1" />
+        <PinDot cx={15} cy={NAND2_VDD_Y} fill={NET_HIGH} testid="latch-vdd-junction-2" />
+        <PinDot cx={585} cy={NAND1_GND_Y} fill={parchment.ink} testid="latch-gnd-junction-1" />
+        <PinDot cx={585} cy={NAND2_GND_Y} fill={parchment.ink} testid="latch-gnd-junction-2" />
 
         {/* Cross-coupled feedback wires. Both outputs are on the right edge
             of their NAND; both feedback inputs are on the right edge of the
@@ -164,7 +169,8 @@ export function LevelLatch({ onZoomToGate }: Props) {
           strokeWidth={2.5}
         />
 
-        {/* Input wires from far left */}
+        {/* Input wires from far left, with pin dots at the OUTER pin
+            terminal (where the named signal enters the latch). */}
         <polyline
           data-testid="wire-s-bar"
           points={`30,${N1_IN_S.y} ${N1_IN_S.x},${N1_IN_S.y}`}
@@ -172,6 +178,7 @@ export function LevelLatch({ onZoomToGate }: Props) {
           stroke={sColor}
           strokeWidth={2.5}
         />
+        <PinDot cx={30} cy={N1_IN_S.y} fill={sColor} testid="latch-sbar-pin" />
         <polyline
           data-testid="wire-r-bar"
           points={`30,${N2_IN_R.y} ${N2_IN_R.x},${N2_IN_R.y}`}
@@ -179,6 +186,7 @@ export function LevelLatch({ onZoomToGate }: Props) {
           stroke={rColor}
           strokeWidth={2.5}
         />
+        <PinDot cx={30} cy={N2_IN_R.y} fill={rColor} testid="latch-rbar-pin" />
 
         {/* Output wires going to Q / Q̄ chips */}
         <polyline
@@ -269,12 +277,12 @@ export function LevelLatch({ onZoomToGate }: Props) {
         />
 
         {/* Input labels (left) */}
-        <InputLabel x={20} y={N1_IN_S.y} text="S̄" value={state.sBar} testid="input-s-bar" />
-        <InputLabel x={20} y={N2_IN_R.y} text="R̄" value={state.rBar} testid="input-r-bar" />
+        <IOPin cx={30} cy={N1_IN_S.y} label="S̄" value={state.sBar} testid="input-s-bar" />
+        <IOPin cx={30} cy={N2_IN_R.y} label="R̄" value={state.rBar} testid="input-r-bar" />
 
         {/* Output labels (right) */}
-        <OutputLabel x={555} y={N1_OUT.y} text="Q" value={state.Q} testid="output-q" />
-        <OutputLabel x={555} y={N2_OUT.y} text="Q̄" value={state.qBar} testid="output-qbar" />
+        <IOPin cx={555} cy={N1_OUT.y} label="Q" value={state.Q} testid="output-q" />
+        <IOPin cx={555} cy={N2_OUT.y} label="Q̄" value={state.qBar} testid="output-qbar" />
       </svg>
     </div>
   );
@@ -337,77 +345,6 @@ function NandHitArea({
       onMouseLeave={onLeave}
       style={{ cursor: 'pointer' }}
     />
-  );
-}
-
-function InputLabel({
-  x, y, text, value, testid,
-}: { x: number; y: number; text: string; value: Bit; testid: string }) {
-  return (
-    <g data-testid={testid}>
-      <text
-        x={x}
-        y={y - 10}
-        fontSize={14}
-        fontWeight={700}
-        fill={parchment.ink}
-        fontFamily="serif"
-      >
-        {text}
-      </text>
-      <text
-        x={x}
-        y={y + 12}
-        fontSize={11}
-        fill={value === 1 ? NET_HIGH : NET_LOW}
-        fontFamily="serif"
-        data-testid={`${testid}-value`}
-      >
-        = {value}
-      </text>
-    </g>
-  );
-}
-
-function OutputLabel({
-  x, y, text, value, testid,
-}: { x: number; y: number; text: string; value: Bit; testid: string }) {
-  return (
-    <g data-testid={testid}>
-      <rect
-        x={x - 8}
-        y={y - 18}
-        width={36}
-        height={36}
-        rx={4}
-        fill={parchment.bg}
-        stroke={value === 1 ? NET_HIGH : NET_LOW}
-        strokeWidth={2}
-      />
-      <text
-        x={x + 10}
-        y={y - 4}
-        textAnchor="middle"
-        fontSize={13}
-        fontWeight={700}
-        fill={parchment.ink}
-        fontFamily="serif"
-      >
-        {text}
-      </text>
-      <text
-        x={x + 10}
-        y={y + 11}
-        textAnchor="middle"
-        fontSize={11}
-        fontWeight={600}
-        fill={value === 1 ? NET_HIGH : NET_LOW}
-        fontFamily="serif"
-        data-testid={`${testid}-value`}
-      >
-        {value}
-      </text>
-    </g>
   );
 }
 

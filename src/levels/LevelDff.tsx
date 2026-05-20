@@ -24,7 +24,9 @@ import { useMemo, useState, type CSSProperties } from 'react';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
 import { LOGIC } from './symbols';
-import { MiniSrLatch } from './MiniViews';
+import { D_LATCH_MODULE } from './dLatchModule';
+import { PinDot } from './PinDot';
+import { IOPin } from './IOPin';
 
 type Bit = 0 | 1;
 
@@ -59,14 +61,7 @@ const NET_HIGH = parchment.gateOn;
 const NET_LOW = '#5c4438';
 const wireColor = (b: Bit): string => (b === 1 ? NET_HIGH : NET_LOW);
 
-// SVG layout — viewBox is 700 wide × 420 tall.
-const D_X = 40;
-const DATA_Y = 240;
-const CLK_X = 40;
-const CLK_Y = 80;
-const CLK_BRANCH_X = 130;            // tap point where CLK splits to inverter and slave
-const INV_IN_X = 175;
-const INV_OUT_X = 210;
+// SVG layout — viewBox is 700 wide × 420 tall. Latch placement first.
 const MASTER_X = 250;
 const MASTER_Y = 200;
 const MASTER_W = 130;
@@ -75,9 +70,34 @@ const SLAVE_X = 460;
 const SLAVE_W = 130;
 const SLAVE_H = 110;
 const SLAVE_Y = 200;
+
+// LevelModule pattern: each latch is now a D LATCH (1 SR latch + 2
+// gating NANDs + inverter). Its external interface is the textbook
+// D-latch: D_in, EN_in, Q_out, QB_out, Vdd, GND. CLK lands on EN_in.
+const MASTER_CX = MASTER_X + MASTER_W / 2;
+const MASTER_CY = MASTER_Y + MASTER_H / 2;
+const DLATCH_MASTER = D_LATCH_MODULE.projectAllTerminals(MASTER_CX, MASTER_CY, MASTER_W, MASTER_H);
+const SLAVE_CX = SLAVE_X + SLAVE_W / 2;
+const SLAVE_CY = SLAVE_Y + SLAVE_H / 2;
+const DLATCH_SLAVE = D_LATCH_MODULE.projectAllTerminals(SLAVE_CX, SLAVE_CY, SLAVE_W, SLAVE_H);
+
+// One straight data line: D → master.D_in → master.Q_out → slave.D_in
+// → slave.Q_out → Q chip. Since D_in and Q_out share the same world y
+// inside D_LATCH_MODULE, projections collapse to one line at DATA_Y.
+const DATA_Y = DLATCH_MASTER.D_in.y;
+const Q_Y = DLATCH_SLAVE.Q_out.y;
+const QBAR_Y = DLATCH_SLAVE.QB_out.y;
+
+const D_X = 40;
+const CLK_X = 40;
+const CLK_Y = 80;
+const CLK_BRANCH_X = 130;
+const INV_IN_X = 175;
+const INV_OUT_X = 210;
 const Q_X = 660;
-const Q_Y = 230;
-const QBAR_Y = 280;
+
+const DFF_VDD_Y = DLATCH_MASTER.Vdd_left.y;
+const DFF_GND_Y = DLATCH_MASTER.GND_left.y;
 
 export function LevelDff({ onZoomToLatch }: Props) {
   const cycle = useExecution((s) => s.cycle);
@@ -98,16 +118,60 @@ export function LevelDff({ onZoomToLatch }: Props) {
         preserveAspectRatio="xMidYMid meet"
         style={{ width: '100%', height: '100%' }}
       >
-        {/* D input wire: D pin → master.D */}
+        {/* ===== Supply rails =====
+            VERTICAL supply PILLARS on the FAR LEFT (Vdd) and FAR RIGHT
+            (GND) of the canvas — they run top-to-bottom and never get
+            cut off by anything inside the scene. The legacy HORIZONTAL
+            rails (one at the master/slave Vdd y, one at the GND y) are
+            preserved as supply distribution INSIDE each latch mini, and
+            they T-junction into the vertical pillars at the edges.
+
+            ┌── Vdd (vertical, left)            GND (vertical, right) ──┐
+            │   ┝══════════════════════════════════════════════╕       │
+            │   ┃        horizontal Vdd row supply              │       │
+            │   ┝══════════════════════════════════════════════╕       │
+            │            ... scene ...                                  │
+            │   ┝══════════════════════════════════════════════╕       │
+            │   ┃        horizontal GND row supply              │       │
+            │   ┕══════════════════════════════════════════════╛       │
+            └─────────────────────────────────────────────────────────────*/}
+        {/* Vertical Vdd pillar — left edge */}
+        <line x1={20} y1={20} x2={20} y2={400} stroke={NET_HIGH} strokeWidth={3} data-testid="dff-vdd-pillar" />
+        <text x={6} y={14} fontSize={12} fontWeight={700} fill={NET_HIGH} fontFamily="serif">Vdd</text>
+        {/* Vertical GND pillar — right edge */}
+        <line x1={680} y1={20} x2={680} y2={400} stroke={parchment.ink} strokeWidth={3} data-testid="dff-gnd-pillar" />
+        <text x={668} y={14} fontSize={12} fontWeight={700} fill={parchment.ink} fontFamily="serif">GND</text>
+
+        {/* Horizontal in-row supplies — connect to the pillars at the
+            edges; pass through each latch mini at the projected y. */}
+        <line x1={20} y1={DFF_VDD_Y} x2={675} y2={DFF_VDD_Y} stroke={NET_HIGH} strokeWidth={2.5} data-testid="dff-vdd-rail" />
+        <line x1={25} y1={DFF_GND_Y} x2={680} y2={DFF_GND_Y} stroke={parchment.ink} strokeWidth={2.5} data-testid="dff-gnd-rail" />
+        {/* Pin dots at rail ↔ pillar T-junctions */}
+        <PinDot cx={20} cy={DFF_VDD_Y} fill={NET_HIGH} testid="dff-vdd-pillar-junction" />
+        <PinDot cx={680} cy={DFF_GND_Y} fill={parchment.ink} testid="dff-gnd-pillar-junction" />
+
+        {/* === Data + clock wires ===
+            Each latch is a D LATCH (D_LATCH_MODULE) with REAL D and EN
+            terminals, so the DFF has exactly one D wire per latch and
+            CLK / !CLK physically terminate at each latch's EN_in. The
+            inverter that produces !D lives INSIDE the D latch (not in
+            the DFF), so no external !D wire. */}
+
+        {/* D → master.D_in. Single horizontal line. Pin dot at the
+            external D pin (where the wire enters the canvas). */}
         <polyline
           data-testid="wire-d"
-          points={`${D_X},${DATA_Y} ${MASTER_X},${DATA_Y}`}
+          points={`${D_X},${DATA_Y} ${DLATCH_MASTER.D_in.x},${DLATCH_MASTER.D_in.y}`}
           fill="none"
           stroke={dColor}
           strokeWidth={2.5}
         />
+        <PinDot cx={D_X} cy={DATA_Y} fill={dColor} testid="dff-d-pin" />
 
-        {/* CLK pin → branch point at (CLK_BRANCH_X, CLK_Y) */}
+        {/* CLK gating. CLK enters → branches: one tap goes through an
+            inverter to produce !CLK (master.EN), the other goes directly
+            to slave.EN. Both CLK and !CLK terminate at REAL EN_in
+            terminals on each D latch. */}
         <polyline
           data-testid="wire-clk"
           points={`${CLK_X},${CLK_Y} ${CLK_BRANCH_X},${CLK_Y}`}
@@ -115,19 +179,8 @@ export function LevelDff({ onZoomToLatch }: Props) {
           stroke={clkColor}
           strokeWidth={2.5}
         />
-
-        {/* Branch 1 — CLK direct to slave: up over the top, then down to slave EN */}
-        <polyline
-          data-testid="wire-clk-to-slave"
-          points={`${CLK_BRANCH_X},${CLK_Y} ${CLK_BRANCH_X},36 ${SLAVE_X + SLAVE_W / 2},36 ${SLAVE_X + SLAVE_W / 2},${SLAVE_Y}`}
-          fill="none"
-          stroke={clkColor}
-          strokeWidth={2.5}
-        />
-        {/* Branch dot at the tap point */}
+        <PinDot cx={CLK_X} cy={CLK_Y} fill={clkColor} testid="dff-clk-pin" />
         <circle cx={CLK_BRANCH_X} cy={CLK_Y} r={3} fill={clkColor} />
-
-        {/* Branch 2 — CLK into inverter, out as !CLK, down to master EN */}
         <polyline
           points={`${CLK_BRANCH_X},${CLK_Y} ${INV_IN_X},${CLK_Y}`}
           fill="none"
@@ -135,34 +188,44 @@ export function LevelDff({ onZoomToLatch }: Props) {
           strokeWidth={2.5}
         />
         <Inverter inX={INV_IN_X} outX={INV_OUT_X} cy={CLK_Y} testid="dff-inverter" />
+        {/* !CLK → master.EN_in (drops down into the D latch's real EN). */}
         <polyline
           data-testid="wire-not-clk-to-master"
-          points={`${INV_OUT_X + 5},${CLK_Y} ${MASTER_X + MASTER_W / 2},${CLK_Y} ${MASTER_X + MASTER_W / 2},${MASTER_Y}`}
+          points={`${INV_OUT_X + 5},${CLK_Y} ${DLATCH_MASTER.EN_in.x},${CLK_Y} ${DLATCH_MASTER.EN_in.x},${DLATCH_MASTER.EN_in.y}`}
           fill="none"
           stroke={notClkColor}
           strokeWidth={2.5}
         />
+        {/* CLK direct → slave.EN_in (also a real terminal). */}
+        <polyline
+          data-testid="wire-clk-to-slave"
+          points={`${CLK_BRANCH_X},${CLK_Y} ${CLK_BRANCH_X},${CLK_Y - 28} ${DLATCH_SLAVE.EN_in.x},${CLK_Y - 28} ${DLATCH_SLAVE.EN_in.x},${DLATCH_SLAVE.EN_in.y}`}
+          fill="none"
+          stroke={clkColor}
+          strokeWidth={2.5}
+        />
 
-        {/* Master.Q → Slave.D */}
+        {/* Master.Q_out → Slave.D_in. */}
         <polyline
           data-testid="wire-master-to-slave"
-          points={`${MASTER_X + MASTER_W},${DATA_Y} ${SLAVE_X},${DATA_Y}`}
+          points={`${DLATCH_MASTER.Q_out.x},${DLATCH_MASTER.Q_out.y} ${DLATCH_SLAVE.D_in.x},${DLATCH_SLAVE.D_in.y}`}
           fill="none"
           stroke={mColor}
           strokeWidth={2.5}
         />
 
-        {/* Slave outputs */}
+        {/* Slave outputs — wires START at the D latch's Q_out / QB_out
+            projected terminals. */}
         <polyline
           data-testid="wire-q-out"
-          points={`${SLAVE_X + SLAVE_W},${Q_Y} ${Q_X},${Q_Y}`}
+          points={`${DLATCH_SLAVE.Q_out.x},${DLATCH_SLAVE.Q_out.y} ${Q_X},${DLATCH_SLAVE.Q_out.y}`}
           fill="none"
           stroke={qColor}
           strokeWidth={2.5}
         />
         <polyline
           data-testid="wire-qbar-out"
-          points={`${SLAVE_X + SLAVE_W},${QBAR_Y} ${Q_X},${QBAR_Y}`}
+          points={`${DLATCH_SLAVE.QB_out.x},${DLATCH_SLAVE.QB_out.y} ${Q_X},${DLATCH_SLAVE.QB_out.y}`}
           fill="none"
           stroke={qbColor}
           strokeWidth={2.5}
@@ -172,7 +235,20 @@ export function LevelDff({ onZoomToLatch }: Props) {
             (cross-coupled NAND pair) so the user sees what's INSIDE the
             latch, not just a label. */}
         {hoveredLatch === 'master' ? (
-          <MiniSrLatch x={MASTER_X} y={MASTER_Y} w={MASTER_W} h={MASTER_H} testid="master-latch-detailed" />
+          D_LATCH_MODULE.renderMini({
+            cx: MASTER_X + MASTER_W / 2,
+            cy: MASTER_Y + MASTER_H / 2,
+            w: MASTER_W,
+            h: MASTER_H,
+            inputs: {
+              d: state.d,
+              en: state.clk === 0 ? 1 : 0,  // master EN = !CLK
+              q: state.masterHeld,
+              qBar: (1 - state.masterHeld) as Bit,
+            },
+            testid: 'master-latch-detailed',
+            frameStroke: `${parchment.ink}40`,
+          })
         ) : (
           <LatchBox
             x={MASTER_X}
@@ -180,14 +256,27 @@ export function LevelDff({ onZoomToLatch }: Props) {
             w={MASTER_W}
             h={MASTER_H}
             label="MASTER latch"
-            subtitle="EN = !CLK"
+            subtitle=""
             contents={`held = ${state.masterHeld}`}
             enabled={state.clk === 0}
             testid="master-latch"
           />
         )}
         {hoveredLatch === 'slave' ? (
-          <MiniSrLatch x={SLAVE_X} y={SLAVE_Y} w={SLAVE_W} h={SLAVE_H} testid="slave-latch-detailed" />
+          D_LATCH_MODULE.renderMini({
+            cx: SLAVE_X + SLAVE_W / 2,
+            cy: SLAVE_Y + SLAVE_H / 2,
+            w: SLAVE_W,
+            h: SLAVE_H,
+            inputs: {
+              d: state.masterHeld,           // slave's D is master's Q
+              en: state.clk === 1 ? 1 : 0,    // slave EN = CLK
+              q: state.q,
+              qBar: state.qbar,
+            },
+            testid: 'slave-latch-detailed',
+            frameStroke: `${parchment.ink}40`,
+          })
         ) : (
           <LatchBox
             x={SLAVE_X}
@@ -195,7 +284,7 @@ export function LevelDff({ onZoomToLatch }: Props) {
             w={SLAVE_W}
             h={SLAVE_H}
             label="SLAVE latch"
-            subtitle="EN = CLK"
+            subtitle=""
             contents={`out = ${state.q}`}
             enabled={state.clk === 1}
             testid="slave-latch"
@@ -218,20 +307,11 @@ export function LevelDff({ onZoomToLatch }: Props) {
           onLeave={() => setHoveredLatch((p) => (p === 'slave' ? null : p))}
         />
 
-        {/* Port labels stuck to the latch boxes */}
-        <PortLabel x={MASTER_X - 4} y={DATA_Y - 6} text={LOGIC.D} />
-        <PortLabel x={MASTER_X + MASTER_W + 4} y={DATA_Y - 6} text={LOGIC.Q} anchor="start" />
-        <PortLabel x={MASTER_X + MASTER_W / 2 + 6} y={MASTER_Y - 4} text={LOGIC.EN} anchor="start" />
-        <PortLabel x={SLAVE_X - 4} y={DATA_Y - 6} text={LOGIC.D} />
-        <PortLabel x={SLAVE_X + SLAVE_W + 4} y={Q_Y - 6} text={LOGIC.Q} anchor="start" />
-        <PortLabel x={SLAVE_X + SLAVE_W + 4} y={QBAR_Y - 6} text={LOGIC.Qbar} anchor="start" />
-        <PortLabel x={SLAVE_X + SLAVE_W / 2 + 6} y={SLAVE_Y - 4} text={LOGIC.EN} anchor="start" />
-
-        {/* Pin labels and value chips on the far edges */}
-        <InputLabel x={D_X - 20} y={DATA_Y} text={LOGIC.D} value={state.d} testid="input-d" />
-        <InputLabel x={CLK_X - 20} y={CLK_Y} text={LOGIC.CLK} value={state.clk} testid="input-clk" />
-        <OutputLabel x={Q_X + 5} y={Q_Y} text={LOGIC.Q} value={state.q} testid="output-q" />
-        <OutputLabel x={Q_X + 5} y={QBAR_Y} text={LOGIC.Qbar} value={state.qbar} testid="output-qbar" />
+        {/* Pin labels and value chips on the far edges. */}
+        <IOPin cx={D_X} cy={DATA_Y} label={LOGIC.D} value={state.d} testid="input-d" />
+        <IOPin cx={CLK_X} cy={CLK_Y} label={LOGIC.CLK} value={state.clk} testid="input-clk" />
+        <IOPin cx={Q_X + 15} cy={Q_Y} label={LOGIC.Q} value={state.q} testid="output-q" />
+        <IOPin cx={Q_X + 15} cy={QBAR_Y} label={LOGIC.Qbar} value={state.qbar} testid="output-qbar" />
       </svg>
     </div>
   );
@@ -374,94 +454,6 @@ function Inverter({ inX, outX, cy, testid }: InverterProps) {
         fontFamily="serif"
       >
         NOT
-      </text>
-    </g>
-  );
-}
-
-function PortLabel({
-  x, y, text, anchor = 'end',
-}: { x: number; y: number; text: string; anchor?: 'start' | 'end' | 'middle' }) {
-  return (
-    <text
-      x={x}
-      y={y}
-      textAnchor={anchor}
-      fontSize={9}
-      fill={parchment.inkSoft}
-      fontFamily="serif"
-    >
-      {text}
-    </text>
-  );
-}
-
-function InputLabel({
-  x, y, text, value, testid,
-}: { x: number; y: number; text: string; value: Bit; testid: string }) {
-  return (
-    <g data-testid={testid}>
-      <text
-        x={x}
-        y={y - 10}
-        fontSize={14}
-        fontWeight={700}
-        fill={parchment.ink}
-        fontFamily="serif"
-      >
-        {text}
-      </text>
-      <text
-        x={x}
-        y={y + 12}
-        fontSize={11}
-        fill={value === 1 ? NET_HIGH : NET_LOW}
-        fontFamily="serif"
-        data-testid={`${testid}-value`}
-      >
-        = {value}
-      </text>
-    </g>
-  );
-}
-
-function OutputLabel({
-  x, y, text, value, testid,
-}: { x: number; y: number; text: string; value: Bit; testid: string }) {
-  return (
-    <g data-testid={testid}>
-      <rect
-        x={x - 8}
-        y={y - 18}
-        width={36}
-        height={36}
-        rx={4}
-        fill={parchment.bg}
-        stroke={value === 1 ? NET_HIGH : NET_LOW}
-        strokeWidth={2}
-      />
-      <text
-        x={x + 10}
-        y={y - 4}
-        textAnchor="middle"
-        fontSize={13}
-        fontWeight={700}
-        fill={parchment.ink}
-        fontFamily="serif"
-      >
-        {text}
-      </text>
-      <text
-        x={x + 10}
-        y={y + 11}
-        textAnchor="middle"
-        fontSize={11}
-        fontWeight={600}
-        fill={value === 1 ? NET_HIGH : NET_LOW}
-        fontFamily="serif"
-        data-testid={`${testid}-value`}
-      >
-        {value}
       </text>
     </g>
   );

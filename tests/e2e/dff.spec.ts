@@ -19,10 +19,13 @@ import { test, expect } from '@playwright/test';
 const SETTLE_MS = 1800;
 
 async function gotoDff(page: import('@playwright/test').Page): Promise<void> {
+  // Default landing is gate (depth 1). DFF is depth 4 → 3 backs.
   await page.goto('/');
   await page.getByTestId('back').click();   // gate → latch
   await page.waitForTimeout(SETTLE_MS);
-  await page.getByTestId('back').click();   // latch → dff
+  await page.getByTestId('back').click();   // latch → dlatch
+  await page.waitForTimeout(SETTLE_MS);
+  await page.getByTestId('back').click();   // dlatch → dff
   await page.waitForTimeout(SETTLE_MS);
 }
 
@@ -34,7 +37,7 @@ function activePane(page: import('@playwright/test').Page) {
 }
 
 test.describe('DFF level (D flip-flop — master-slave, edge-triggered)', () => {
-  test('two backs from gate navigate up to the dff', async ({ page }) => {
+  test('backs from gate navigate up through dlatch to the dff', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('level-pane-gate')).toHaveAttribute('aria-hidden', 'false');
     await page.getByTestId('back').click();
@@ -42,9 +45,12 @@ test.describe('DFF level (D flip-flop — master-slave, edge-triggered)', () => 
     await expect(page.getByTestId('level-pane-latch')).toHaveAttribute('aria-hidden', 'false');
     await page.getByTestId('back').click();
     await page.waitForTimeout(SETTLE_MS);
+    await expect(page.getByTestId('level-pane-dlatch')).toHaveAttribute('aria-hidden', 'false');
+    await page.getByTestId('back').click();
+    await page.waitForTimeout(SETTLE_MS);
     await expect(page.getByTestId('level-pane-dff')).toHaveAttribute('aria-hidden', 'false');
     await expect(page.getByTestId('level-breadcrumb')).toContainText('Flip-Flop');
-    await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 3/i);
+    await expect(page.getByTestId('level-breadcrumb')).toContainText(/level 4/i);
   });
 
   test('back from the dff is disabled (top of the tree)', async ({ page }) => {
@@ -110,15 +116,17 @@ test.describe('DFF level (D flip-flop — master-slave, edge-triggered)', () => 
     }
   });
 
-  test('hovering master latch swaps the labeled box for a MiniSrLatch (cross-coupled NAND pair)', async ({ page }) => {
+  test('hovering master latch swaps the labeled box for the LATCH_MODULE mini (cross-coupled NAND pair)', async ({ page }) => {
     await gotoDff(page);
     await expect(page.getByTestId('master-latch-detailed')).toHaveCount(0);
     await page.getByTestId('master-latch').hover();
     await expect(page.getByTestId('master-latch-detailed')).toBeVisible();
-    // Both feedback wires must be in the DOM — they are what makes this an
-    // SR latch instead of two unrelated NANDs.
-    await expect(page.getByTestId('master-latch-detailed-feedback-q')).toBeVisible();
-    await expect(page.getByTestId('master-latch-detailed-feedback-qbar')).toBeVisible();
+    // The mini renders the latch scene with two NAND symbols + cross-coupled
+    // feedback — same structural contract as before, exposed via the new
+    // LATCH_MODULE.renderMini pattern.
+    await expect(page.getByTestId('master-latch-detailed-scene')).toBeVisible();
+    await expect(page.getByTestId('master-latch-detailed-scene-nand-1')).toBeVisible();
+    await expect(page.getByTestId('master-latch-detailed-scene-nand-2')).toBeVisible();
     await page.mouse.move(0, 0);
     await expect(page.getByTestId('master-latch-detailed')).toHaveCount(0);
   });
@@ -130,19 +138,19 @@ test.describe('DFF level (D flip-flop — master-slave, edge-triggered)', () => 
     await expect(page.getByTestId('slave-latch-detailed')).toBeVisible();
   });
 
-  test('clicking the master latch drills down to latch level with master spotlight', async ({ page }) => {
+  test('clicking the master latch drills down to D-latch level with master spotlight', async ({ page }) => {
     await gotoDff(page);
     await page.getByTestId('master-latch').click();
     await page.waitForTimeout(SETTLE_MS);
-    await expect(page.getByTestId('level-pane-latch')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.getByTestId('level-pane-dlatch')).toHaveAttribute('aria-hidden', 'false');
     await expect(page.getByTestId('spotlight-title')).toContainText(/Master/);
   });
 
-  test('clicking the slave latch drills down to latch level with slave spotlight', async ({ page }) => {
+  test('clicking the slave latch drills down to D-latch level with slave spotlight', async ({ page }) => {
     await gotoDff(page);
     await page.getByTestId('slave-latch').click();
     await page.waitForTimeout(SETTLE_MS);
-    await expect(page.getByTestId('level-pane-latch')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.getByTestId('level-pane-dlatch')).toHaveAttribute('aria-hidden', 'false');
     await expect(page.getByTestId('spotlight-title')).toContainText(/Slave/);
   });
 
