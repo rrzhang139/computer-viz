@@ -21,13 +21,7 @@ import { OrbitControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
-import {
-  compareLevelSummary,
-  nmosLevelSummary,
-  pmosLevelSummary,
-  type ElectronsPart,
-} from './descriptions';
-import { LevelSummary } from './LevelSummary';
+import { type ElectronsPart } from './descriptions';
 import {
   DOPING,
   PART,
@@ -47,7 +41,9 @@ interface MosfetTheme {
   conducts: (gateOn: number) => number;
 }
 
-const NMOS_THEME: MosfetTheme = {
+// Themes are exported so other levels (e.g., LevelGate hover preview) can
+// render the SAME transistor with the SAME colors instead of duplicating.
+export const NMOS_THEME: MosfetTheme = {
   substrate: parchment.substrate,           // warm sepia = p-type silicon
   substrateLabel: 'p-type bulk',
   doped: parchment.doped,                   // slate-blue = n+
@@ -56,7 +52,7 @@ const NMOS_THEME: MosfetTheme = {
   conducts: (g) => g,                       // active HIGH
 };
 
-const PMOS_THEME: MosfetTheme = {
+export const PMOS_THEME: MosfetTheme = {
   substrate: '#6e8a8c',                     // muted teal = n-type / n-well
   substrateLabel: 'n-type bulk',
   doped: '#b86b53',                         // warm coral = p+
@@ -79,7 +75,11 @@ interface MosfetProps {
   onPickPart: (p: Part) => void;
 }
 
-function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
+// Exported so LevelGate (the parent abstraction level) can render the SAME
+// 3D transistor INLINE as a hover preview — no separate stylized cross-
+// section to drift out of sync. Pass `previewMode` to drop the click
+// handlers + part-pick affordances.
+export function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
   const gateRef = useRef<THREE.Mesh>(null);
   const oxideRef = useRef<THREE.Mesh>(null);
   const channelRef = useRef<THREE.Mesh>(null);
@@ -119,11 +119,15 @@ function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
       mat.emissiveIntensity = highlight === 'oxide' ? 0.3 : 0;
     }
     // CHANNEL — the THE difference: NMOS glows when V_G=1, PMOS when V_G=0.
+    // When conducting, pulse the brightness continuously so the user
+    // sees the channel "alive" (current is flowing). Static glow alone
+    // reads as inert.
     if (channelRef.current) {
       const c = theme.conducts(gateOn);
       const mat = channelRef.current.material as THREE.MeshStandardMaterial;
       mat.emissive.set(theme.channelEmissive);
-      mat.emissiveIntensity = c * 0.65;
+      const pulse = c > 0.5 ? 0.5 + 0.4 * Math.sin(performance.now() * 0.008) : 0;
+      mat.emissiveIntensity = c * 0.65 + pulse;
       mat.opacity = 0.12 + c * 0.55;
     }
     partGlow(sourceRef, 'source', theme.doped);
@@ -162,6 +166,11 @@ function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
           opacity={0.12}
         />
       </mesh>
+
+      {/* Electron pulse — small glowing sphere drifting through the channel
+          when conducting. Gives a visible "current flowing" cue that the
+          static channel-glow alone doesn't deliver. Hidden when blocked. */}
+      <ChannelElectron gateOn={gateOn} conducts={theme.conducts} color={theme.channelEmissive} />
 
       {/* oxide layer */}
       <mesh ref={oxideRef} position={[0, 0.18, 0]} onClick={() => onPickPart('oxide')}>
@@ -259,7 +268,49 @@ function Mosfet({ kind, theme, gateOn, highlight, onPickPart }: MosfetProps) {
   );
 }
 
-function useGateVoltage(): number {
+// Small glowing sphere that travels through the channel from source to
+// drain when the transistor is conducting. Visual cue that current is
+// flowing — the static channel-glow alone reads as "lit but inert".
+//
+// `conducts(gateOn)` is the same function the channel uses for opacity, so
+// the electron appears exactly when the channel does.
+function ChannelElectron({
+  gateOn,
+  conducts,
+  color,
+}: {
+  gateOn: number;
+  conducts: (g: number) => number;
+  color: string;
+}) {
+  const ref = useRef<THREE.Mesh>(null);
+  const period = 900; // ms per source→drain trip — fast enough to feel alive
+  useFrame(() => {
+    if (!ref.current) return;
+    const c = conducts(gateOn);
+    const visible = c > 0.5;
+    ref.current.visible = visible;
+    if (!visible) return;
+    const t = (performance.now() % period) / period;
+    const x = CHANNEL_X_MIN + (CHANNEL_X_MAX - CHANNEL_X_MIN) * t;
+    // z=1.5 keeps the pulse well in FRONT of the substrate/oxide/contact
+    // stack — never occluded.
+    ref.current.position.set(x, 0.4, 1.5);
+    const m = ref.current.material as THREE.MeshStandardMaterial;
+    m.emissiveIntensity = 3.5 + Math.sin(performance.now() * 0.012);
+  });
+  return (
+    <mesh ref={ref} visible={false} renderOrder={999}>
+      <sphereGeometry args={[0.32, 24, 24]} />
+      <meshBasicMaterial color={color} toneMapped={false} />
+    </mesh>
+  );
+}
+
+// Exported so the gate-level hover preview animates with the same V_G ramp
+// as the standalone transistor view — visually identical no matter where
+// you watch it.
+export function useGateVoltage(): number {
   const cycle = useExecution((s) => s.cycle);
   return cycle % 2 === 0 ? 0 : 1;
 }
@@ -359,16 +410,6 @@ export function LevelTransistor({ variant, highlight, onHighlight }: TransistorP
         {showPmos && <LegendBox color={PMOS_THEME.doped} label="PMOS source/drain · p+" />}
         <LegendBox color={parchment.gate} label="polysilicon gate" />
       </div>
-
-      <LevelSummary
-        summary={
-          variant === TRANSISTOR_TYPE.PMOS
-            ? pmosLevelSummary
-            : variant === TRANSISTOR_TYPE.NMOS
-              ? nmosLevelSummary
-              : compareLevelSummary
-        }
-      />
 
       <div style={partPickerStyle} data-testid="part-picker">
         {([PART.gate, PART.oxide, PART.channel, PART.source, PART.drain, PART.substrate, PART.contact] as const).map((p) => (

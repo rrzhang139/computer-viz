@@ -51,6 +51,14 @@ describe('symbols.ts — canonical invariants', () => {
     expect(LOGIC.LOW).toBe('0');
   });
 
+  it('LOGIC carries the synchronous-storage labels D, CLK, EN, Q, Q̄', () => {
+    expect(LOGIC.D).toBe('D');
+    expect(LOGIC.CLK).toBe('CLK');
+    expect(LOGIC.EN).toBe('EN');
+    expect(LOGIC.Q).toBe('Q');
+    expect(LOGIC.Qbar).toBe('Q̄');
+  });
+
   it('SUPPLY uses the conventional Vdd / GND names', () => {
     expect(SUPPLY.Vdd).toBe('Vdd');
     expect(SUPPLY.GND).toBe('GND');

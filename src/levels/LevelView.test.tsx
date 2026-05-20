@@ -1,15 +1,32 @@
 // LevelView state-machine tests. The actual r3f Canvas needs WebGL which jsdom
 // doesn't provide, so we stub the level scenes to plain DOM markers.
 //
-// Levels: gate (depth 6, default landing) and transistor (depth 7).
+// Tree: dff (depth 3, top) → latch (depth 2) → gate (depth 1, default landing) →
+//       transistor (depth 0).
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 
 type ZoomCB = (idx: number) => void;
+type LatchZoomCB = (which: 'nand-1' | 'nand-2') => void;
+type DffZoomCB = (which: 'master' | 'slave') => void;
 let zoomCb: ZoomCB | null = null;
 let arrivedCb: ZoomCB | null = null;
+let latchZoomCb: LatchZoomCB | null = null;
+let dffZoomCb: DffZoomCB | null = null;
 
+vi.mock('./LevelDff', () => ({
+  LevelDff: ({ onZoomToLatch }: { onZoomToLatch: DffZoomCB }) => {
+    dffZoomCb = onZoomToLatch;
+    return <div data-testid="stub-dff">stub-dff</div>;
+  },
+}));
+vi.mock('./LevelLatch', () => ({
+  LevelLatch: ({ onZoomToGate }: { onZoomToGate: LatchZoomCB }) => {
+    latchZoomCb = onZoomToGate;
+    return <div data-testid="stub-latch">stub-latch</div>;
+  },
+}));
 vi.mock('./LevelGate', () => ({
   LevelGate: ({ onZoomTo, onArrived }: { onZoomTo: ZoomCB; onArrived: ZoomCB }) => {
     zoomCb = onZoomTo;
@@ -43,27 +60,76 @@ vi.mock('motion/react', () => ({
 
 import { LevelView } from './LevelView';
 
+const dffPane = () => screen.getByTestId('level-pane-dff');
+const latchPane = () => screen.getByTestId('level-pane-latch');
 const gatePane = () => screen.getByTestId('level-pane-gate');
 const transistorPane = () => screen.getByTestId('level-pane-transistor');
 
 describe('<LevelView>', () => {
-  it('starts at the gate level (depth 6)', () => {
+  it('starts at the gate level (depth 1)', () => {
     render(<LevelView />);
     expect(gatePane()).toHaveAttribute('aria-hidden', 'false');
+    expect(dffPane()).toHaveAttribute('aria-hidden', 'true');
+    expect(latchPane()).toHaveAttribute('aria-hidden', 'true');
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 1/i);
     expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Gate/);
   });
 
-  it('both panes are always mounted (cross-fade requires it)', () => {
+  it('all four panes are always mounted (cross-fade requires it)', () => {
     render(<LevelView />);
+    expect(screen.getByTestId('stub-dff')).toBeInTheDocument();
+    expect(screen.getByTestId('stub-latch')).toBeInTheDocument();
     expect(screen.getByTestId('stub-gate')).toBeInTheDocument();
     expect(screen.getByTestId('stub-transistor')).toBeInTheDocument();
   });
 
-  it('back button is disabled at the gate level', () => {
+  it('back button is enabled at the gate level (parent: latch)', () => {
     render(<LevelView />);
+    expect(screen.getByTestId('back')).toBeEnabled();
+  });
+
+  it('back from gate flips active pane to latch (depth 2)', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back'));
+    expect(latchPane()).toHaveAttribute('aria-hidden', 'false');
+    expect(gatePane()).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 2/i);
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Latch/);
+  });
+
+  it('back from latch flips active pane to dff (depth 3)', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back')); // gate → latch
+    fireEvent.click(screen.getByTestId('back')); // latch → dff
+    expect(dffPane()).toHaveAttribute('aria-hidden', 'false');
+    expect(latchPane()).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/level 3/i);
+    expect(screen.getByTestId('level-breadcrumb')).toHaveTextContent(/Flip-Flop/);
+  });
+
+  it('back from the dff is disabled (it is the top of the tree)', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back')); // gate → latch
+    fireEvent.click(screen.getByTestId('back')); // latch → dff
     expect(screen.getByTestId('back')).toBeDisabled();
+  });
+
+  it('clicking a NAND in the latch flips active pane to gate', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back')); // gate → latch
+    act(() => latchZoomCb!('nand-1'));
+    expect(gatePane()).toHaveAttribute('aria-hidden', 'false');
+    expect(latchPane()).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('clicking a latch in the dff flips active pane to latch', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back')); // gate → latch
+    fireEvent.click(screen.getByTestId('back')); // latch → dff
+    act(() => dffZoomCb!('master'));
+    expect(latchPane()).toHaveAttribute('aria-hidden', 'false');
+    expect(dffPane()).toHaveAttribute('aria-hidden', 'true');
   });
 
   it('onArrived(idx) flips active pane to transistor and updates breadcrumb', () => {
@@ -91,10 +157,25 @@ describe('<LevelView>', () => {
     expect(gatePane()).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('Escape on gate is a no-op', () => {
+  it('Escape from gate goes up to the latch', () => {
     render(<LevelView />);
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(gatePane()).toHaveAttribute('aria-hidden', 'false');
+    expect(latchPane()).toHaveAttribute('aria-hidden', 'false');
+  });
+
+  it('Escape from latch goes up to the dff', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back')); // gate → latch
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(dffPane()).toHaveAttribute('aria-hidden', 'false');
+  });
+
+  it('Escape on the dff is a no-op (already at the top)', () => {
+    render(<LevelView />);
+    fireEvent.click(screen.getByTestId('back')); // gate → latch
+    fireEvent.click(screen.getByTestId('back')); // latch → dff
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(dffPane()).toHaveAttribute('aria-hidden', 'false');
   });
 
   it('onZoomTo alone does not change the level (camera must arrive first)', () => {
@@ -111,11 +192,15 @@ describe('<LevelView>', () => {
     expect(transistorPane()).toHaveAttribute('aria-hidden', 'false');
   });
 
-  it('inactive pane has pointer-events: none so clicks fall through', () => {
+  it('inactive panes have pointer-events: none so clicks fall through', () => {
     render(<LevelView />);
-    expect(transistorPane().style.pointerEvents).toBe('none');
+    expect(dffPane().style.pointerEvents).toBe('none');
+    expect(latchPane().style.pointerEvents).toBe('none');
     expect(gatePane().style.pointerEvents).toBe('auto');
+    expect(transistorPane().style.pointerEvents).toBe('none');
     act(() => arrivedCb!(0));
+    expect(dffPane().style.pointerEvents).toBe('none');
+    expect(latchPane().style.pointerEvents).toBe('none');
     expect(transistorPane().style.pointerEvents).toBe('auto');
     expect(gatePane().style.pointerEvents).toBe('none');
   });

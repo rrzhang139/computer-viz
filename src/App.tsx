@@ -18,7 +18,7 @@ function App() {
   useGraphHotkey(() => setGraphOpen(true));
 
   return (
-    <main style={{ background: colors.bg, color: colors.fg, minHeight: '100vh', padding: 32 }}>
+    <main style={{ background: colors.bg, color: colors.fg, minHeight: '100vh', padding: 'clamp(16px, 2vw, 32px)' }}>
       <button
         onClick={() => setGraphOpen(true)}
         title="Open knowledge graph (Cmd/Ctrl+K)"
@@ -30,19 +30,19 @@ function App() {
         <kbd style={kbdStyle}>⌘K</kbd>
       </button>
 
-      <header style={{ borderBottom: `1px solid ${colors.edge}`, paddingBottom: 16, marginBottom: 24, paddingRight: 160 }}>
-        <h1 style={{ fontSize: 28, margin: 0, color: colors.fg }}>computer-viz</h1>
-        <p style={{ color: colors.edge, fontSize: fontSize.label, margin: '4px 0 0' }}>
+      <header style={{ borderBottom: `1px solid ${colors.edge}`, paddingBottom: 'clamp(8px, 1vw, 16px)', marginBottom: 'clamp(12px, 1.5vw, 24px)', paddingRight: 160 }}>
+        <h1 style={{ fontSize: 'clamp(22px, 2.4vw, 36px)', margin: 0, color: colors.fg }}>computer-viz</h1>
+        <p style={{ color: colors.edge, fontSize: 'clamp(11px, 1vw, 14px)', margin: '4px 0 0' }}>
           Phase 0+ scaffold. Click-to-zoom levels, store, and routing wire up in Phase 5.
         </p>
       </header>
 
-      <section style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 16, color: colors.control, margin: '0 0 12px' }}>
+      <section style={{ marginBottom: 'clamp(16px, 2vw, 32px)' }}>
+        <h2 style={{ fontSize: 'clamp(14px, 1.4vw, 18px)', color: colors.control, margin: '0 0 8px' }}>
           Levels (parchment view) — bottom of the stack
         </h2>
         <LevelView />
-        <p style={{ color: colors.edge, fontSize: 12, marginTop: 10 }}>
+        <p style={{ color: colors.edge, fontSize: 'clamp(11px, 1vw, 14px)', marginTop: 8 }}>
           Click any of the four MOSFETs in the gate (level 1) to fly the camera into one transistor (level 0).
           Use ▶ play to auto-cycle the inputs through the NAND truth table, or ⏭ step one cycle at a time.
         </p>
@@ -63,9 +63,9 @@ retiredInstrs:   ${retired}`}
         </div>
       </details>
 
-      <section style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 16, color: colors.control, margin: '0 0 8px' }}>Term + Unit demo</h2>
-        <p style={{ color: colors.fg, lineHeight: 1.7, maxWidth: 760 }}>
+      <section style={{ marginBottom: 'clamp(12px, 1.5vw, 24px)' }}>
+        <h2 style={{ fontSize: 'clamp(14px, 1.4vw, 18px)', color: colors.control, margin: '0 0 8px' }}>Term + Unit demo</h2>
+        <p style={{ color: colors.fg, lineHeight: 1.7, maxWidth: 760, fontSize: 'clamp(13px, 1.05vw, 16px)' }}>
           <TermText>
             A program runs as a process inside its private virtual address space. Each instruction is fetched by the core, decoded, and executed by the ALU; results are written back to a register or pushed through the cache hierarchy (L1, L2, L3) toward RAM. A TLB miss triggers an MMU walk through the page table; a cache miss falls through to DRAM. When userspace asks the kernel for something, it issues a syscall.
           </TermText>{' '}
@@ -78,8 +78,8 @@ retiredInstrs:   ${retired}`}
       </section>
 
       <section>
-        <h2 style={{ fontSize: 16, color: colors.storage, margin: '0 0 8px' }}>Repo status</h2>
-        <ul style={{ color: colors.fg, lineHeight: 1.8 }}>
+        <h2 style={{ fontSize: 'clamp(14px, 1.4vw, 18px)', color: colors.storage, margin: '0 0 8px' }}>Repo status</h2>
+        <ul style={{ color: colors.fg, lineHeight: 1.8, fontSize: 'clamp(12px, 1vw, 15px)' }}>
           <li>115 level/connector folders scaffolded under <code>levels/</code></li>
           <li>Root docs: INVARIANTS, EXECUTION_SCHEMA (draft), TIME_AXIS, GLOSSARY, COORDINATOR_LOG</li>
           <li>Three rendering tiers wired (1=photo, 2=react-three-fiber, 3=stylized SVG); symbolic = toggleable overlay</li>

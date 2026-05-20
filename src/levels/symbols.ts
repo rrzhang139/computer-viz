@@ -17,6 +17,14 @@ export const LOGIC = {
   Y: 'Y',
   HIGH: '1',
   LOW: '0',
+  // Synchronous-storage labels — first introduced at the SR latch / DFF
+  // levels. D = data input being captured; CLK = clock; EN = level-sensitive
+  // enable; Q / Qbar = stored bit and its complement.
+  D: 'D',
+  CLK: 'CLK',
+  EN: 'EN',
+  Q: 'Q',
+  Qbar: 'Q̄',
 } as const;
 
 export const SUPPLY = {

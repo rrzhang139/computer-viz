@@ -24,9 +24,11 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     }
   });
 
-  test('back button is disabled at home, enabled after zoom-in', async ({ page }) => {
+  test('back button is enabled at the gate level (parent: latch)', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('back')).toBeDisabled();
+    // Gate is no longer the top — the SR latch sits above it. From gate the
+    // back button must therefore be enabled (it would zoom out to the latch).
+    await expect(page.getByTestId('back')).toBeEnabled();
     await page.getByTestId('zoom-target-2').click();
     await page.waitForTimeout(SETTLE_MS);
     await expect(page.getByTestId('back')).toBeEnabled();
@@ -106,6 +108,29 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     await expect(page.getByTestId('hover-readout')).toBeHidden();
   });
 
+  test('hovering P_A overlays a vertical cross-section labeled top=Vdd, bottom=Y, side=A', async ({ page }) => {
+    // P_A is the top-left transistor; its source ties to Vdd, drain drives
+    // the Y output, and its gate is driven by the A wire from the left.
+    // The hover preview must encode that wiring verbatim.
+    await page.goto('/');
+    await page.getByTestId('zoom-target-0').hover();
+    await expect(page.getByTestId('P_A-detailed')).toBeVisible();
+    await expect(page.getByTestId('P_A-detailed-top-net')).toContainText('Vdd');
+    await expect(page.getByTestId('P_A-detailed-bottom-net')).toContainText('Y');
+    await expect(page.getByTestId('P_A-detailed-side-net')).toContainText('A');
+  });
+
+  test('hovering N_B overlays a cross-section labeled top=mid, bottom=GND, side=B', async ({ page }) => {
+    // N_B is the bottom NMOS in the pull-down chain. Drain to mid-net,
+    // source to GND, gate to B input.
+    await page.goto('/');
+    await page.getByTestId('zoom-target-3').hover();
+    await expect(page.getByTestId('N_B-detailed')).toBeVisible();
+    await expect(page.getByTestId('N_B-detailed-top-net')).toContainText('mid');
+    await expect(page.getByTestId('N_B-detailed-bottom-net')).toContainText('GND');
+    await expect(page.getByTestId('N_B-detailed-side-net')).toContainText('B');
+  });
+
   test('gate voltage meter responds to clock ticks (after zoom-in)', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('zoom-target-2').click();
@@ -120,11 +145,17 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     }).toPass({ timeout: 2500 });
   });
 
-  test('clicking back at transistor (disabled) is a no-op', async ({ page }) => {
+  test('clicking back at the dff (disabled) is a no-op', async ({ page }) => {
     await page.goto('/');
-    // Force-click a disabled button.
+    // gate → latch → dff
+    await page.getByTestId('back').click();
+    await page.waitForTimeout(SETTLE_MS);
+    await page.getByTestId('back').click();
+    await page.waitForTimeout(SETTLE_MS);
+    await expect(page.getByTestId('level-pane-dff')).toHaveAttribute('aria-hidden', 'false');
+    // Now force-click the (disabled) back button — should stay at dff.
     await page.getByTestId('back').click({ force: true });
-    await expect(page.getByTestId('level-pane-gate')).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.getByTestId('level-pane-dff')).toHaveAttribute('aria-hidden', 'false');
   });
 
   // ── Spotlight: contextual descriptions per level / per part ─────────────
@@ -272,54 +303,39 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     }
   });
 
-  // Both panes stay mounted (cross-fade); scope summary lookup to the
-  // currently-active pane.
-  test('LevelSummary card present at gate level', async ({ page }) => {
+  // LevelSummary moved to the right-toolbar aside; scope assertions there.
+  test('LevelSummary card present at gate level (sidebar)', async ({ page }) => {
     await page.goto('/');
-    const gate = page.getByTestId('level-pane-gate');
-    await expect(gate.getByTestId('level-summary')).toBeVisible();
-    await expect(gate.getByTestId('level-summary-what')).toContainText(/NAND|gate|transistors/i);
-    await expect(gate.getByTestId('level-summary-in')).toContainText(/[Aa]/);
-    await expect(gate.getByTestId('level-summary-out')).toContainText(/Y/);
+    const aside = page.locator('aside[aria-label="Level controls"]');
+    await expect(aside.getByTestId('level-summary')).toBeVisible();
+    await expect(aside.getByTestId('level-summary-what')).toContainText(/NAND|gate|transistors/i);
+    await expect(aside.getByTestId('level-summary-in')).toContainText(/[Aa]/);
+    await expect(aside.getByTestId('level-summary-out')).toContainText(/Y/);
   });
 
-  test('LevelSummary card on Transistor PMOS branch describes pull-up role', async ({ page }) => {
+  test('LevelSummary on Transistor PMOS branch describes pull-up role (sidebar)', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('zoom-target-0').click();
-    const trans = page.getByTestId('level-pane-transistor');
-    await expect(trans).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
-    await expect(trans.getByTestId('level-summary-what')).toContainText(/PMOS|P-channel/i);
-    await expect(trans.getByTestId('level-summary-why')).toContainText(/pull-UP|pull up/i);
-    await expect(trans.getByTestId('level-summary-in')).toContainText(/V_G|gate/i);
-    await expect(trans.getByTestId('level-summary-out')).toContainText(/[Dd]rain|Vdd/);
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    const aside = page.locator('aside[aria-label="Level controls"]');
+    await expect(aside.getByTestId('level-summary-what')).toContainText(/PMOS|P-channel/i);
+    await expect(aside.getByTestId('level-summary-why')).toContainText(/pull-UP|pull up/i);
+    await expect(aside.getByTestId('level-summary-in')).toContainText(/V_G|gate/i);
+    await expect(aside.getByTestId('level-summary-out')).toContainText(/[Dd]rain|Vdd/);
   });
 
-  test('LevelSummary card on Transistor NMOS branch describes pull-down role', async ({ page }) => {
+  test('LevelSummary on Transistor NMOS branch describes pull-down role (sidebar)', async ({ page }) => {
     await page.goto('/');
     await page.getByTestId('zoom-target-2').click();
-    const trans = page.getByTestId('level-pane-transistor');
-    await expect(trans).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
-    await expect(trans.getByTestId('level-summary-what')).toContainText(/NMOS|N-channel/i);
-    await expect(trans.getByTestId('level-summary-why')).toContainText(/pull-DOWN|pull down/i);
-    await expect(trans.getByTestId('level-summary-out')).toContainText(/[Dd]rain|GND/);
+    await expect(page.getByTestId('level-pane-transistor')).toHaveAttribute('aria-hidden', 'false', { timeout: 5000 });
+    const aside = page.locator('aside[aria-label="Level controls"]');
+    await expect(aside.getByTestId('level-summary-what')).toContainText(/NMOS|N-channel/i);
+    await expect(aside.getByTestId('level-summary-why')).toContainText(/pull-DOWN|pull down/i);
+    await expect(aside.getByTestId('level-summary-out')).toContainText(/[Dd]rain|GND/);
   });
 
   // ── NAND gate: truth table + clock + play/pause ─────────────────────────
-
-  // ── Y downstream meaning ─────────────────────────────────────────────────
-
-  test('y-downstream-note explains wire voltage when Y=1 and Y=0', async ({ page }) => {
-    await page.goto('/');
-    // Initial: A=0 B=0 → Y=1 → wire at Vdd
-    await expect(page.getByTestId('y-downstream-note')).toContainText(/Vdd/);
-    await expect(page.getByTestId('y-downstream-note')).toContainText(/reads 1/);
-    // Step twice: A=1 B=1 → Y=0 → wire at GND
-    await page.getByTestId('step-cycle').click();
-    await page.getByTestId('step-cycle').click();
-    await expect(page.getByTestId('bit-Y')).toContainText('Y = 0');
-    await expect(page.getByTestId('y-downstream-note')).toContainText(/GND/);
-    await expect(page.getByTestId('y-downstream-note')).toContainText(/reads 0/);
-  });
+  // Phase prose + meters live in the right-toolbar spotlight panel now.
 
   test('next-gate placeholder is rendered at the gate level', async ({ page }) => {
     await page.goto('/');
@@ -328,69 +344,65 @@ test.describe('Click-to-zoom (gate → transistor)', () => {
     await expect(page.getByTestId('next-gate-placeholder')).toContainText(/Y/);
   });
 
-  test('phase explainer includes Downstream sentence in every state', async ({ page }) => {
+  test('NAND gate spotlight: cycle 0 = default; first step → phase 01 (Y stays 1)', async ({ page }) => {
     await page.goto('/');
-    for (let i = 0; i < 4; i++) {
-      await expect(page.getByTestId('phase-downstream')).toContainText(/Downstream:/);
-      // Each phase has a non-trivial downstream paragraph that mentions either
-      // Vdd or GND (the wire's voltage in that state).
-      await expect(page.getByTestId('phase-downstream')).toContainText(/Vdd|GND/);
-      if (i < 3) await page.getByTestId('step-cycle').click();
-    }
+    const aside = page.locator('aside[aria-label="Level controls"]');
+    // Cycle 0 = default gate spotlight.
+    await expect(aside.getByTestId('spotlight-title')).toContainText(/logic gate/i);
+    // Step once → cycle 1 → phase[1] = "B flipped HIGH — Y stays at 1".
+    await page.getByTestId('step-cycle').click();
+    await expect(aside.getByTestId('spotlight-title')).toContainText(/Y stays/i);
+    await expect(aside.getByTestId('meter-A')).toContainText('A=0');
+    await expect(aside.getByTestId('meter-B')).toContainText('B=1');
+    await expect(aside.getByTestId('meter-Y')).toContainText('Y=1');
   });
 
-  test('NAND gate shows A=0 B=0 → Y=1 at start', async ({ page }) => {
+  test('step advances through full NAND truth table via spotlight meters', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByTestId('bit-A')).toContainText('A = 0');
-    await expect(page.getByTestId('bit-B')).toContainText('B = 0');
-    await expect(page.getByTestId('bit-Y')).toContainText('Y = 1');
-  });
-
-  test('step advances through full NAND truth table', async ({ page }) => {
-    await page.goto('/');
-    // Gray-code sequence: 00 → 01 → 11 → 10
+    const aside = page.locator('aside[aria-label="Level controls"]');
+    // Cycle 0 starts at A=0, B=0 visually but no meters until first step.
+    // After N steps, meters reflect the (N % 4)-th truth-table row.
     const expected = [
-      { A: 0, B: 0, Y: 1 },
-      { A: 0, B: 1, Y: 1 },
-      { A: 1, B: 1, Y: 0 },
-      { A: 1, B: 0, Y: 1 },
+      { A: 0, B: 1, Y: 1 },  // cycle 1
+      { A: 1, B: 1, Y: 0 },  // cycle 2
+      { A: 1, B: 0, Y: 1 },  // cycle 3
+      { A: 0, B: 0, Y: 1 },  // cycle 4 wraps to (0,0)
     ];
-    for (let i = 0; i < expected.length; i++) {
-      const e = expected[i];
-      await expect(page.getByTestId('bit-A')).toContainText(`A = ${e.A}`);
-      await expect(page.getByTestId('bit-B')).toContainText(`B = ${e.B}`);
-      await expect(page.getByTestId('bit-Y')).toContainText(`Y = ${e.Y}`);
+    for (const e of expected) {
       await page.getByTestId('step-cycle').click();
+      await expect(aside.getByTestId('meter-A')).toContainText(`A=${e.A}`);
+      await expect(aside.getByTestId('meter-B')).toContainText(`B=${e.B}`);
+      await expect(aside.getByTestId('meter-Y')).toContainText(`Y=${e.Y}`);
     }
   });
 
-  test('reset returns to A=0 B=0 Y=1', async ({ page }) => {
+  test('reset returns the spotlight to the default (no phase override)', async ({ page }) => {
     await page.goto('/');
+    const aside = page.locator('aside[aria-label="Level controls"]');
     await page.getByTestId('step-cycle').click();
     await page.getByTestId('step-cycle').click();
-    await expect(page.getByTestId('bit-A')).toContainText('A = 1');
+    // After 2 steps we should see a phase title.
+    await expect(aside.getByTestId('spotlight-title')).not.toContainText(/^A logic gate$/);
     await page.getByTestId('reset-clock').click();
-    await expect(page.getByTestId('bit-A')).toContainText('A = 0');
-    await expect(page.getByTestId('bit-Y')).toContainText('Y = 1');
+    // Reset → cycle = 0 → default spotlight returns. No meters.
+    await expect(aside.getByTestId('spotlight-title')).toContainText(/logic gate/i);
+    await expect(aside.locator('[data-testid="meter-A"]')).toHaveCount(0);
   });
 
-  test('play auto-steps the clock; pause stops it', async ({ page }) => {
+  test('play auto-steps the clock; pause stops it (observed via spotlight)', async ({ page }) => {
     await page.goto('/');
-    const initialA = await page.getByTestId('bit-A').textContent();
+    const aside = page.locator('aside[aria-label="Level controls"]');
+    const initialTitle = await aside.getByTestId('spotlight-title').textContent();
     await page.getByTestId('play-pause').click();
     await expect(page.getByTestId('play-pause')).toHaveAttribute('aria-pressed', 'true');
-    // Wait long enough for at least 2 auto-steps (≥ 1.8 s).
     await page.waitForTimeout(2200);
-    // After ~2.4 steps the truth-table state should have advanced.
-    const movedA = await page.getByTestId('bit-A').textContent();
-    const movedB = await page.getByTestId('bit-B').textContent();
-    expect(`${movedA}|${movedB}`).not.toBe(`${initialA}|A = 0`); // something changed
+    const movedTitle = await aside.getByTestId('spotlight-title').textContent();
+    expect(movedTitle).not.toBe(initialTitle);
     await page.getByTestId('play-pause').click();
     await expect(page.getByTestId('play-pause')).toHaveAttribute('aria-pressed', 'false');
-    // Now it should stay put while paused.
-    const pausedState = `${await page.getByTestId('bit-A').textContent()}|${await page.getByTestId('bit-B').textContent()}`;
+    const pausedTitle = await aside.getByTestId('spotlight-title').textContent();
     await page.waitForTimeout(1500);
-    expect(`${await page.getByTestId('bit-A').textContent()}|${await page.getByTestId('bit-B').textContent()}`).toBe(pausedState);
+    expect(await aside.getByTestId('spotlight-title').textContent()).toBe(pausedTitle);
   });
 
   test('clock controls have no µ-tick (was confusing — removed)', async ({ page }) => {

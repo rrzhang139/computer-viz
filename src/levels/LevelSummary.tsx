@@ -37,23 +37,17 @@ function Row({ label, text, testid }: { label: string; text: string; testid: str
   );
 }
 
+// Flow layout — sits inside the right-toolbar aside under the spotlight.
+// (Used to be absolute-positioned in the bottom-left of the canvas; got
+// hoisted out of the viz so the canvas stays just the diagram.)
 const cardStyle: CSSProperties = {
-  position: 'absolute',
-  bottom: 12,
-  left: 12,
-  width: 280,
-  padding: '8px 10px',
-  background: 'rgba(241,231,205,0.95)',
-  border: `1px solid ${parchment.rule}`,
-  borderRadius: 6,
+  width: '100%',
+  padding: '6px 0 0',
+  boxSizing: 'border-box',
 };
 
 const headerStyle: CSSProperties = {
-  color: parchment.inkSoft,
-  fontSize: 9,
-  letterSpacing: 1,
-  textTransform: 'uppercase',
-  marginBottom: 4,
+  display: 'none',
 };
 
 const rowStyle: CSSProperties = {

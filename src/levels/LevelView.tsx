@@ -1,39 +1,63 @@
-// LevelView — both panes always mounted; cross-fade driven by `level`.
+// LevelView — all panes always mounted; cross-fade driven by `level`.
 //
-// Levels:
-//   gate (depth 6)        — a logic gate built from 4 transistors (the row).
-//   transistor (depth 7)  — a single MOSFET (the voltage-controlled switch).
+// Tree (top → bottom of the abstraction stack):
+//   dff (depth 3)         — a D flip-flop built from 2 latches (clocked storage).
+//   latch (depth 2)       — an SR latch from 2 cross-coupled NANDs (1 stored bit).
+//   gate (depth 1)        — one NAND gate built from 4 transistors.
+//   transistor (depth 0)  — a single MOSFET (voltage-controlled switch).
+//
+// Default landing is `gate` to keep existing tests + the user's current
+// muscle memory steady; you reach the higher levels via the back button.
 //
 // Interaction:
-//   - On the Gate level, click any of the 4 transistor meshes (or its
-//     data-testid="zoom-target-{i}" overlay button). LevelGate's CameraRig
-//     flies the camera toward it; when close, onArrived fires and LevelView
-//     switches level → 'transistor'; cross-fade transitions panes.
-//   - Going back: Esc or "← back" button → setLevel('gate'), clears zoom
-//     target + part highlight.
+//   - On Gate, click any of the 4 transistor meshes to fly into one transistor.
+//   - On Latch, click NAND1 or NAND2 to drill into the gate level.
+//   - On DFF,   click MASTER or SLAVE latch box to drill into the latch level.
+//   - Back / Esc walks UP one level. From DFF, back is disabled (top of tree).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
+import { LevelDff } from './LevelDff';
 import { LevelGate } from './LevelGate';
+import { LevelLatch } from './LevelLatch';
+import { LevelSummary } from './LevelSummary';
 import { LevelTransistor } from './LevelTransistor';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
 import {
+  compareLevelSummary,
+  dffLevelSummary,
+  dffPhaseFor,
+  dffSpotlight,
+  gateLevelSummary,
+  gatePhaseFor,
   gateSpotlight,
+  latchLevelSummary,
+  latchPhaseFor,
+  latchSpotlight,
+  masterLatchSpotlight,
+  nand1Spotlight,
+  nand2Spotlight,
+  nmosLevelSummary,
   nmosSpotlight,
   partSpotlights,
+  pmosLevelSummary,
   pmosSpotlight,
+  slaveLatchSpotlight,
   transistorDefaultSpotlight,
   type ElectronsPart,
+  type LevelSummary as LevelSummaryData,
+  type PhaseSpotlight,
+  type Spotlight,
 } from './descriptions';
 import { TRANSISTOR_TYPE } from './symbols';
 
 type TransistorVariant = typeof TRANSISTOR_TYPE.NMOS | typeof TRANSISTOR_TYPE.PMOS | null;
+type LatchEntry = 'master' | 'slave' | null;
 
-type LevelKey = 'gate' | 'transistor';
+type LevelKey = 'dff' | 'latch' | 'gate' | 'transistor';
 
-// Depth = abstraction rung. 0 = the lowest level (a single transistor),
-// 1 = next level up (a logic gate built from transistors), etc.
+// Depth = abstraction rung. 0 = lowest (transistor); higher = more composite.
 const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: number }> = {
   transistor: {
     title: 'Transistor',
@@ -44,6 +68,16 @@ const LEVEL_META: Record<LevelKey, { title: string; subtitle: string; depth: num
     title: 'Gate',
     subtitle: 'a logic gate (4× [T])',
     depth: 1,
+  },
+  latch: {
+    title: 'Latch',
+    subtitle: 'an SR latch (2× NAND, cross-coupled)',
+    depth: 2,
+  },
+  dff: {
+    title: 'D Flip-Flop',
+    subtitle: 'master + slave latches, edge-triggered by CLK',
+    depth: 3,
   },
 };
 
@@ -58,6 +92,10 @@ export function LevelView() {
   const [zoomTarget, setZoomTarget] = useState<number | null>(null);
   // The "branch" of the tree we drilled into — PMOS or NMOS.
   const [variant, setVariant] = useState<TransistorVariant>(null);
+  // Which NAND of the latch was clicked to drill into the gate level.
+  const [activeNand, setActiveNand] = useState<'nand-1' | 'nand-2' | null>(null);
+  // Which latch of the DFF was clicked to drill into the latch level.
+  const [activeLatch, setActiveLatch] = useState<LatchEntry>(null);
   const [transistorHighlight, setTransistorHighlight] = useState<ElectronsPart>(null);
   const [playing, setPlaying] = useState(false);
   const stepCycle = useExecution((s) => s.stepCycle);
@@ -70,11 +108,33 @@ export function LevelView() {
   const handleArrived = useCallback(() => {
     setLevel('transistor');
   }, []);
-  const handleBack = useCallback(() => {
+  const handleZoomToGate = useCallback((which: 'nand-1' | 'nand-2') => {
+    setActiveNand(which);
     setLevel('gate');
-    setZoomTarget(null);
-    setVariant(null);
-    setTransistorHighlight(null);
+  }, []);
+  const handleZoomToLatch = useCallback((which: 'master' | 'slave') => {
+    setActiveLatch(which);
+    setLevel('latch');
+  }, []);
+  // "back" goes UP one level: transistor → gate → latch → dff. From dff it's disabled.
+  const handleBack = useCallback(() => {
+    setLevel((prev) => {
+      if (prev === 'transistor') {
+        setZoomTarget(null);
+        setVariant(null);
+        setTransistorHighlight(null);
+        return 'gate';
+      }
+      if (prev === 'gate') {
+        setActiveNand(null);
+        return 'latch';
+      }
+      if (prev === 'latch') {
+        setActiveLatch(null);
+        return 'dff';
+      }
+      return prev;
+    });
   }, []);
 
   // Auto-step the clock when "playing" — one tick every 900ms so the user
@@ -90,25 +150,77 @@ export function LevelView() {
     reset();
   }, [reset]);
 
-  // Spotlight: level → (within Transistor) variant → part highlight.
-  // Tree: gate ┬→ pmos ─┬─ part highlight
-  //            └→ nmos ─┴─ part highlight
-  const transistorSpotlight =
-    transistorHighlight
-      ? partSpotlights[transistorHighlight]
-      : variant === TRANSISTOR_TYPE.PMOS
-        ? pmosSpotlight
-        : variant === TRANSISTOR_TYPE.NMOS
-          ? nmosSpotlight
-          : transistorDefaultSpotlight;
-  const spotlight = level === 'gate' ? gateSpotlight : transistorSpotlight;
-  const spotlightKey =
-    level === 'gate' ? 'gate' : transistorHighlight ?? `transistor-${variant ?? 'default'}`;
+  // Spotlight: level → variant / activeNand / activeLatch → highlight.
+  // Tree: dff ┬→ master ─┐
+  //           └→ slave  ─┴→ latch ┬→ nand-1 ─┐
+  //                                └→ nand-2 ─┴→ gate ┬→ pmos ─┬─ part highlight
+  //                                                   └→ nmos ─┴─ part highlight
+  const cycle = useExecution((s) => s.cycle);
 
-  // Esc returns to gate (only meaningful when zoomed into a transistor).
+  const defaultSpotlight: Spotlight = useMemo(() => {
+    if (level === 'dff') return dffSpotlight;
+    if (level === 'latch') {
+      return activeLatch === 'master'
+        ? masterLatchSpotlight
+        : activeLatch === 'slave'
+          ? slaveLatchSpotlight
+          : latchSpotlight;
+    }
+    if (level === 'gate') {
+      return activeNand === 'nand-1'
+        ? nand1Spotlight
+        : activeNand === 'nand-2'
+          ? nand2Spotlight
+          : gateSpotlight;
+    }
+    if (transistorHighlight) return partSpotlights[transistorHighlight];
+    if (variant === TRANSISTOR_TYPE.PMOS) return pmosSpotlight;
+    if (variant === TRANSISTOR_TYPE.NMOS) return nmosSpotlight;
+    return transistorDefaultSpotlight;
+  }, [level, activeLatch, activeNand, variant, transistorHighlight]);
+
+  // Phase spotlight (cycle > 0 ⇒ override the default with the current
+  // phase explainer for this level). Transistor level has no phase cycling
+  // — its spotlight is always the default. Same for transistor-part highlights.
+  const phaseSpotlight: PhaseSpotlight | null = useMemo(() => {
+    if (cycle === 0) return null;
+    if (transistorHighlight) return null;
+    if (level === 'gate') return gatePhaseFor(cycle);
+    if (level === 'latch') return latchPhaseFor(cycle);
+    if (level === 'dff') return dffPhaseFor(cycle);
+    return null;
+  }, [cycle, level, transistorHighlight]);
+
+  // What actually renders in the spotlight panel.
+  const spotlight: Spotlight = phaseSpotlight ?? defaultSpotlight;
+  const spotlightKey =
+    phaseSpotlight
+      ? `${level}-phase-${cycle}`
+      : level === 'dff'
+        ? 'dff'
+        : level === 'latch'
+          ? `latch-${activeLatch ?? 'default'}`
+          : level === 'gate'
+            ? `gate-${activeNand ?? 'default'}`
+            : transistorHighlight ?? `transistor-${variant ?? 'default'}`;
+
+  // LevelSummary card content — same per-level summary that used to live
+  // inside each scene; now hoisted into the right toolbar so the canvas can
+  // be just the diagram.
+  const summary: LevelSummaryData = useMemo(() => {
+    if (level === 'dff') return dffLevelSummary;
+    if (level === 'latch') return latchLevelSummary;
+    if (level === 'gate') return gateLevelSummary;
+    if (variant === TRANSISTOR_TYPE.PMOS) return pmosLevelSummary;
+    if (variant === TRANSISTOR_TYPE.NMOS) return nmosLevelSummary;
+    return compareLevelSummary;
+  }, [level, variant]);
+
+  // Esc goes one level UP (the same as the back button) when there's somewhere
+  // to go. From the dff (top of tree) it's a no-op.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && level === 'transistor') {
+      if (e.key === 'Escape' && level !== 'dff') {
         handleBack();
       }
     };
@@ -118,23 +230,50 @@ export function LevelView() {
 
   const meta = LEVEL_META[level];
 
-  // Cross-fade: gate (outside) scales up when inactive ("we left it behind"),
-  // transistor (inside) scales down when inactive ("we haven't reached it").
-  const gateAnim = {
-    opacity: level === 'gate' ? 1 : 0,
-    scale: level === 'gate' ? 1 : 1.15,
-    filter: level === 'gate' ? 'blur(0px)' : 'blur(6px)',
+  // Cross-fade.
+  // Conceptually: the abstraction tree is dff (top) > latch > gate > transistor.
+  // When we're below a level, that level scales UP (zoomed past, blurred away).
+  // When we're above a level, that level scales DOWN (we haven't reached it yet).
+  const depthOf: Record<LevelKey, number> = { dff: 3, latch: 2, gate: 1, transistor: 0 };
+  const currentDepth = depthOf[level];
+  const paneAnim = (paneLevel: LevelKey) => {
+    const pd = depthOf[paneLevel];
+    const isActive = paneLevel === level;
+    return {
+      opacity: isActive ? 1 : 0,
+      scale: isActive ? 1 : pd > currentDepth ? 1.15 : 0.85,
+      filter: isActive ? 'blur(0px)' : 'blur(6px)',
+    };
   };
-  const transistorAnim = {
-    opacity: level === 'transistor' ? 1 : 0,
-    scale: level === 'transistor' ? 1 : 0.85,
-    filter: level === 'transistor' ? 'blur(0px)' : 'blur(6px)',
-  };
+  const dffAnim = paneAnim('dff');
+  const latchAnim = paneAnim('latch');
+  const gateAnim = paneAnim('gate');
+  const transistorAnim = paneAnim('transistor');
   const transition = { duration: 0.7, ease: [0.65, 0, 0.35, 1] as const };
 
   return (
     <div style={frameStyle}>
       <div style={canvasFrame}>
+        <motion.div
+          initial={false}
+          animate={dffAnim}
+          transition={transition}
+          style={{ ...paneStyle, pointerEvents: level === 'dff' ? 'auto' : 'none' }}
+          aria-hidden={level !== 'dff'}
+          data-testid="level-pane-dff"
+        >
+          <LevelDff onZoomToLatch={handleZoomToLatch} />
+        </motion.div>
+        <motion.div
+          initial={false}
+          animate={latchAnim}
+          transition={transition}
+          style={{ ...paneStyle, pointerEvents: level === 'latch' ? 'auto' : 'none' }}
+          aria-hidden={level !== 'latch'}
+          data-testid="level-pane-latch"
+        >
+          <LevelLatch onZoomToGate={handleZoomToGate} />
+        </motion.div>
         <motion.div
           initial={false}
           animate={gateAnim}
@@ -170,10 +309,10 @@ export function LevelView() {
 
         <button
           onClick={handleBack}
-          disabled={level === 'gate'}
+          disabled={level === 'dff'}
           aria-label="back / zoom out"
           data-testid="back"
-          style={backBtn(level === 'gate')}
+          style={backBtn(level === 'dff')}
         >
           <span style={{ fontSize: 16, lineHeight: 1 }}>←</span>
           <span style={{ fontSize: 11, marginTop: 2 }}>back</span>
@@ -216,7 +355,7 @@ export function LevelView() {
           data-testid="spotlight"
         >
           <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
-            spotlight
+            {phaseSpotlight ? `phase · cycle ${cycle}` : 'spotlight'}
           </div>
           <AnimatePresence mode="wait">
             <motion.div
@@ -244,8 +383,43 @@ export function LevelView() {
               >
                 {spotlight.body}
               </div>
+              {spotlight.parentMap && (
+                <div
+                  style={{
+                    color: parchment.inkSoft,
+                    fontSize: 10,
+                    marginTop: 6,
+                    paddingTop: 6,
+                    borderTop: `1px dashed ${parchment.inkSoft}40`,
+                    opacity: 0.7,
+                    fontStyle: 'italic',
+                  }}
+                  data-testid="spotlight-parent-map"
+                >
+                  {spotlight.parentMap}
+                </div>
+              )}
+              {phaseSpotlight && (
+                <div style={metersRowStyle} data-testid="spotlight-meters">
+                  {phaseSpotlight.meters.map((m) => (
+                    <span key={m.label} style={meterChipStyle} data-testid={`meter-${m.label}`}>
+                      {m.label}={m.value}
+                    </span>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
+        </div>
+
+        <div
+          style={{ borderTop: `1px solid ${parchment.rule}`, paddingTop: 10 }}
+          data-testid="level-summary-card"
+        >
+          <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+            this level
+          </div>
+          <LevelSummary summary={summary} testid="level-summary" />
         </div>
       </aside>
     </div>
@@ -264,9 +438,12 @@ const frameStyle: React.CSSProperties = {
   boxShadow: 'inset 0 0 0 6px rgba(255,255,255,0.4), inset 0 0 30px rgba(108,82,49,0.12)',
 };
 
+// Parchment frame grows with the viewport. The clamp keeps it tall enough on
+// laptops and lets it use most of a desktop screen instead of sitting in a
+// 480-pixel postcard. The aside matches via the grid row.
 const canvasFrame: React.CSSProperties = {
   position: 'relative',
-  height: 480,
+  height: 'clamp(480px, calc(100vh - 220px), 1100px)',
   border: `1px solid ${parchment.rule}`,
   borderRadius: 6,
   overflow: 'hidden',
@@ -287,7 +464,7 @@ const asideStyle: React.CSSProperties = {
   background: parchment.bg,
   border: `1px solid ${parchment.rule}`,
   borderRadius: 6,
-  height: 480,
+  height: 'clamp(480px, calc(100vh - 220px), 1100px)',
   overflow: 'auto',
 };
 
@@ -315,6 +492,25 @@ function backBtn(disabled: boolean): React.CSSProperties {
     gap: 2,
   };
 }
+
+const metersRowStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 6,
+  marginTop: 8,
+  paddingTop: 6,
+  borderTop: `1px dashed ${parchment.rule}`,
+};
+
+const meterChipStyle: React.CSSProperties = {
+  padding: '2px 6px',
+  background: parchment.bgDeep,
+  border: `1px solid ${parchment.rule}`,
+  borderRadius: 3,
+  color: parchment.ink,
+  fontSize: 10,
+  fontFamily: 'ui-monospace, monospace',
+};
 
 const clockBtn: React.CSSProperties = {
   flex: 1,

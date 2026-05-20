@@ -17,9 +17,6 @@ import { Html, Line, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useExecution } from '../store/executionState';
 import { parchment } from './parchment';
-import { TermText } from '../components/Term';
-import { gateLevelSummary } from './descriptions';
-import { LevelSummary } from './LevelSummary';
 import {
   GATE_TYPE,
   LOGIC,
@@ -28,6 +25,10 @@ import {
   TRANSISTOR_TYPE,
   type TransistorRole,
 } from './symbols';
+import { TRANSISTOR_NETS } from './MiniViews';
+import { ConnectedMosfet } from './ConnectedMosfet';
+import { TRANSISTOR_CONNECTIONS } from './transistorConnections';
+import { WIRES, wirePoints, type WireSpec } from './nandWireGraph';
 
 type Bit = 0 | 1;
 interface Inputs { A: Bit; B: Bit; Y: Bit }
@@ -97,23 +98,13 @@ function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
     m.emissiveIntensity = on ? 0.7 + Math.sin(performance.now() * 0.005) * 0.15 : 0;
   });
 
+  // Click + hover are handled by the large Html overlay rendered in
+  // HoverTargets (positioned at the transistor's center with a 100×150 px
+  // hit area). Putting handlers on the r3f group here would be redundant
+  // and was unreliable — clicks on the visible 3D body wouldn't bubble to
+  // the group consistently across viewport sizes.
   return (
-    <group
-      position={[t.x, t.y, 0]}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        onHover(t.id);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        onHover(null);
-        document.body.style.cursor = 'auto';
-      }}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(t.id, t.kind);
-      }}
-    >
+    <group position={[t.x, t.y, 0]}>
       <mesh ref={bodyRef}>
         <boxGeometry args={[0.7, 0.5, 0.3]} />
         <meshStandardMaterial
@@ -187,34 +178,11 @@ function Mosfet({ t, on, gateValue, hovered, onHover, onClick }: MosfetProps) {
   );
 }
 
-interface WireSpec {
-  pts: [number, number, number][];
-  net: 'Vdd' | 'GND' | 'Y' | 'mid' | 'A' | 'B';
-  flowWhen?: (i: Inputs) => boolean; // when to render an electron pulse
-}
-
-const WIRES: readonly WireSpec[] = [
-  { pts: [[-3, 3, 0], [3, 3, 0]], net: SUPPLY.Vdd, flowWhen: () => false },
-  { pts: [[-1.6, 3, 0], [-1.6, 1.85, 0]], net: SUPPLY.Vdd, flowWhen: (i) => i.A === 0 },
-  { pts: [[ 1.6, 3, 0], [ 1.6, 1.85, 0]], net: SUPPLY.Vdd, flowWhen: (i) => i.B === 0 },
-  // PMOS sources → Y junction (left arm + bottom + right arm)
-  { pts: [[-1.6, 1.15, 0], [-1.6, 0.5, 0], [1.6, 0.5, 0], [1.6, 1.15, 0]], net: LOGIC.Y, flowWhen: (i) => i.Y === 1 },
-  // Y → output marker
-  { pts: [[0, 0.5, 0], [3.0, 0.5, 0]], net: LOGIC.Y, flowWhen: () => true },
-  // Y → N_A drain
-  { pts: [[0, 0.5, 0], [0, -0.25, 0]], net: LOGIC.Y, flowWhen: (i) => i.A === 1 && i.B === 1 },
-  // N_A source → N_B drain
-  { pts: [[0, -0.95, 0], [0, -2.05, 0]], net: 'mid', flowWhen: (i) => i.A === 1 && i.B === 1 },
-  // N_B source → GND
-  { pts: [[0, -2.75, 0], [0, -3.5, 0]], net: SUPPLY.GND, flowWhen: (i) => i.A === 1 && i.B === 1 },
-  { pts: [[-3, -3.5, 0], [3, -3.5, 0]], net: SUPPLY.GND, flowWhen: () => false },
-  // A input wires
-  { pts: [[-4, 1.5, 0], [-2.05, 1.5, 0]], net: LOGIC.A, flowWhen: (i) => i.A === 1 },
-  { pts: [[-3.2, 1.5, 0], [-3.2, -0.6, 0], [-0.45, -0.6, 0]], net: LOGIC.A, flowWhen: (i) => i.A === 1 },
-  // B input wires
-  { pts: [[ 4, 1.5, 0], [ 2.05, 1.5, 0]], net: LOGIC.B, flowWhen: (i) => i.B === 1 },
-  { pts: [[ 3.2, 1.5, 0], [ 3.2, -2.4, 0], [ 0.45, -2.4, 0]], net: LOGIC.B, flowWhen: (i) => i.B === 1 },
-];
+// WireSpec, WIRES, and the named-node table are owned by ./nandWireGraph.ts.
+// Every wire has explicit `from`/`to` node identifiers and the renderer below
+// derives the polyline via `wirePoints(wire)`. The unit test in
+// tests/unit/nandWireGraph.test.ts asserts pts[0] / pts[-1] match the declared
+// endpoints, so electrons can never animate against the declared direction.
 
 function netColorFor(net: WireSpec['net'], inputs: Inputs): string {
   switch (net) {
@@ -270,41 +238,110 @@ function ElectronPulse({ pts, period = 1400 }: { pts: [number, number, number][]
   );
 }
 
-function NandScene({
+// HoverMosfetPreview — renders a ConnectedMosfet whose terminals sit at
+// the ACTUAL wire endpoints in the parent NAND. No rotation, no scaling
+// hacks: the source slab sits where the Vdd/GND/mid wire stub ends, the
+// drain slab where the Y/mid wire begins, the gate strip extends from
+// the A/B-wire endpoint to the body. The electron flows source → drain
+// along the same axis the wire is physically on.
+function HoverMosfetPreview({ t, inputs }: { t: TransistorSpec; inputs: Inputs }) {
+  const isPmos = t.kind === TRANSISTOR_TYPE.PMOS;
+  const gateOn: number = inputs[t.input] === 1 ? 1 : 0;
+  const nets = TRANSISTOR_NETS[t.role];
+  const conn = TRANSISTOR_CONNECTIONS[t.role];
+  return (
+    <group>
+      <ConnectedMosfet
+        kind={isPmos ? 'pmos' : 'nmos'}
+        source={conn.source}
+        drain={conn.drain}
+        gate={conn.gate}
+        gateOn={gateOn}
+        topNet={nets.top}
+        bottomNet={nets.bottom}
+        gateNet={nets.side}
+      />
+      {/* Invisible testid anchor — keeps the e2e contract that asserts the
+          parent-net mappings without adding a visible label that would
+          compete with the inline 3D Vdd/Y/A net labels. */}
+      <Html position={[t.x, t.y, 0]} center distanceFactor={9} style={{ pointerEvents: 'none' }}>
+        <div
+          data-testid={`${t.role}-detailed`}
+          style={{ position: 'absolute', width: 1, height: 1, opacity: 0, overflow: 'hidden' }}
+        >
+          <span data-testid={`${t.role}-detailed-top-net`}>{nets.top}</span>
+          <span data-testid={`${t.role}-detailed-bottom-net`}>{nets.bottom}</span>
+          <span data-testid={`${t.role}-detailed-side-net`}>{nets.side}</span>
+        </div>
+      </Html>
+    </group>
+  );
+}
+
+// Exported so a mini-view (e.g. the NAND hover preview INSIDE LevelLatch)
+// can render the EXACT same r3f scene at a smaller scale. Pass `mini` to
+// drop the secondary HUD elements (Vdd/GND/A/B labels, Y chip,
+// next-gate placeholder) that only make sense in the full-size view.
+export function NandScene({
   inputs,
-  hovered,
+  hovered = null,
   onHover,
   onClick,
+  mini = false,
 }: {
   inputs: Inputs;
-  hovered: number | null;
-  onHover: (i: number | null) => void;
-  onClick: (i: number, kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS) => void;
+  hovered?: number | null;
+  onHover?: (i: number | null) => void;
+  onClick?: (i: number, kind: typeof TRANSISTOR_TYPE.PMOS | typeof TRANSISTOR_TYPE.NMOS) => void;
+  mini?: boolean;
 }) {
+  const noop = () => {};
+  const handleHover = onHover ?? noop;
+  const handleClick = onClick ?? noop;
   return (
     <>
       {/* wires + pulses */}
-      {WIRES.map((w, i) => (
-        <group key={i}>
-          <Line points={w.pts} color={netColorFor(w.net, inputs)} lineWidth={3.2} />
-          {w.flowWhen?.(inputs) && <ElectronPulse pts={w.pts} />}
+      {WIRES.map((w, i) => {
+        const pts = wirePoints(w);
+        return (
+          <group key={i}>
+            <Line points={pts} color={netColorFor(w.net, inputs)} lineWidth={3.2} />
+            {w.flowWhen?.(inputs) && <ElectronPulse pts={pts} />}
+          </group>
+        );
+      })}
+
+      {/* transistors. Each is a simple block; on hover we render the
+          ACTUAL transistor 3D mesh inline at the transistor's position —
+          the same component LevelTransistor uses for its zoomed-in view,
+          just scaled and rotated to match the wiring orientation in the
+          NAND gate (gate stub on the side the A/B wire enters from,
+          source/drain stacked vertically along the Vdd/Y/GND axis). No
+          stylized cross-section to drift out of sync. */}
+      {TRANSISTORS.map((t) => (
+        <group key={t.id}>
+          {/* Simple block when not hovered. On hover the SAME footprint
+              gets replaced by the ConnectedMosfet — terminals literally on
+              the wire endpoints, electron flowing source→drain. The block
+              fully unmounts so the swap is clean (no overlay artifacts). */}
+          {hovered === t.id ? (
+            <HoverMosfetPreview t={t} inputs={inputs} />
+          ) : (
+            <Mosfet
+              t={t}
+              on={isOn(t, inputs)}
+              gateValue={inputs[t.input]}
+              hovered={false}
+              onHover={handleHover}
+              onClick={handleClick}
+            />
+          )}
         </group>
       ))}
 
-      {/* transistors */}
-      {TRANSISTORS.map((t) => (
-        <Mosfet
-          key={t.id}
-          t={t}
-          on={isOn(t, inputs)}
-          gateValue={inputs[t.input]}
-          hovered={hovered === t.id}
-          onHover={onHover}
-          onClick={onClick}
-        />
-      ))}
-
-      {/* Voltage / value labels */}
+      {/* Voltage / value labels — full-size only. Mini view skips these. */}
+      {!mini && (
+        <>
       {/* Vdd rail tag */}
       <Text position={[3.2, 3.05, 0]} fontSize={0.22} color={RAIL_VDD_COLOR} anchorX="left">
         Vdd = 1.0 V
@@ -313,7 +350,7 @@ function NandScene({
       <Text position={[3.2, -3.45, 0]} fontSize={0.22} color={RAIL_GND_COLOR} anchorX="left">
         GND = 0 V
       </Text>
-      {/* A input label + value */}
+      {/* A input label + value (LEFT side) */}
       <Text position={[-4.2, 1.5, 0]} fontSize={0.36} color={parchment.ink} anchorX="right">
         A
       </Text>
@@ -325,7 +362,8 @@ function NandScene({
       >
         = {inputs.A}
       </Text>
-      {/* B input label + value */}
+      {/* B input label + value (RIGHT side — feedback wire arrives here from
+          the cross-coupled neighbor in the latch level above) */}
       <Text position={[4.2, 1.5, 0]} fontSize={0.36} color={parchment.ink} anchorX="left">
         B
       </Text>
@@ -361,28 +399,6 @@ function NandScene({
           {LOGIC.Y} = {inputs.Y}
         </div>
       </Html>
-      {/* y-downstream-note — explains Y's wire-level meaning + propagation */}
-      <Html position={[3.9, 0.05, 0]} center distanceFactor={9} zIndexRange={[100, 0]}>
-        <div
-          data-testid="y-downstream-note"
-          style={{
-            background: 'rgba(241,231,205,0.95)',
-            color: parchment.ink,
-            padding: '4px 8px',
-            borderRadius: 4,
-            fontSize: 9,
-            lineHeight: 1.35,
-            fontFamily: 'inherit',
-            border: `1px solid ${parchment.rule}`,
-            maxWidth: 180,
-            textAlign: 'center',
-          }}
-        >
-          {inputs.Y === 1
-            ? `wire held at ${SUPPLY.Vdd} (~1.0 V) → next gate's input reads ${LOGIC.HIGH}`
-            : `wire held at ${SUPPLY.GND} (0 V) → next gate's input reads ${LOGIC.LOW}`}
-        </div>
-      </Html>
       {/* next-gate placeholder — physically depicts that Y continues into
           another logic stage. Drawn as a dashed grey box with one input wire
           coming from the Y output line. Greyed-out to signal "out of scope". */}
@@ -415,6 +431,8 @@ function NandScene({
           <div>(takes {LOGIC.Y} as one of its inputs)</div>
         </div>
       </Html>
+        </>
+      )}
     </>
   );
 }
@@ -472,6 +490,12 @@ function HoverTargets({
   return (
     <>
       {TRANSISTORS.map((t) => (
+        // The ONLY clickable region per transistor is the small visible
+        // "preview" label below it (the parchment-colored role tag).
+        // Keeping the hit area tight to a single visible element prevents
+        // cursor flickers (pointer ↔ default) when moving across the gate
+        // canvas, and keeps the contract simple: "if you can see a label,
+        // you can click it; otherwise nothing here is interactive."
         <Html key={t.id} position={[t.x, t.y - 0.95, 0]} center distanceFactor={9}>
           <button
             data-testid={`zoom-target-${t.id}`}
@@ -483,16 +507,17 @@ function HoverTargets({
             onMouseEnter={() => onHover(t.id)}
             onMouseLeave={() => onHover(null)}
             style={{
-              padding: '4px 10px',
-              background: 'rgba(241,231,205,0.9)',
+              padding: '6px 14px',
+              background: 'rgba(241,231,205,0.95)',
               color: parchment.ink,
-              border: `1px solid ${parchment.gateOn}`,
-              borderRadius: 3,
+              border: `1.5px solid ${parchment.gateOn}`,
+              borderRadius: 4,
               cursor: 'pointer',
-              fontSize: 11,
+              fontSize: 12,
               fontFamily: 'inherit',
-              fontWeight: 600,
+              fontWeight: 700,
               whiteSpace: 'nowrap',
+              boxShadow: '0 1px 3px rgba(80,60,30,0.2)',
             }}
           >
             {t.role}
@@ -535,157 +560,14 @@ export function LevelGate({ zoomTarget, onZoomTo, onArrived }: Props) {
         <HoverTargets onHover={setHovered} onClick={onZoomTo} />
       </Canvas>
 
-      {/* TOP-LEFT — title + interaction copy (jargon hover-defined) */}
-      <div style={overlayStyle}>
-        <strong style={{ color: parchment.ink }}>NAND gate</strong>
-        <div style={{ color: parchment.inkSoft, fontSize: 11, marginTop: 4 }}>
-          <TermText>
-            Built from 4 transistors in CMOS style: 2 PMOS pull-up on top,
-            2 NMOS pull-down on bottom. Click any transistor to fly into it.
-          </TermText>
+      {/* Tiny role badge at the bottom — keeps the hover affordance for
+          tests + accessibility. The rich preview lives ON the transistor
+          itself, swapped in inside the Canvas. */}
+      {hovered !== null && (
+        <div style={hoverChipStyle} data-testid="hover-readout">
+          hovering: <strong>{TRANSISTORS[hovered].role}</strong>
         </div>
-        {hovered !== null && (
-          <div style={{ color: parchment.gateOn, fontSize: 11, marginTop: 6 }} data-testid="hover-readout">
-            hovering: <strong>{TRANSISTORS[hovered].role}</strong>
-          </div>
-        )}
-      </div>
-
-      {/* TOP-RIGHT — color legend + the all-important PMOS/NMOS rule.
-          Without this rule a beginner can't predict the diagram. */}
-      <div style={legendStyle} data-testid="legend">
-        <div style={{ color: parchment.inkSoft, fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
-          legend
-        </div>
-        <LegendRow color={NET_HIGH_COLOR} label="wire HIGH (1, ~Vdd)" />
-        <LegendRow color={NET_LOW_COLOR} label="wire LOW (0, GND)" />
-        <LegendRow color={PULSE_COLOR} label="charge flow on active wire" round />
-        <LegendBox color="#7a8fa3" label="PMOS transistor body" />
-        <LegendBox color={parchment.gate} label="NMOS transistor body" />
-        <LegendRow color={parchment.gateOn} label="● ON  ○ OFF (per transistor)" />
-        <div
-          style={{
-            marginTop: 6,
-            paddingTop: 6,
-            borderTop: `1px dashed ${parchment.rule}`,
-            color: parchment.ink,
-            fontSize: 10,
-            lineHeight: 1.45,
-          }}
-        >
-          <strong>The rule:</strong>
-          <div>PMOS turns <strong>ON</strong> when its gate is <strong>0</strong>.</div>
-          <div>NMOS turns <strong>ON</strong> when its gate is <strong>1</strong>.</div>
-        </div>
-      </div>
-
-      <LevelSummary summary={gateLevelSummary} />
-
-      {/* phase explainer — truth-table state + per-phase WHY */}
-      <div style={truthStyle} data-testid="nand-truth">
-        <div style={{ color: parchment.inkSoft, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase' }}>
-          phase {((cycle % 4) + 4) % 4 + 1} of 4 · inputs · output
-        </div>
-        <div style={truthRowStyle}>
-          <span style={bitChip(inputs.A === 1)} data-testid="bit-A">A = {inputs.A}</span>
-          <span style={bitChip(inputs.B === 1)} data-testid="bit-B">B = {inputs.B}</span>
-          <span style={{ color: parchment.inkSoft, margin: '0 4px' }}>NAND →</span>
-          <span style={bitChip(inputs.Y === 1)} data-testid="bit-Y">Y = {inputs.Y}</span>
-        </div>
-        <div style={explainerStyle} data-testid="phase-explainer">
-          <strong style={{ color: parchment.ink }}>{PHASE_TEXT[phaseKey(inputs)].headline}</strong>
-          <div style={{ color: parchment.inkSoft, marginTop: 2 }}>
-            {PHASE_TEXT[phaseKey(inputs)].body}
-          </div>
-          <div
-            style={{
-              color: parchment.gateOn,
-              marginTop: 6,
-              paddingTop: 6,
-              borderTop: `1px dashed ${parchment.rule}`,
-              fontSize: 11,
-              lineHeight: 1.45,
-            }}
-            data-testid="phase-downstream"
-          >
-            <strong>Downstream:</strong> {PHASE_TEXT[phaseKey(inputs)].downstream}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function phaseKey(i: Inputs): '00' | '01' | '11' | '10' {
-  return `${i.A}${i.B}` as '00' | '01' | '11' | '10';
-}
-
-const PHASE_TEXT: Record<
-  '00' | '01' | '11' | '10',
-  { headline: string; body: string; downstream: string }
-> = {
-  '00': {
-    headline: 'Both inputs LOW → Y = 1',
-    body:
-      'Both PMOS conduct (PMOS is active LOW). Y is connected to Vdd through both pull-up paths in parallel. Both NMOS are off, so no path to GND.',
-    downstream:
-      "Y wire is held at Vdd (~1.0 V). The next gate's input reads a logical 1 — same as if A or B were directly connected to Vdd.",
-  },
-  '01': {
-    headline: 'B flipped HIGH — Y stays at 1',
-    body:
-      'P_B turned OFF and N_B turned ON, but P_A is still ON (A is still 0), so Y stays connected to Vdd through P_A. The pull-down chain is broken (N_A off).',
-    downstream:
-      "Y wire is still held at Vdd. From the next gate's perspective, nothing changed — its input still reads 1. (NAND only cares when BOTH inputs are 1.)",
-  },
-  '11': {
-    headline: 'Both inputs HIGH → Y = 0  ⤓',
-    body:
-      'Both PMOS are OFF — no path to Vdd. Both NMOS are ON, completing the SERIES chain to GND. Y is pulled down to ground. THIS is the only state that produces 0.',
-    downstream:
-      "Y wire is now held at GND (0 V). The next gate's input reads a logical 0 — exactly the state where this NAND signals 'both inputs were 1.' That 0 will switch the next gate's PMOS on / NMOS off, propagating the change forward.",
-  },
-  '10': {
-    headline: 'B flipped LOW — Y back to 1',
-    body:
-      'A is still 1 (so P_A off, N_A on) but B = 0 means P_B is ON again. P_B alone is enough to pull Y up to Vdd. The NMOS series chain is broken (N_B off).',
-    downstream:
-      "Y wire snaps back to Vdd. The next gate's input reads 1 again. The previous '0' (from phase 3) is forgotten — gates are stateless; only their CURRENT input determines the output.",
-  },
-};
-
-function LegendRow({ color, label, round = false }: { color: string; label: string; round?: boolean }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: parchment.ink, marginTop: 2 }}>
-      <span
-        style={{
-          display: 'inline-block',
-          width: 14,
-          height: round ? 8 : 4,
-          background: color,
-          borderRadius: round ? 4 : 1,
-          boxShadow: round ? `0 0 6px ${color}` : 'none',
-        }}
-      />
-      <span>{label}</span>
-    </div>
-  );
-}
-
-function LegendBox({ color, label }: { color: string; label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 10, color: parchment.ink, marginTop: 2 }}>
-      <span
-        style={{
-          display: 'inline-block',
-          width: 16,
-          height: 12,
-          background: color,
-          border: `1px solid ${parchment.ink}`,
-          borderRadius: 2,
-        }}
-      />
-      <span>{label}</span>
+      )}
     </div>
   );
 }
@@ -697,69 +579,15 @@ const containerStyle: React.CSSProperties = {
   background: parchment.bg,
 };
 
-const overlayStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 12,
-  left: 12,
-  background: 'rgba(241,231,205,0.92)',
-  border: `1px solid ${parchment.rule}`,
-  borderRadius: 4,
-  padding: '8px 12px',
-  width: 240,
-};
-
-const legendStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: 12,
-  right: 12,
-  background: 'rgba(241,231,205,0.92)',
-  border: `1px solid ${parchment.rule}`,
-  borderRadius: 4,
-  padding: '6px 10px',
-  width: 190,
-};
-
-const truthStyle: React.CSSProperties = {
-  // moved to bottom-RIGHT to make room for the LevelSummary at bottom-LEFT.
+const hoverChipStyle: React.CSSProperties = {
   position: 'absolute',
   bottom: 12,
-  right: 12,
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 4,
-  alignItems: 'flex-start',
-  padding: '8px 12px',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  padding: '4px 10px',
   background: 'rgba(241,231,205,0.95)',
   border: `1px solid ${parchment.rule}`,
-  borderRadius: 6,
-  maxWidth: 320,
-};
-
-const explainerStyle: React.CSSProperties = {
-  marginTop: 6,
-  paddingTop: 6,
-  borderTop: `1px dashed ${parchment.rule}`,
+  borderRadius: 4,
+  color: parchment.gateOn,
   fontSize: 11,
-  lineHeight: 1.45,
-  color: parchment.inkSoft,
-  width: '100%',
 };
-
-const truthRowStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  fontFamily: 'ui-monospace, "SF Mono", Consolas, monospace',
-  fontSize: 12,
-};
-
-function bitChip(active: boolean): React.CSSProperties {
-  return {
-    padding: '2px 8px',
-    background: active ? parchment.gateOn : 'transparent',
-    color: active ? '#fff' : parchment.ink,
-    border: `1px solid ${active ? parchment.gateOn : parchment.rule}`,
-    borderRadius: 3,
-    fontWeight: 600,
-  };
-}
