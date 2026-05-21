@@ -29,7 +29,13 @@ async function polylineEndpoint(
   which: 'start' | 'end',
 ): Promise<Point> {
   return await page.evaluate(({ selector, which }) => {
-    const poly = document.querySelector(selector) as SVGPolylineElement | null;
+    // Scope to the ACTIVE level pane — every pane stays mounted (cross-fade
+    // pattern), so the same wire testid can exist in multiple panes (e.g.
+    // both the latch and the dff render a `wire-q-out`). Picking the first
+    // unscoped match drifts the projection math against the wrong scene.
+    const activePane = document.querySelector('[aria-hidden="false"][data-testid^="level-pane-"]');
+    const root: ParentNode = activePane ?? document;
+    const poly = root.querySelector(selector) as SVGPolylineElement | null;
     if (!poly) throw new Error(`no polyline: ${selector}`);
     const pts = poly.points;
     const localPt = which === 'start' ? pts.getItem(0) : pts.getItem(pts.numberOfItems - 1);

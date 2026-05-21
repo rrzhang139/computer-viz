@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-7.4399999999999995 -4.34 14.879999999999999 8.68" width="900" height="525">
+<rect x="-6" y="-3.5" width="12" height="7" fill="#f7efde" stroke="#c5b69a" stroke-width="0.04"/>
+<line x1="0" y1="3.5" x2="0" y2="-3.5" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
+<line x1="-6" y1="0" x2="6" y2="0" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
+<text x="-6" y="3.836" font-size="0.25" fill="#8a7864" font-family="serif">LEFT (data in)</text>
+<text x="6" y="3.836" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="end">RIGHT (data out)</text>
+<text x="0" y="-3.71" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">TOP (control)</text>
+<text x="0" y="4.088" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">BOTTOM (power/ground)</text>
+<rect x="-0.8035000000000001" y="-2.5" width="2.857" height="2" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
+<text x="0.625" y="-1.5" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">N1</text>
+<text x="0.625" y="-0.55" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">gate (NAND)</text>
+<rect x="-0.8035000000000001" y="0.5" width="2.857" height="2" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
+<text x="0.625" y="1.5" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">N2</text>
+<text x="0.625" y="2.45" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">gate (NAND)</text>
+<polyline points="-6.000,-3.500 6.000,-3.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-6.000,3.500 6.000,3.500" fill="none" stroke="#3b2718" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-6.000,-2.000 -6.000,-1.929 -0.804,-1.929" fill="none" stroke="#a26a3e" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-6.000,2.000 -6.000,1.071 -0.804,1.071" fill="none" stroke="#a26a3e" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,-1.643 5.500,-1.643 5.500,-1.500 6.000,-1.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,1.357 5.500,1.357 5.500,1.500 6.000,1.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,-1.643 3.000,-1.643 3.000,1.071 2.054,1.071" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,1.357 4.000,1.357 4.000,-1.929 2.054,-1.929" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="0.525,-3.500 0.525,-2.500" fill="none" stroke="#3a7d34" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
+<circle cx="0.525" cy="-2.5" r="0.07" fill="#3a7d34" opacity="0.8"/>
+<polyline points="5.700,3.500 5.700,0.400 0.725,0.400 0.725,-0.500" fill="none" stroke="#3b2718" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
+<circle cx="0.725" cy="-0.5" r="0.07" fill="#3b2718" opacity="0.8"/>
+<polyline points="-5.700,-3.500 -5.700,-0.400 0.525,-0.400 0.525,0.500" fill="none" stroke="#3a7d34" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
+<circle cx="0.525" cy="0.5" r="0.07" fill="#3a7d34" opacity="0.8"/>
+<polyline points="0.725,3.500 0.725,2.500" fill="none" stroke="#3b2718" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
+<circle cx="0.725" cy="2.5" r="0.07" fill="#3b2718" opacity="0.8"/>
+<circle cx="-6" cy="-2" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="-6.35" y="-2" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">S_in</text>
+<text x="-6.35" y="-1.72" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-6, 2)</text>
+<circle cx="-6" cy="2" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="-6.35" y="2" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">R_in</text>
+<text x="-6.35" y="2.2800000000000002" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-6, -2)</text>
+<circle cx="6" cy="-1.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="6.35" y="-1.5" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">Q_out</text>
+<text x="6.35" y="-1.22" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(6, 1.5)</text>
+<circle cx="6" cy="1.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="6.35" y="1.5" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">QB_out</text>
+<text x="6.35" y="1.78" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(6, -1.5)</text>
+<line x1="-6" y1="-3.5" x2="6" y2="-3.5" stroke="#3a7d34" stroke-width="0.10" stroke-linecap="round"/>
+<text x="-6" y="-3.75" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3a7d34" font-family="serif" font-weight="700">Vdd</text>
+<text x="6" y="-3.75" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=3.5</text>
+<line x1="-6" y1="3.5" x2="6" y2="3.5" stroke="#3b2718" stroke-width="0.10" stroke-linecap="round"/>
+<text x="-6" y="3.95" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3b2718" font-family="serif" font-weight="700">GND</text>
+<text x="6" y="3.95" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=-3.5</text>
+</svg>

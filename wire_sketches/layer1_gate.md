@@ -12,15 +12,40 @@ x ∈ [-5.0, 5.0], y ∈ [-3.5, 3.5]
 
 ## External terminals
 
-| key            | role           | (x, y)       | edge   |
-|----------------|----------------|--------------|--------|
-| A_input        | data in        | (-4.0,  1.5) | LEFT   |
-| B_input        | data in        | ( 4.0,  1.5) | RIGHT  |
-| Y_out          | data out       | ( 3.0,  0.5) | RIGHT  |
-| Vdd_rail_left  | supply (Vdd)   | (-5.0,  3.0) | TOP    |
-| Vdd_rail_right | supply (Vdd)   | ( 3.0,  3.0) | TOP    |
-| GND_rail_left  | supply (GND)   | (-3.0, -3.5) | BOTTOM |
-| GND_rail_right | supply (GND)   | ( 5.0, -3.5) | BOTTOM |
+The parent connects to these. Data / control terminals are single points
+on the LEFT / RIGHT / TOP edges. The two SUPPLY terminals (Vdd, GND) are
+single *conceptual* handles — physically each is a horizontal *edge*
+spanning the top (Vdd) or bottom (GND) of this scene. The detail of
+where on the rail each child taps in lives under "Internal supply
+distribution" below.
+
+| key     | role        | (x, y)       | edge   |
+|---------|-------------|--------------|--------|
+| A_input | data in     | (-4.0,  1.5) | LEFT   |
+| B_input | data in     | ( 4.0,  1.5) | RIGHT  |
+| Y_out   | data out    | ( 3.0,  0.5) | RIGHT  |
+| Vdd     | supply (+V) | ( 0.0,  3.0) | TOP    |
+| GND     | supply (0V) | ( 0.0, -3.5) | BOTTOM |
+
+## Internal supply distribution
+
+The Vdd rail runs horizontally at y=+3 from `Vdd_rail_left` (-5, 3) to
+`Vdd_rail_right` (3, 3). The parent's Vdd (top edge) connects to this
+rail. Vertical drops from the rail feed the two PMOS sources:
+
+- `Vdd_tap_PA` (-1.6, 3.0) drops to P_A.source at (-1.6, 1.85)
+- `Vdd_tap_PB` ( 1.6, 3.0) drops to P_B.source at ( 1.6, 1.85)
+
+The GND rail runs at y=-3.5 from `GND_rail_left` (-3, -3.5) to
+`GND_rail_right` (5, -3.5). A single vertical riser feeds the bottom of
+the NMOS chain:
+
+- `GND_tap_NB` (0, -3.5) rises to N_B.source at (0, -2.75)
+
+Both PMOS transistors sit adjacent to the Vdd rail (no children in
+between) so the straight-vertical-drop rule applies cleanly. N_B sits
+adjacent to GND for the same reason. The single NMOS chain occupies the
+column between the rails, so there's no L-shaped routing in this layer.
 
 ## Embedded children
 

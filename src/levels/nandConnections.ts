@@ -27,7 +27,9 @@ export interface NandConnections {
 // both the latch wire endpoints AND the mini's net labels.
 import { GATE_MODULE } from './gateModule';
 
-const MINI_W = 240;
+// Same 200×140 mini placement LevelLatch uses. Aspect 10/7 matches the
+// gate scene aspect so the hover-preview overlays identically.
+const MINI_W = 200;
 const MINI_H = 140;
 const MINI_MARGIN = 1.2;
 

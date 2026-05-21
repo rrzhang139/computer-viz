@@ -133,12 +133,28 @@ const ALL_POINTS: [number, number][] = [
   ...WIRES.flatMap((w) => (w.via ?? []).map((p) => [p[0], p[1]] as [number, number])),
 ];
 
+// SCENE_BOUNDS: stated as a clean 10 × 7 rectangle (aspect 10/7 ≈ 1.43),
+// matching the canonical bounds documented in `wire_sketches/layer1_gate.md`
+// and the `CHILD_LAYER_CANVAS_ASPECT.gate` entry in
+// `wire_sketches/lib.mjs`. The Vdd rail sits at y=3 and there's no
+// data point at y=3.5; the extra half-unit of overhead is intentional
+// margin above the rail so the projected scene fills a child mini box
+// of the same 10/7 aspect exactly. (Auto-deriving bounds from raw
+// WIRE_NODES would give h=6.5, which doesn't compose cleanly when
+// parents render NAND minis at aspect 10/7.)
 export const SCENE_BOUNDS = {
-  minX: Math.min(...ALL_POINTS.map((p) => p[0])),
-  maxX: Math.max(...ALL_POINTS.map((p) => p[0])),
-  minY: Math.min(...ALL_POINTS.map((p) => p[1])),
-  maxY: Math.max(...ALL_POINTS.map((p) => p[1])),
+  minX: -5.0,
+  maxX: 5.0,
+  minY: -3.5,
+  maxY: 3.5,
 };
+// Cross-check: every wire/via point must lie inside the stated bounds.
+for (const [x, y] of ALL_POINTS) {
+  if (x < SCENE_BOUNDS.minX || x > SCENE_BOUNDS.maxX ||
+      y < SCENE_BOUNDS.minY || y > SCENE_BOUNDS.maxY) {
+    throw new Error(`nandWireGraph: point (${x}, ${y}) outside SCENE_BOUNDS`);
+  }
+}
 
 export const SCENE_CENTER = {
   x: (SCENE_BOUNDS.minX + SCENE_BOUNDS.maxX) / 2,

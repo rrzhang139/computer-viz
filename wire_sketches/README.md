@@ -38,13 +38,51 @@ script depends on the headings being spelled exactly as below.
 3. `## Scene bounds` — one line `x ∈ [minX, maxX], y ∈ [minY, maxY]`.
 4. `## External terminals` — table `key | role | (x, y) | edge` where edge ∈
    {LEFT, RIGHT, TOP, BOTTOM}. The parent connects to these.
-5. `## Embedded children` — for each drilled-into child block: child id,
+   - Data / control terminals are single points.
+   - The two supply terminals (`Vdd`, `GND`) are single *conceptual* handles
+     for what is physically a whole TOP / BOTTOM edge (a rail). Their (x, y)
+     records the rail's y; the x is a representative midpoint, not a unique
+     attachment point.
+5. `## Internal supply distribution` — describes the rail span endpoints,
+   the per-child supply taps, and which routing pattern the parent uses
+   when this layer is embedded (direct top-drop vs L-shaped via a
+   left/right side bus).
+6. `## Embedded children` — for each drilled-into child block: child id,
    child layer, placement box `(cx, cy, w, h)`, and a mapping
    `child_external → absorbed_terminal_in_this_layer`.
-6. `## Wires` — internal wires only, `from | to | via | net`. References
+7. `## Wires` — internal wires only, `from | to | via | net`. References
    either external-terminal or absorbed-terminal keys.
-7. `## Alignment claims` — bulletted "X must equal Y" lines.
-8. `![sketch](./layerN_<name>.svg)` — image link.
+8. `## Alignment claims` — bulletted "X must equal Y" lines.
+9. `![sketch](./layerN_<name>.svg)` — image link.
+
+## The supply-rail convention
+
+Inside this project, every layer with non-trivial children declares:
+
+- a single `Vdd` external terminal on its TOP edge,
+- a single `GND` external terminal on its BOTTOM edge.
+
+Each child likewise exposes its own top-edge `Vdd` and bottom-edge `GND`.
+The parent's responsibility is to route Vdd into *every* child's `Vdd`
+terminal and GND into every child's `GND` terminal.
+
+**Two routing patterns** appear in the existing layers:
+
+1. **Direct top-drop / bottom-rise** — when a child sits adjacent to the
+   parent's top (Vdd) or bottom (GND) edge with no other child in
+   between, a single vertical wire connects them. Example: each PMOS in
+   the NAND gate (layer 1) is directly below the Vdd rail, so the rail
+   drops straight down into its source.
+
+2. **L-shaped via a side bus** — when a child is sandwiched behind
+   another (e.g., latch's N2 sits below N1, so N2's Vdd would have to
+   cross N1's body if routed straight from the top), the parent runs a
+   vertical Vdd bus on its LEFT edge (outside all children) and short
+   horizontal stubs into each child's projected Vdd-y. The mirror pattern
+   runs GND up the parent's RIGHT edge.
+
+The "Internal supply distribution" section of each layer's .md records
+which pattern applies and the specific drop / stub coordinates.
 
 ## How to add a NEW layer
 

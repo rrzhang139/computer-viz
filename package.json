@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
-    "test:all": "npm run test && npm run test:e2e"
+    "test:all": "npm run test && npm run test:e2e",
+    "sketch": "node wire_sketches/render.mjs --all",
+    "sketch:check": "node wire_sketches/check.mjs --all"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

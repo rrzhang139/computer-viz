@@ -60,9 +60,12 @@ const NAND1_CX = 320;
 const NAND1_CY = 110;
 const NAND2_CX = 320;
 const NAND2_CY = 290;
-// Each NAND's mini box (when hovered) has this footprint, centered on
-// (NAND{1,2}_CX, NAND{1,2}_CY).
-const MINI_W = 240;
+// Each NAND's mini box has this footprint, centered on
+// (NAND{1,2}_CX, NAND{1,2}_CY). The box's aspect (10/7 ≈ 1.43) MATCHES
+// the gate scene's aspect — so clicking the mini and zooming into the
+// gate level lands the user in a viewport with the same shape they
+// just clicked. No "wide-clicked-square-landed" feel.
+const MINI_W = 200;
 const MINI_H = 140;
 const MINI_MARGIN = 1.2;
 
@@ -231,6 +234,12 @@ export function LevelLatch({ onZoomToGate }: Props) {
             cy={NAND1_CY}
             label="NAND1"
             subtitle="S̄ + Q̄ → Q"
+            inputA={N1_IN_S}
+            inputB={N1_IN_QB}
+            output={N1_OUT}
+            netAColor={sColor}
+            netBColor={qbColor}
+            netYColor={qColor}
           />
         )}
         {hoveredNand === 'nand-2' ? (
@@ -255,6 +264,12 @@ export function LevelLatch({ onZoomToGate }: Props) {
             cy={NAND2_CY}
             label="NAND2"
             subtitle="R̄ + Q → Q̄"
+            inputA={N2_IN_R}
+            inputB={N2_IN_Q}
+            output={N2_OUT}
+            netAColor={rColor}
+            netBColor={qColor}
+            netYColor={qbColor}
           />
         )}
         {/* Click + hover hit areas — invisible, sit on top of either
@@ -293,32 +308,78 @@ interface NandProps {
   cy: number;
   label: string;
   subtitle: string;
+  /** Projected position of A_input — the input pin where the LEFT-arriving
+   * wire actually terminates. The body's left edge is centered around
+   * this x, and a visible PIN DOT marks the exact terminus. */
+  inputA: { x: number; y: number };
+  /** Projected position of B_input (right-arriving feedback). */
+  inputB: { x: number; y: number };
+  /** Projected position of Y_out (output exits here). */
+  output: { x: number; y: number };
+  /** Wire colors so the pin dots match the wires that meet them. */
+  netAColor: string;
+  netBColor: string;
+  netYColor: string;
 }
 
-function NandSymbol({ cx, cy, label, subtitle }: NandProps) {
-  // D-shape sized to match the mini's 240×140 footprint so wire endpoints
-  // (S̄/Q̄ on left+right, Q on right) align with the visible body in BOTH
-  // states — simple symbol and mini-with-real-gate. Inputs at cy-27 and
-  // (right side) cy-27; output at cy-9 on the right.
-  const W = 240;
-  const H = 140;
-  const halfW = W / 2;
+function NandSymbol({ cx, cy, label, subtitle, inputA, inputB, output, netAColor, netBColor, netYColor }: NandProps) {
+  // D-shape sized to the SAME visible extent the hovered gate-mini occupies
+  // (the projected gate scene under margin=1.2), so when the user hovers and
+  // the simple symbol swaps for the real gate mini, the body OUTLINE stays
+  // pixel-identical. This means the wires entering/exiting the body land on
+  // the SAME pixels in both states — no visual jump on hover.
+  //
+  // The gate scene has A_input at world (-4, 1.5), B_input at (4, 1.5),
+  // Y_out at (3, 0.5). Their projected positions arrive as props from the
+  // parent (computed via GATE_MODULE.projectTerminal — single source of
+  // truth). The body's bounding rectangle is the convex hull of these
+  // terminals: left edge = A_input.x, right edge = max(B_input.x, output.x),
+  // vertical extent = covers both the input row and the output row plus a
+  // small footer for the pull-down chain.
+  //
+  // VISIBLE OFFSET CONTRACT: the user-facing guarantee is that the input
+  // wire's terminus sits at the scaled offset from the mini's upper-left
+  // corner (per overlayAlignment.test.ts). To make this UNMISTAKABLE we:
+  //   1. shrink the body to start at inputA.x (so the wire visibly extends
+  //      across the empty mini-box padding before reaching the body);
+  //   2. draw a PIN DOT at each terminal's exact projected pixel — visible
+  //      ON TOP OF the body fill — so the user can see the offset.
+  const left = inputA.x;
+  const right = Math.max(inputB.x, output.x);
+  const W = right - left;
+  // Body vertically centered on the input row (so input wires enter at the
+  // body's vertical center on each side). Height chosen so the body stays
+  // within the mini-box bounds and includes the output row.
+  const top = Math.min(inputA.y, inputB.y, output.y) - 18;
+  const bottom = Math.max(inputA.y, inputB.y, output.y) + 18;
+  const H = bottom - top;
   const halfH = H / 2;
+  const bodyCx = (left + right) / 2;
+  const bodyCy = (top + bottom) / 2;
   const arcR = halfH;
-  // D: rectangle from (cx-halfW, cy-halfH) extending right to where the arc
-  // takes over, then semicircle to the right tip at (cx+halfW, cy), back to
-  // the bottom-left corner.
-  const arcStartX = cx + halfW - arcR;
-  const path = `M ${cx - halfW} ${cy - halfH} L ${arcStartX} ${cy - halfH} A ${arcR} ${arcR} 0 0 1 ${arcStartX} ${cy + halfH} L ${cx - halfW} ${cy + halfH} Z`;
+  // D-shape: rectangle from (left, top) to (right - arcR, bottom), then a
+  // semicircle to (right, bodyCy) and back. The right tip lands at
+  // x = right = output.x's column, so the output wire visibly meets the
+  // arc tip.
+  const arcStartX = right - arcR;
+  const path = `M ${left} ${top} L ${arcStartX} ${top} A ${arcR} ${arcR} 0 0 1 ${arcStartX} ${bottom} L ${left} ${bottom} Z`;
   return (
     <g>
       <path d={path} fill={parchment.bgDeep} stroke={parchment.ink} strokeWidth={2} />
-      {/* Output bubble at the arc tip (right of body) */}
-      <circle cx={cx + halfW + 5} cy={cy - 9} r={4} fill={parchment.bg} stroke={parchment.ink} strokeWidth={2} />
-      <text x={cx - 30} y={cy + 4} textAnchor="middle" fontSize={20} fontWeight={700} fill={parchment.ink} fontFamily="serif">
+      {/* Output bubble — drawn at the arc's right tip so the output wire
+          visibly meets the bubble, not the body. */}
+      <circle cx={right + 5} cy={bodyCy} r={4} fill={parchment.bg} stroke={parchment.ink} strokeWidth={2} />
+      {/* Visible PIN DOTS at the input/output projected positions. These
+          mark "the wire terminates HERE, at the scaled offset" — the same
+          pixel the hovered gate-mini's A_input / B_input / Y_out pins
+          land on. */}
+      <PinDot cx={inputA.x} cy={inputA.y} fill={netAColor} testid={`${label.toLowerCase()}-pin-a`} />
+      <PinDot cx={inputB.x} cy={inputB.y} fill={netBColor} testid={`${label.toLowerCase()}-pin-b`} />
+      <PinDot cx={output.x} cy={output.y} fill={netYColor} testid={`${label.toLowerCase()}-pin-y`} />
+      <text x={bodyCx - 18} y={bodyCy + 4} textAnchor="middle" fontSize={18} fontWeight={700} fill={parchment.ink} fontFamily="serif">
         {label}
       </text>
-      <text x={cx - 30} y={cy + 24} textAnchor="middle" fontSize={11} fill={parchment.inkSoft} fontStyle="italic" fontFamily="serif">
+      <text x={bodyCx - 18} y={bodyCy + 22} textAnchor="middle" fontSize={10} fill={parchment.inkSoft} fontStyle="italic" fontFamily="serif">
         {subtitle}
       </text>
     </g>
