@@ -27,10 +27,11 @@ export interface NandConnections {
 // both the latch wire endpoints AND the mini's net labels.
 import { GATE_MODULE } from './gateModule';
 
-// Same 200×140 mini placement LevelLatch uses. Aspect 10/7 matches the
-// gate scene aspect so the hover-preview overlays identically.
-const MINI_W = 200;
+// Same mini placement LevelLatch uses. MINI_W is DERIVED from
+// MINI_H × the gate scene's aspect, so the hover-preview overlays
+// identically and any change to the gate's bounds auto-propagates.
 const MINI_H = 140;
+const MINI_W = MINI_H * (GATE_MODULE.geometry.size.w / GATE_MODULE.geometry.size.h);
 const MINI_MARGIN = 1.2;
 
 function projectFor(nandCx: number, nandCy: number) {

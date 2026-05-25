@@ -16,19 +16,11 @@
 <polyline points="-6.000,-3.500 6.000,-3.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-6.000,3.500 6.000,3.500" fill="none" stroke="#3b2718" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-6.000,-2.000 -6.000,-1.929 -0.804,-1.929" fill="none" stroke="#a26a3e" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="-6.000,2.000 -6.000,1.071 -0.804,1.071" fill="none" stroke="#a26a3e" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="2.054,-1.643 5.500,-1.643 5.500,-1.500 6.000,-1.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="2.054,1.357 5.500,1.357 5.500,1.500 6.000,1.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="2.054,-1.643 3.000,-1.643 3.000,1.071 2.054,1.071" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="2.054,1.357 4.000,1.357 4.000,-1.929 2.054,-1.929" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="0.525,-3.500 0.525,-2.500" fill="none" stroke="#3a7d34" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
-<circle cx="0.525" cy="-2.5" r="0.07" fill="#3a7d34" opacity="0.8"/>
-<polyline points="5.700,3.500 5.700,0.400 0.725,0.400 0.725,-0.500" fill="none" stroke="#3b2718" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
-<circle cx="0.725" cy="-0.5" r="0.07" fill="#3b2718" opacity="0.8"/>
-<polyline points="-5.700,-3.500 -5.700,-0.400 0.525,-0.400 0.525,0.500" fill="none" stroke="#3a7d34" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
-<circle cx="0.525" cy="0.5" r="0.07" fill="#3a7d34" opacity="0.8"/>
-<polyline points="0.725,3.500 0.725,2.500" fill="none" stroke="#3b2718" stroke-width="0.05" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="0.18,0.1" opacity="0.7"/>
-<circle cx="0.725" cy="2.5" r="0.07" fill="#3b2718" opacity="0.8"/>
+<polyline points="-6.000,2.000 -5.500,2.000 -5.500,1.071 -0.804,1.071" fill="none" stroke="#a26a3e" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,-1.643 5.013,-1.643 5.013,-1.500 6.000,-1.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,1.357 5.013,1.357 5.013,1.500 6.000,1.500" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,-1.643 3.040,-1.643 3.040,1.071 2.054,1.071" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="2.054,1.357 4.027,1.357 4.027,-1.929 2.054,-1.929" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <circle cx="-6" cy="-2" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
 <text x="-6.35" y="-2" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">S_in</text>
 <text x="-6.35" y="-1.72" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-6, 2)</text>

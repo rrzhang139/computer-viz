@@ -61,12 +61,12 @@ const NAND1_CY = 110;
 const NAND2_CX = 320;
 const NAND2_CY = 290;
 // Each NAND's mini box has this footprint, centered on
-// (NAND{1,2}_CX, NAND{1,2}_CY). The box's aspect (10/7 ≈ 1.43) MATCHES
-// the gate scene's aspect — so clicking the mini and zooming into the
-// gate level lands the user in a viewport with the same shape they
-// just clicked. No "wide-clicked-square-landed" feel.
-const MINI_W = 200;
+// (NAND{1,2}_CX, NAND{1,2}_CY). MINI_W is DERIVED from MINI_H × the
+// gate scene's aspect — so the box always matches the child canvas
+// shape regardless of any future tweak to the gate's bounds. No more
+// "wide-clicked-square-landed" feel, no manual aspect bookkeeping.
 const MINI_H = 140;
+const MINI_W = MINI_H * (GATE_MODULE.geometry.size.w / GATE_MODULE.geometry.size.h);
 const MINI_MARGIN = 1.2;
 
 // All terminal projections come from GATE_MODULE.projectTerminal — the

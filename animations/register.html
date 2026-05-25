@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / register</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav {
+        display: flex; gap: 14px; justify-content: center;
+        padding: 14px 0 0; font-size: 11px; color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .nav a:hover { color: #aaa; }
+      .page-layout {
+        display: flex; gap: 24px;
+        padding: 14px 16px 20px; max-width: 1480px;
+        margin: 0 auto; align-items: flex-start;
+      }
+      .canvas-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 14px;
+      }
+      .step-panel {
+        width: 380px; flex-shrink: 0;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 24px 28px;
+        position: sticky; top: 14px;
+        max-height: calc(100vh - 28px);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        color: #666; letter-spacing: 0.18em; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace; font-size: 18px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 16px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 14px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px; line-height: 1.6;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 15px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 3px 9px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        display: flex; gap: 8px; justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .step-nav .btn {
+        min-width: 108px; font-size: 14px; padding: 10px 18px;
+      }
+      .step-nav .btn:disabled {
+        opacity: 0.35; cursor: not-allowed; box-shadow: none;
+      }
+      svg { max-height: 70vh; }
+      .controls {
+        display: flex; gap: 12px; align-items: center;
+        flex-wrap: wrap; justify-content: center;
+      }
+      .controls-row { display: flex; gap: 10px; }
+      .btn {
+        appearance: none; background: var(--panel); color: #999;
+        border: 1px solid #222; border-radius: 999px; font: inherit;
+        font-size: 13px; padding: 8px 18px; cursor: pointer;
+        min-width: 72px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on); color: #1a0d00; border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      svg {
+        display: block; background: var(--bg);
+        max-width: 100%; width: 100%; height: auto;
+      }
+      .wire {
+        fill: none; stroke: var(--off); stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none; stroke: #fff4d6; stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 5 26; opacity: 0; pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow {
+        from { stroke-dashoffset: 31; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .tbody {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #555; font-size: 14px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-small {
+        fill: #555; font-size: 11px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .pin {
+        fill: var(--off); stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      /* Hover swap on each DFF cell: simple block → mini master-slave DFF */
+      .dff-slot { pointer-events: bounding-box; }
+      .dff-slot .simple-body,
+      .dff-slot .simple-label {
+        transition: opacity 200ms;
+      }
+      .dff-slot:hover .simple-body,
+      .dff-slot:hover .simple-label { opacity: 0; }
+      .detailed {
+        opacity: 0; pointer-events: none;
+        transition: opacity 200ms;
+      }
+      .dff-slot:hover .detailed { opacity: 1; }
+      .wire-mini {
+        fill: none; stroke: var(--off); stroke-width: 6;
+        stroke-linecap: round; stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire-mini[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 2.5px rgba(239, 159, 39, 0.7));
+      }
+      .tbody-mini {
+        fill: #111; stroke: #2a2a2a; stroke-width: 2;
+        stroke-dasharray: 8 6;
+        vector-effect: non-scaling-stroke;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody-mini[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.28); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.5));
+      }
+      .tlabel-mini {
+        fill: #666; font-size: 32px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody-mini[data-on="1"] + .tlabel-mini { fill: var(--on); }
+      .word-display {
+        font-family: ui-monospace, monospace;
+        font-size: 14px; color: #555;
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 16px; background: var(--panel);
+        border: 1px solid #222; border-radius: 999px;
+      }
+      .word-display .bits {
+        color: var(--on); font-weight: 500;
+        letter-spacing: 0.2em;
+      }
+      .word-display .label { color: #777; }
+      .walkthrough {
+        max-width: 640px; width: 100%; margin: 0 auto;
+        color: #b5b5b5;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14.5px; line-height: 1.65;
+      }
+      .walkthrough h3 {
+        font-family: ui-monospace, monospace; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 28px 0 10px; font-weight: 500;
+      }
+      .walkthrough h3:first-child { margin-top: 0; }
+      .walkthrough p { margin: 0 0 12px; }
+      .walkthrough kbd {
+        font-family: ui-monospace, monospace; font-size: 12px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 1px 8px; border-radius: 999px; color: #ddd;
+      }
+      .walkthrough em { color: #fff; font-style: normal; }
+      .walkthrough .accent { color: var(--on); }
+      .btn-reset {
+        background: transparent; color: #555; border: 1px solid #222;
+      }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      .btn-pulse {
+        background: rgba(239, 159, 39, 0.12);
+        color: var(--on);
+        border: 1px solid rgba(239, 159, 39, 0.5);
+      }
+      .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/latch.html">latch</a>
+      <a href="/dlatch.html">D latch</a>
+      <a href="/dff.html">DFF</a>
+      <a href="/register.html" aria-current="page">register</a>
+      <a href="/halfadder.html">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html">4-bit adder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+        <div class="controls-row">
+          <button class="btn" id="btnD0" data-on="0">D0 0</button>
+          <button class="btn" id="btnD1" data-on="0">D1 0</button>
+          <button class="btn" id="btnD2" data-on="0">D2 0</button>
+          <button class="btn" id="btnD3" data-on="0">D3 0</button>
+        </div>
+        <button class="btn" id="btnCLK" data-on="0">CLK 0</button>
+        <button class="btn btn-pulse" id="btnPulse">pulse CLK 0→1→0</button>
+        <button class="btn btn-reset" id="btnReset">↺ reset</button>
+      </div>
+      <div class="word-display">
+        <span class="label">stored word:</span>
+        <span class="bits" id="wordDisplay">0000</span>
+      </div>
+      <svg id="register" viewBox="-30 -20 1080 720" role="img" aria-label="4-bit register" preserveAspectRatio="xMidYMid meet">
+        <!-- Vdd rail -->
+        <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1000,0" />
+        <!-- GND rail -->
+        <polyline class="wire" data-net="GND" points="0,680 1000,680" />
+
+        <!-- D inputs: straight horizontal wires from pins to each DFF's left edge -->
+        <polyline class="wire" data-net="D0" points="0,120 350,120" />
+        <polyline class="wire" data-net="D1" points="0,280 350,280" />
+        <polyline class="wire" data-net="D2" points="0,440 350,440" />
+        <polyline class="wire" data-net="D3" points="0,600 350,600" />
+
+        <!-- Q outputs: straight horizontal wires from each DFF's right edge to Q pins -->
+        <polyline class="wire" data-net="Q0" points="650,120 1000,120" />
+        <polyline class="wire" data-net="Q1" points="650,280 1000,280" />
+        <polyline class="wire" data-net="Q2" points="650,440 1000,440" />
+        <polyline class="wire" data-net="Q3" points="650,600 1000,600" />
+
+        <!-- CLK fan-out tree:
+             • direct drop to bit0 top
+             • bus to the right (x=700), down past each DFF, with horizontal taps
+               in the gaps that drop perpendicular into each DFF's TOP edge. -->
+        <polyline class="wire" data-net="CLK" points="500,35 500,60" />
+        <polyline class="wire" data-net="CLK" points="500,35 700,35 700,200" />
+        <polyline class="wire" data-net="CLK" points="700,200 500,200 500,220" />
+        <polyline class="wire" data-net="CLK" points="700,200 700,360" />
+        <polyline class="wire" data-net="CLK" points="700,360 500,360 500,380" />
+        <polyline class="wire" data-net="CLK" points="700,360 700,520" />
+        <polyline class="wire" data-net="CLK" points="700,520 500,520 500,540" />
+
+        <!-- DFF bodies (no hover overlays for now — each cell is just a labeled box) -->
+        <g class="dff-slot" id="slot-bit0">
+          <rect class="tbody simple-body" id="gBit0" x="350" y="60"  width="300" height="120" rx="12" />
+          <text class="tlabel simple-label" x="500" y="113">bit 0</text>
+          <text class="tlabel-small simple-label" x="500" y="135">DFF</text>
+        </g>
+        <g class="dff-slot" id="slot-bit1">
+          <rect class="tbody simple-body" id="gBit1" x="350" y="220" width="300" height="120" rx="12" />
+          <text class="tlabel simple-label" x="500" y="273">bit 1</text>
+          <text class="tlabel-small simple-label" x="500" y="295">DFF</text>
+        </g>
+        <g class="dff-slot" id="slot-bit2">
+          <rect class="tbody simple-body" id="gBit2" x="350" y="380" width="300" height="120" rx="12" />
+          <text class="tlabel simple-label" x="500" y="433">bit 2</text>
+          <text class="tlabel-small simple-label" x="500" y="455">DFF</text>
+        </g>
+        <g class="dff-slot" id="slot-bit3">
+          <rect class="tbody simple-body" id="gBit3" x="350" y="540" width="300" height="120" rx="12" />
+          <text class="tlabel simple-label" x="500" y="593">bit 3</text>
+          <text class="tlabel-small simple-label" x="500" y="615">DFF</text>
+        </g>
+
+        <!-- Pin nodes -->
+        <circle class="pin" id="pinD0" cx="0"    cy="120" r="7" />
+        <circle class="pin" id="pinD1" cx="0"    cy="280" r="7" />
+        <circle class="pin" id="pinD2" cx="0"    cy="440" r="7" />
+        <circle class="pin" id="pinD3" cx="0"    cy="600" r="7" />
+        <circle class="pin" id="pinQ0" cx="1000" cy="120" r="7" />
+        <circle class="pin" id="pinQ1" cx="1000" cy="280" r="7" />
+        <circle class="pin" id="pinQ2" cx="1000" cy="440" r="7" />
+        <circle class="pin" id="pinQ3" cx="1000" cy="600" r="7" />
+        <circle class="pin" id="pinCLK" cx="500" cy="35" r="7" />
+        <text class="tlabel-small" x="0"    y="100">D0</text>
+        <text class="tlabel-small" x="0"    y="260">D1</text>
+        <text class="tlabel-small" x="0"    y="420">D2</text>
+        <text class="tlabel-small" x="0"    y="580">D3</text>
+        <text class="tlabel-small" x="1000" y="100">Q0</text>
+        <text class="tlabel-small" x="1000" y="260">Q1</text>
+        <text class="tlabel-small" x="1000" y="420">Q2</text>
+        <text class="tlabel-small" x="1000" y="580">Q3</text>
+        <text class="tlabel-small" x="500"  y="18" >CLK</text>
+      </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 6</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>what you're looking at</h3>
+            <p>Four DFFs stacked vertically, sharing one clock. Each one is the master-slave flip-flop you already understand — D in, edge-triggered capture, Q out. The only new thing is the <em>wiring</em>: a single CLK signal fans out to all four cells, so every flip-flop captures on the <em>same</em> rising edge.</p>
+            <p>This is a <em>register</em> — the smallest unit of named storage inside a CPU. Give it a name like <em>x1</em> and you have a 4-bit register.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>CLK = 0 — masters loading</h3>
+            <p>Hit <kbd>↺ reset</kbd>. All Ds are 0, CLK is 0, all Qs are 0. Now flip a few D buttons — say <kbd>D0</kbd> and <kbd>D2</kbd> to 1. <em>None of the Q pins move.</em></p>
+            <p>The four masters are each independently soaking up their D input, but the slaves are all holding (their EN = CLK = 0). The bit pattern is "queued up" inside the masters, waiting for permission to advance.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>pulse the clock</h3>
+            <p>Hit <kbd>pulse CLK 0→1→0</kbd>. Watch carefully. CLK rises, and <em>all four output pins update at the same moment</em>. The bits queued in the masters transfer to the slaves simultaneously. The stored word display shows the new value.</p>
+            <p>Notice nothing happened gradually. No "bit 0 updated, then bit 1, then bit 2." All four flipped on the same edge.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>independence + atomicity</h3>
+            <p>Try wiggling the Ds while CLK = 1 — none of the Qs change, exactly like in the standalone DFF page. Each cell, taken alone, is doing nothing surprising.</p>
+            <p>What's new is the <em>global property</em>: because every cell shares the same CLK wire, the moment of capture is shared too. The whole register snapshots its inputs in one indivisible instant.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the magic of the shared clock</h3>
+            <p>Each DFF, alone, converts a level into a moment. The deeper magic shows up only when you wire many to the same clock. Suddenly N bits captured on different physical cells become a <em>single logical value</em> that updates atomically.</p>
+            <p>That property is what lets us treat the 4-bit pattern as a number. Without atomicity, "the register" wouldn't have a well-defined value at any instant. With atomicity, it does.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This is the substrate of a CPU. RISC-V has 32 general-purpose registers, each 32 bits — that's 1024 cells exactly like these, all sharing the chip's master clock. Every instruction either reads from or writes to one of these registers, and writes happen at rising clock edges.</p>
+            <p>Pipelines, register files, state machines all rest on this one trick: <em>connect many flip-flops to a shared clock and you get atomic, synchronous, multi-bit memory</em>.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/register.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / DFF</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav {
+        display: flex; gap: 14px; justify-content: center;
+        padding: 14px 0 0; font-size: 11px; color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .nav a:hover { color: #aaa; }
+      .page-layout {
+        display: flex; gap: 24px;
+        padding: 14px 16px 20px; max-width: 1480px;
+        margin: 0 auto; align-items: flex-start;
+      }
+      .canvas-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 14px;
+      }
+      .step-panel {
+        width: 380px; flex-shrink: 0;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 24px 28px;
+        position: sticky; top: 14px;
+        max-height: calc(100vh - 28px);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        color: #666; letter-spacing: 0.18em; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace; font-size: 18px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 16px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 14px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px; line-height: 1.6;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 15px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 3px 9px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        display: flex; gap: 8px; justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .step-nav .btn {
+        min-width: 108px; font-size: 14px; padding: 10px 18px;
+      }
+      .step-nav .btn:disabled {
+        opacity: 0.35; cursor: not-allowed; box-shadow: none;
+      }
+      /* DFF master/slave hover overlays — same pattern as register */
+      .dff-slot { pointer-events: bounding-box; }
+      .dff-slot .simple-body,
+      .dff-slot .simple-label { transition: opacity 200ms; }
+      .dff-slot:hover .simple-body,
+      .dff-slot:hover .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+      .dff-slot:hover .detailed { opacity: 1; }
+      .wire-mini {
+        fill: none; stroke: var(--off); stroke-width: 5;
+        stroke-linecap: round; stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire-mini[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 2.5px rgba(239, 159, 39, 0.7));
+      }
+      .tbody-mini {
+        fill: #111; stroke: #2a2a2a; stroke-width: 2;
+        stroke-dasharray: 8 6;
+        vector-effect: non-scaling-stroke;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody-mini[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.28); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.5));
+      }
+      .tlabel-mini {
+        fill: #666; font-size: 44px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody-mini[data-on="1"] + .tlabel-mini { fill: var(--on); }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .btn {
+        appearance: none; background: var(--panel); color: #999;
+        border: 1px solid #222; border-radius: 999px; font: inherit;
+        font-size: 13px; padding: 8px 18px; cursor: pointer;
+        min-width: 72px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on); color: #1a0d00; border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      svg {
+        display: block; background: var(--bg);
+        max-width: 100%; max-height: 70vh;
+        width: 100%; height: auto;
+      }
+      .wire {
+        fill: none; stroke: var(--off); stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none; stroke: #fff4d6; stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 5 26; opacity: 0; pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow {
+        from { stroke-dashoffset: 31; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .tbody {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #555; font-size: 14px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-small {
+        fill: #555; font-size: 11px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .pin {
+        fill: var(--off); stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      .walkthrough {
+        max-width: 640px; width: 100%; margin: 0 auto;
+        color: #b5b5b5;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14.5px; line-height: 1.65;
+      }
+      .walkthrough h3 {
+        font-family: ui-monospace, monospace; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 28px 0 10px; font-weight: 500;
+      }
+      .walkthrough h3:first-child { margin-top: 0; }
+      .walkthrough p { margin: 0 0 12px; }
+      .walkthrough kbd {
+        font-family: ui-monospace, monospace; font-size: 12px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 1px 8px; border-radius: 999px; color: #ddd;
+      }
+      .walkthrough em { color: #fff; font-style: normal; }
+      .walkthrough .accent { color: var(--on); }
+      .btn-reset {
+        background: transparent; color: #555; border: 1px solid #222;
+      }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      .btn-pulse {
+        background: rgba(239, 159, 39, 0.12);
+        color: var(--on);
+        border: 1px solid rgba(239, 159, 39, 0.5);
+      }
+      .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/latch.html">latch</a>
+      <a href="/dlatch.html">D latch</a>
+      <a href="/dff.html" aria-current="page">DFF</a>
+      <a href="/register.html">register</a>
+      <a href="/halfadder.html">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html">4-bit adder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+        <button class="btn" id="btnD"   data-on="0">D 0</button>
+        <button class="btn" id="btnCLK" data-on="0">CLK 0</button>
+        <button class="btn btn-pulse" id="btnPulse">pulse CLK 0→1→0</button>
+        <button class="btn btn-reset" id="btnReset">↺ reset</button>
+      </div>
+      <svg id="dff" viewBox="-30 -20 1080 580" role="img" aria-label="DFF — master-slave D flip-flop" preserveAspectRatio="xMidYMid meet">
+        <!-- Vdd rail -->
+        <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1000,0" />
+        <!-- GND rail -->
+        <polyline class="wire" data-net="GND" points="0,540 1000,540" />
+
+        <!-- D net: D_in → master.D_in (LEFT) -->
+        <polyline class="wire" data-net="D" points="0,280 180,280" />
+
+        <!-- CLK net branches:
+             • CLK_in (315,35) drops to inv.in (315,75)
+             • CLK_in also goes RIGHT then DOWN to slave.EN_in (755,160) -->
+        <polyline class="wire" data-net="CLK" points="315,35 315,75" />
+        <polyline class="wire" data-net="CLK" points="315,35 755,35 755,160" />
+
+        <!-- not_CLK net: inv.out (315,105) → master.EN_in (315,160) -->
+        <polyline class="wire" data-net="notCLK" points="315,105 315,160" />
+
+        <!-- M net (intermediate Qm): master.Q_out (540,235) → slave.D_in (620,280) -->
+        <polyline class="wire" data-net="M" points="540,235 580,235 580,280 620,280" />
+
+        <!-- Q out: slave.Q_out (980,235) → Q_pin (1020,235) -->
+        <polyline class="wire" data-net="Q" points="980,235 1020,235" />
+
+        <!-- QB out: slave.QB_out (980,325) → QB_pin (1020,325) -->
+        <polyline class="wire" data-net="QB" points="980,325 1020,325" />
+
+        <!-- Inverter body (small rect with TOP input, BOTTOM output) -->
+        <rect class="tbody" id="iInv" x="290" y="75" width="50" height="30" rx="5" />
+        <text class="tlabel-small" x="315" y="90">inv</text>
+
+        <!-- Master D latch box (hover swaps to mini D latch interior) -->
+        <g class="dff-slot" id="slot-master">
+          <rect class="tbody simple-body" id="gMaster" x="180" y="160" width="360" height="240" rx="12" />
+          <text class="tlabel simple-label" x="360" y="270">master</text>
+          <text class="tlabel-small simple-label" x="360" y="295">D latch · open when CLK = 0</text>
+        </g>
+
+        <!-- Slave D latch box (hover swaps to mini D latch interior) -->
+        <g class="dff-slot" id="slot-slave">
+          <rect class="tbody simple-body" id="gSlave" x="620" y="160" width="360" height="240" rx="12" />
+          <text class="tlabel simple-label" x="800" y="270">slave</text>
+          <text class="tlabel-small simple-label" x="800" y="295">D latch · open when CLK = 1</text>
+        </g>
+
+        <!-- Pin nodes -->
+        <circle class="pin" id="pinD"   cx="0"    cy="280" r="7" />
+        <circle class="pin" id="pinCLK" cx="315"  cy="35"  r="7" />
+        <circle class="pin" id="pinQ"   cx="1020" cy="235" r="7" />
+        <circle class="pin" id="pinQB"  cx="1020" cy="325" r="7" />
+        <text class="tlabel" x="0"    y="305">D</text>
+        <text class="tlabel" x="315"  y="18" >CLK</text>
+        <text class="tlabel" x="1020" y="215">Q</text>
+        <text class="tlabel" x="1020" y="345">Q̄</text>
+      </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>what you're looking at</h3>
+            <p>Two D latches in a row, sharing one clock. The inverter on the CLK wire makes their enables <em>opposite</em>: CLK=0 → master enabled (EN=!CLK=1), slave held; CLK=1 → slave enabled, master held. <em>The two latches are never enabled at the same time.</em></p>
+            <p>That single fact is what makes this <em>edge-triggered</em>. The interior is just two level-triggered latches you already understand; the new thing is the wiring. Hover master or slave to peek inside.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>CLK = 0 (master is open)</h3>
+            <p>Hit <kbd>↺ reset</kbd>. CLK is 0. The !CLK wire glows (master's EN=1, transparent). The CLK wire is dark (slave's EN=0, holding).</p>
+            <p>Click D a few times. The master body and M wire follow D. <em>But Q does not move.</em> The master is loading; the slave's door is closed.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>CLK 0 → 1 — the rising edge</h3>
+            <p>Click <kbd>CLK</kbd> (or <kbd>pulse CLK 0→1→0</kbd>). Two things happen in the same instant:</p>
+            <p>• The master door <em>slams shut</em>. Whatever was on M is now frozen.<br/>• The slave door <em>opens</em>, sees the frozen M, propagates to Q.</p>
+            <p>The output moves. <em>Exactly</em> when it moves: at the moment the clock rose. Not while it's high — at the boundary itself.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>CLK = 1 (slave open, master locked)</h3>
+            <p>Click D back and forth while CLK is 1. <em>Q does not change.</em> The master's door is shut, so D can wiggle all it wants. The slave is transparent but only echoes the frozen M.</p>
+            <p>You've decoupled the data input from the output between rising edges.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>CLK 1 → 0 — the falling edge</h3>
+            <p>Click CLK. Falls back to 0. Slave's door shuts; master's door reopens. Wiggling D updates M, but Q stays frozen at the last rising-edge value.</p>
+            <p>While CLK is low, master loads the next value; slave holds the previous. On the next rising edge they swap roles. The two halves take turns.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the magic moment</h3>
+            <p>The whole behavior is: master enabled when CLK=0, slave enabled when CLK=1, instantaneous handoff at the edge. A value can only travel D → master → slave → Q at the precise instant the clock rises — an instant with no duration.</p>
+            <p>We've converted a <em>level</em> into an <em>event</em>. That's what makes this a flip-flop and not a latch.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>Every flip-flop on a chip shares one clock wire. On each rising edge, all of them snapshot their inputs simultaneously and atomically — the entire machine steps forward in one synchronized heartbeat.</p>
+            <p>The "rising edge" is the basic unit of <em>time</em> in a digital machine. And it comes for free from cross-coupling two level-triggered latches with opposing enables.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/dff.ts"></script>
+  </body>
+</html>

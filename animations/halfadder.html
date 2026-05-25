@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / half adder</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav {
+        display: flex; gap: 14px; justify-content: center;
+        padding: 14px 0 0; font-size: 11px; color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .nav a:hover { color: #aaa; }
+      .page-layout {
+        display: flex; gap: 24px;
+        padding: 14px 16px 20px; max-width: 1480px;
+        margin: 0 auto; align-items: flex-start;
+      }
+      .canvas-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 14px;
+      }
+      .step-panel {
+        width: 380px; flex-shrink: 0;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 24px 28px;
+        position: sticky; top: 14px;
+        max-height: calc(100vh - 28px);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        color: #666; letter-spacing: 0.18em; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace; font-size: 18px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 16px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 14px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px; line-height: 1.6;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 15px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 3px 9px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        display: flex; gap: 8px; justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .step-nav .btn {
+        min-width: 108px; font-size: 14px; padding: 10px 18px;
+      }
+      .step-nav .btn:disabled {
+        opacity: 0.35; cursor: not-allowed; box-shadow: none;
+      }
+      .controls { display: flex; gap: 12px; align-items: center; }
+      .btn {
+        appearance: none; background: var(--panel); color: #999;
+        border: 1px solid #222; border-radius: 999px; font: inherit;
+        font-size: 13px; padding: 8px 18px; cursor: pointer;
+        min-width: 64px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on); color: #1a0d00; border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      .btn-reset {
+        background: transparent; color: #555; border: 1px solid #222;
+      }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg {
+        display: block; background: var(--bg);
+        max-width: 100%; max-height: 70vh;
+        width: 100%; height: auto;
+      }
+      .wire {
+        fill: none; stroke: var(--off); stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none; stroke: #fff4d6; stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 5 26; opacity: 0; pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow {
+        from { stroke-dashoffset: 31; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .tbody {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #555; font-size: 18px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-small {
+        fill: #555; font-size: 12px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .pin {
+        fill: var(--off); stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      .word-display {
+        font-family: ui-monospace, monospace;
+        font-size: 14px; color: #555;
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 16px; background: var(--panel);
+        border: 1px solid #222; border-radius: 999px;
+      }
+      .word-display .bits {
+        color: var(--on); font-weight: 500; letter-spacing: 0.15em;
+      }
+      /* Gate hover overlay: simple body fades out, truth table fades in */
+      .gate-slot { pointer-events: bounding-box; }
+      .gate-slot .simple-body,
+      .gate-slot .simple-label { transition: opacity 200ms; }
+      .gate-slot:hover .simple-body,
+      .gate-slot:hover .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+      .gate-slot:hover .detailed { opacity: 1; }
+      .tt-bg {
+        fill: rgba(20, 20, 20, 0.95);
+        stroke: var(--on); stroke-width: 1.5;
+        vector-effect: non-scaling-stroke;
+      }
+      .tt-title {
+        fill: var(--on); font-size: 16px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+        letter-spacing: 0.15em;
+      }
+      .tt-divider { stroke: #2a2a2a; stroke-width: 1; }
+      .tt-header {
+        fill: #777; font-size: 13px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tt-cell {
+        fill: #888; font-size: 14px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+        transition: fill 140ms;
+      }
+      .tt-row {
+        fill: transparent;
+        transition: fill 140ms;
+      }
+      .tt-row[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.18);
+      }
+      .tt-row[data-on="1"] + .tt-cell-group .tt-cell { fill: var(--on); }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/latch.html">latch</a>
+      <a href="/dlatch.html">D latch</a>
+      <a href="/dff.html">DFF</a>
+      <a href="/register.html">register</a>
+      <a href="/halfadder.html" aria-current="page">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html">4-bit adder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn" id="btnA" data-on="0">A 0</button>
+          <button class="btn" id="btnB" data-on="0">B 0</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="word-display">
+          <span>A + B =</span>
+          <span class="bits"><span id="carryDisplay">0</span><span id="sumDisplay">0</span></span>
+          <span>(binary)</span>
+        </div>
+        <svg id="halfadder" viewBox="-30 -20 900 540" role="img" aria-label="Half adder" preserveAspectRatio="xMidYMid meet">
+          <!-- Vdd rail -->
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 840,0" />
+          <!-- GND rail -->
+          <polyline class="wire" data-net="GND" points="0,500 840,500" />
+
+          <!-- A net: from A_in, drops to (60, 320) and branches to both XOR.A and AND.A -->
+          <polyline class="wire" data-net="A" points="0,100 60,100 60,320" />
+          <polyline class="wire" data-net="A" points="60,100 320,100" />
+          <polyline class="wire" data-net="A" points="60,320 320,320" />
+
+          <!-- B net: from B_in, drops to (80, 400) and branches to both XOR.B and AND.B -->
+          <polyline class="wire" data-net="B" points="0,180 80,180 80,400" />
+          <polyline class="wire" data-net="B" points="80,180 320,180" />
+          <polyline class="wire" data-net="B" points="80,400 320,400" />
+
+          <!-- Sum out: XOR.Y → sum pin -->
+          <polyline class="wire" data-net="sum" points="560,140 840,140" />
+          <!-- Carry out: AND.Y → carry pin -->
+          <polyline class="wire" data-net="carry" points="560,360 840,360" />
+
+          <!-- XOR gate (hover swaps to truth table) -->
+          <g class="gate-slot" id="slot-xor">
+            <rect class="tbody simple-body" id="gXor" x="320" y="60" width="240" height="160" rx="12" />
+            <text class="tlabel simple-label" x="440" y="135">XOR</text>
+            <text class="tlabel-small simple-label" x="440" y="160">sum</text>
+          </g>
+          <!-- AND gate -->
+          <g class="gate-slot" id="slot-and">
+            <rect class="tbody simple-body" id="gAnd" x="320" y="280" width="240" height="160" rx="12" />
+            <text class="tlabel simple-label" x="440" y="355">AND</text>
+            <text class="tlabel-small simple-label" x="440" y="380">carry</text>
+          </g>
+
+          <!-- Pin nodes -->
+          <circle class="pin" id="pinA"     cx="0"   cy="100" r="7" />
+          <circle class="pin" id="pinB"     cx="0"   cy="180" r="7" />
+          <circle class="pin" id="pinSum"   cx="840" cy="140" r="7" />
+          <circle class="pin" id="pinCarry" cx="840" cy="360" r="7" />
+          <text class="tlabel-small" x="0"   y="80" >A</text>
+          <text class="tlabel-small" x="0"   y="200">B</text>
+          <text class="tlabel-small" x="840" y="120">sum</text>
+          <text class="tlabel-small" x="840" y="380">carry</text>
+        </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 6</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>what you're looking at</h3>
+            <p>Two single-bit inputs A and B. Two single-bit outputs: <em>sum</em> and <em>carry</em>. This is the simplest possible arithmetic circuit — it adds two bits and produces the two-bit result.</p>
+            <p>1 + 1 = 2, which in binary is <em>10</em>. The "1" is the carry, the "0" is the sum. So we need <em>two</em> output bits to handle even one-bit addition.</p>
+            <p>Hover the XOR or AND box to see its truth table. Both gates are treated as black boxes — you already know what they do.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>A = 0, B = 0</h3>
+            <p>Hit <kbd>↺ reset</kbd>. Both inputs are 0. <em>0 + 0 = 0</em>, so both outputs are 0. Look at the gates: XOR is dark (0 XOR 0 = 0), AND is dark (0 AND 0 = 0). The display reads <em>0 0</em>.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click A → 1 (or B → 1)</h3>
+            <p>One input is now 1, the other still 0. <em>1 + 0 = 1</em>. The XOR lights up (its rule: "exactly one input is 1"). The AND stays dark (its rule: "both inputs are 1"). <span class="accent">sum = 1, carry = 0</span>.</p>
+            <p>So when the inputs differ, XOR fires and AND doesn't — that's exactly the "no overflow yet" case of addition.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click both → 1</h3>
+            <p>Now A = B = 1. <em>1 + 1 = 2 = binary 10</em>. The XOR turns OFF (XOR is 0 when inputs match), and the AND turns ON. <span class="accent">sum = 0, carry = 1</span>.</p>
+            <p>This is the "overflow" case. A single bit can't hold the value 2, so the result spills into the carry. <em>The carry IS the second bit of the answer.</em></p>
+          </article>
+          <article class="step" hidden>
+            <h3>the key insight</h3>
+            <p>Look at the structure: each output is a logic gate applied to A and B.</p>
+            <p>&nbsp;&nbsp;• <em>sum = A XOR B</em> — "the bits differ" — the low bit of A+B.<br/>&nbsp;&nbsp;• <em>carry = A AND B</em> — "both bits high" — the high bit of A+B.</p>
+            <p>Those two gates, working together, IS the addition of two bits. The whole truth table of one-bit addition is just two truth tables stacked. Arithmetic, decomposed into pure logic.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This is the first taste of <em>compute</em>. Up until now we've built circuits that remember (latch → DFF → register). The half adder is a circuit that <em>does something</em> — it transforms inputs into a new output by pure combinational logic. No memory, no clock, just gates.</p>
+            <p>From here, multi-bit addition is just stacking half adders together — chain the carry of bit N into bit N+1, and you can add arbitrarily wide numbers. That's the full adder (next page), and a chain of full adders is a ripple-carry adder. Plug that into an ALU and you have computation.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/halfadder.ts"></script>
+  </body>
+</html>

@@ -119,7 +119,7 @@ each NAND, never crossing either NAND body):
 | Vdd_left   | Vdd_right | —                                   | Vdd   |
 | GND_left   | GND_right | —                                   | GND   |
 | S_in       | N1_A_in   | (-6.0, 1.929)                       | S_bar |
-| R_in       | N2_A_in   | (-6.0, -1.071)                      | R_bar |
+| R_in       | N2_A_in   | (-5.5, -2.0), (-5.5, -1.071)        | R_bar |
 | N1_Y_out   | Q_out     | (5.5, 1.643), (5.5, 1.5)            | Q     |
 | N2_Y_out   | QB_out    | (5.5, -1.357), (5.5, -1.5)          | Q_bar |
 | N1_Y_out   | N2_B_in   | (3.0, 1.643), (3.0, -1.071)         | Q     |
@@ -131,8 +131,13 @@ absorbed-terminal y's so the wraparound enters each NAND's RIGHT-edge
 B-input at the same projected y the gate's `B_input` lands on, never
 at the box corner.
 
-- `Q_branch` ( 3.0,  1.643), `Q_wrap` ( 3.0, -1.071) — Q lane (inner-right)
-- `QB_branch` ( 4.0, -1.357), `QB_wrap` ( 4.0,  1.929) — Q̄ lane (outer-right; offset so the two lanes don't overlap)
+- Q lane (inner-right): the cross-coupled feedback from N1's output to
+  N2's B-input runs at x≈3 in the corridor between the NANDs' right
+  edges and the scene boundary (the auto-spacing pass picks the exact
+  x to keep all parallel lanes evenly distributed).
+- Q̄ lane (outer-right): the mirrored feedback at x≈4. Both lanes
+  enter each NAND's B-input at the y the gate's `B_input` projects to
+  — never at a box corner.
 
 ## Alignment claims
 

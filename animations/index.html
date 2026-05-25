@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / gate</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc;
+        min-height: 100vh;
+      }
+      .nav {
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        padding: 14px 0 0;
+        font-size: 11px;
+        color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .nav a:hover { color: #aaa; }
+      .page-layout {
+        display: flex; gap: 24px;
+        padding: 14px 16px 20px; max-width: 1480px;
+        margin: 0 auto; align-items: flex-start;
+      }
+      .canvas-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 14px;
+      }
+      .step-panel {
+        width: 380px; flex-shrink: 0;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 24px 28px;
+        position: sticky; top: 14px;
+        max-height: calc(100vh - 28px);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        color: #666; letter-spacing: 0.18em; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace; font-size: 18px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 16px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 14px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px; line-height: 1.6;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 15px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 3px 9px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        display: flex; gap: 8px; justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .step-nav .btn {
+        min-width: 108px; font-size: 14px; padding: 10px 18px;
+      }
+      .step-nav .btn:disabled {
+        opacity: 0.35; cursor: not-allowed; box-shadow: none;
+      }
+      .controls { display: flex; gap: 12px; align-items: center; }
+      .btn {
+        appearance: none;
+        background: var(--panel);
+        color: #999;
+        border: 1px solid #222;
+        border-radius: 999px;
+        font: inherit;
+        font-size: 13px;
+        padding: 8px 18px;
+        cursor: pointer;
+        min-width: 64px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on);
+        color: #1a0d00;
+        border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      svg {
+        display: block;
+        background: var(--bg);
+        max-width: 100%;
+        max-height: 70vh;
+        width: 100%;
+        height: auto;
+      }
+      .controls { display: flex; gap: 12px; align-items: center; }
+      .wire {
+        fill: none;
+        stroke: var(--off);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none;
+        stroke: #fff4d6;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 5 26;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow {
+        from { stroke-dashoffset: 31; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .tbody {
+        fill: #111;
+        stroke: #2a2a2a;
+        stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22);
+        stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #555;
+        font-size: 11px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle;
+        dominant-baseline: central;
+        pointer-events: none;
+        user-select: none;
+      }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .pin {
+        fill: var(--off);
+        stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      .walkthrough {
+        max-width: 640px;
+        width: 100%;
+        margin: 0 auto;
+        color: #b5b5b5;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14.5px;
+        line-height: 1.65;
+      }
+      .walkthrough h3 {
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--on);
+        margin: 28px 0 10px;
+        font-weight: 500;
+      }
+      .walkthrough h3:first-child { margin-top: 0; }
+      .walkthrough p { margin: 0 0 12px; }
+      .walkthrough kbd {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        padding: 1px 8px;
+        border-radius: 999px;
+        color: #ddd;
+      }
+      .walkthrough em { color: #fff; font-style: normal; }
+      .walkthrough .accent { color: var(--on); }
+      .btn-reset {
+        background: transparent;
+        color: #555;
+        border: 1px solid #222;
+      }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/" aria-current="page">gate</a>
+      <a href="/latch.html">latch</a>
+      <a href="/dlatch.html">D latch</a>
+      <a href="/dff.html">DFF</a>
+      <a href="/register.html">register</a>
+      <a href="/halfadder.html">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html">4-bit adder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+        <button class="btn" id="btnA" data-on="0">A 0</button>
+        <button class="btn" id="btnB" data-on="0">B 0</button>
+        <button class="btn btn-reset" id="btnReset">↺ reset</button>
+      </div>
+      <svg id="gate" viewBox="-30 -10 560 380" role="img" aria-label="NAND gate (v2 — both inputs LEFT)" preserveAspectRatio="xMidYMid meet">
+        <!-- Vdd rail (always on) -->
+        <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 500,0" />
+        <polyline class="wire" data-net="Vdd" data-on="1" points="175,0 175,25" />
+        <polyline class="wire" data-net="Vdd" data-on="1" points="325,0 325,25" />
+
+        <!-- GND rail (always off) -->
+        <polyline class="wire" data-net="GND" points="0,350 500,350" />
+        <polyline class="wire" data-net="GND" points="250,350 250,300" />
+
+        <!-- A net: enters LEFT at y=100, branches to P_A (UP) and N_A (DOWN-then-RIGHT) -->
+        <polyline class="wire" data-net="A" points="0,100 125,100 125,50 150,50" />
+        <polyline class="wire" data-net="A" points="0,100 200,100 200,175 225,175" />
+
+        <!-- B net: enters LEFT at y=250, branches to N_B (DOWN-then-RIGHT) and PB
+             via the long up-and-over routing (down 10, right to x=285, all the way up to y=50). -->
+        <polyline class="wire" data-net="B" points="0,250 200,250 200,275 225,275" />
+        <polyline class="wire" data-net="B" points="0,250 225,250 225,240 285,240 285,50 300,50" />
+
+        <!-- Y net: PMOS drains tied together at Y_junction (250,125), feeds NA.drain + Y_out (right exit) -->
+        <polyline class="wire" data-net="Y" points="175,75 175,125 250,125" />
+        <polyline class="wire" data-net="Y" points="325,75 325,125 250,125" />
+        <polyline class="wire" data-net="Y" points="250,125 250,150" />
+        <polyline class="wire" data-net="Y" points="250,125 425,125 425,150 500,150" />
+
+        <!-- mid net (NA_source ↔ NB_drain), glows when the NMOS chain is conducting -->
+        <polyline class="wire" data-net="mid" points="250,200 250,250" />
+
+        <!-- Transistor bodies (drawn AFTER wires) -->
+        <rect class="tbody" id="tP_A" x="150" y="25" width="50" height="50" rx="4" />
+        <text class="tlabel" x="175" y="50">P_A</text>
+        <rect class="tbody" id="tP_B" x="300" y="25" width="50" height="50" rx="4" />
+        <text class="tlabel" x="325" y="50">P_B</text>
+        <rect class="tbody" id="tN_A" x="225" y="150" width="50" height="50" rx="4" />
+        <text class="tlabel" x="250" y="175">N_A</text>
+        <rect class="tbody" id="tN_B" x="225" y="250" width="50" height="50" rx="4" />
+        <text class="tlabel" x="250" y="275">N_B</text>
+
+        <!-- Pin nodes -->
+        <circle class="pin" id="pinA" cx="0"   cy="100" r="7" />
+        <circle class="pin" id="pinB" cx="0"   cy="250" r="7" />
+        <circle class="pin" id="pinY" cx="500" cy="150" r="7" />
+        <text class="tlabel" x="0"   y="125">A</text>
+        <text class="tlabel" x="0"   y="275">B</text>
+        <text class="tlabel" x="500" y="175">Y</text>
+      </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 6</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>start at A = 0, B = 0</h3>
+            <p>Hit <kbd>↺ reset</kbd> so both buttons say 0. Up top — both <em>P_A</em> and <em>P_B</em> glow. A PMOS conducts when its gate is <em>low</em>, and both gates are at 0. The pull-up path is wide open: Vdd flows through <em>either</em> PMOS into Y. <span class="accent">Y lights up.</span></p>
+            <p>Both NMOS stay dark — an NMOS needs a <em>high</em> gate. The chain to GND is broken.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click A → 1</h3>
+            <p>P_A snaps dark; only P_B is still on. But that's enough — <em>either</em> PMOS being open delivers Vdd to Y. <span class="accent">Y stays HIGH.</span> Below, N_A lights up (its gate is now high), but N_B is still dark.</p>
+            <p><em>This is the asymmetry that defines the gate</em>: only <em>one</em> PMOS is needed to deliver power, but <em>both</em> NMOS are needed to sink it.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click B → 1</h3>
+            <p>Watch the B wire — in v2 it enters from the LEFT (bottom), snakes through a corridor, and climbs to P_B's gate at the top right. Long path, but every wire enters its destination perpendicular to the edge.</p>
+            <p>Now both inputs are 1. P_B turns off — no PMOS is conducting. N_B finally lights up, completing the chain N_A → mid → N_B → GND. <span class="accent">Y plunges to LOW.</span></p>
+          </article>
+          <article class="step" hidden>
+            <h3>click A → 0</h3>
+            <p>The chain breaks at N_A. The pull-up reopens through P_A, and <span class="accent">Y pops back to HIGH</span>. By symmetry, B → 0 would do the same.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the key insight</h3>
+            <p>Y is LOW <em>only</em> when both inputs are HIGH; otherwise HIGH. That's NAND — NOT AND. Topology gives us the truth table: the PMOS pair is wired in <em>parallel</em> (an OR — either delivers power), and the NMOS pair is in <em>series</em> (an AND — both must conduct to sink).</p>
+            <p>The OR/AND asymmetry on top vs. bottom is what writes the gate's behavior into silicon.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>Every digital chip can be built from NAND alone. AND, OR, NOT, XOR, latches, adders, the whole CPU — all reducible. NAND is <em>functionally complete</em>.</p>
+            <p>And CMOS NAND: in either steady state exactly one path is closed, so no DC current flows. Power is consumed only during a switch. That's the difference between a CPU you can hold and one that needs a small reactor.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/gate.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / D latch</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav {
+        display: flex; gap: 14px; justify-content: center;
+        padding: 14px 0 0; font-size: 11px; color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .nav a:hover { color: #aaa; }
+      .page-layout {
+        display: flex; gap: 24px;
+        padding: 14px 16px 20px; max-width: 1480px;
+        margin: 0 auto; align-items: flex-start;
+      }
+      .canvas-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 14px;
+      }
+      .step-panel {
+        width: 380px; flex-shrink: 0;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 24px 28px;
+        position: sticky; top: 14px;
+        max-height: calc(100vh - 28px);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        color: #666; letter-spacing: 0.18em; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace; font-size: 18px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 16px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 14px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px; line-height: 1.6;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 15px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 3px 9px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        display: flex; gap: 8px; justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .step-nav .btn {
+        min-width: 108px; font-size: 14px; padding: 10px 18px;
+      }
+      .step-nav .btn:disabled {
+        opacity: 0.35; cursor: not-allowed; box-shadow: none;
+      }
+      .controls { display: flex; gap: 12px; align-items: center; }
+      .btn {
+        appearance: none; background: var(--panel); color: #999;
+        border: 1px solid #222; border-radius: 999px; font: inherit;
+        font-size: 13px; padding: 8px 18px; cursor: pointer;
+        min-width: 72px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on); color: #1a0d00; border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      svg {
+        display: block; background: var(--bg);
+        max-width: 100%; max-height: 70vh;
+        width: 100%; height: auto;
+      }
+      .wire {
+        fill: none; stroke: var(--off); stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none; stroke: #fff4d6; stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 5 26; opacity: 0; pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow {
+        from { stroke-dashoffset: 31; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .tbody {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #555; font-size: 12px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .pin {
+        fill: var(--off); stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      /* Hover swap: simple block fades out, detailed mini fades in */
+      .child-slot { pointer-events: bounding-box; }
+      .child-slot .simple-body,
+      .child-slot .simple-label {
+        transition: opacity 200ms;
+      }
+      .child-slot:hover .simple-body,
+      .child-slot:hover .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+      .child-slot:hover .detailed { opacity: 1; }
+      .wire-mini {
+        fill: none; stroke: var(--off); stroke-width: 6;
+        stroke-linecap: round; stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire-mini[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 2.5px rgba(239, 159, 39, 0.7));
+      }
+      .tbody-mini {
+        fill: #111; stroke: #2a2a2a; stroke-width: 2;
+        stroke-dasharray: 8 6;
+        vector-effect: non-scaling-stroke;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody-mini[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.28); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.5));
+      }
+      .tlabel-mini {
+        fill: #666; font-size: 28px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody-mini[data-on="1"] + .tlabel-mini { fill: var(--on); }
+      .walkthrough {
+        max-width: 640px; width: 100%; margin: 0 auto;
+        color: #b5b5b5;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14.5px; line-height: 1.65;
+      }
+      .walkthrough h3 {
+        font-family: ui-monospace, monospace; font-size: 11px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 28px 0 10px; font-weight: 500;
+      }
+      .walkthrough h3:first-child { margin-top: 0; }
+      .walkthrough p { margin: 0 0 12px; }
+      .walkthrough kbd {
+        font-family: ui-monospace, monospace; font-size: 12px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 1px 8px; border-radius: 999px; color: #ddd;
+      }
+      .walkthrough em { color: #fff; font-style: normal; }
+      .walkthrough .accent { color: var(--on); }
+      .btn-reset {
+        background: transparent; color: #555; border: 1px solid #222;
+      }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/latch.html">latch</a>
+      <a href="/dlatch.html" aria-current="page">D latch</a>
+      <a href="/dff.html">DFF</a>
+      <a href="/register.html">register</a>
+      <a href="/halfadder.html">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html">4-bit adder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+        <button class="btn" id="btnD"  data-on="0">D 0</button>
+        <button class="btn" id="btnEN" data-on="0">EN 0</button>
+        <button class="btn btn-reset" id="btnReset">↺ reset</button>
+      </div>
+      <svg id="dlatch" viewBox="-30 -20 900 600" role="img" aria-label="D latch (level-triggered)" preserveAspectRatio="xMidYMid meet">
+        <!-- Vdd rail -->
+        <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 840,0" />
+        <!-- GND rail -->
+        <polyline class="wire" data-net="GND" points="0,560 840,560" />
+
+        <!-- D net: D_in → inv_in, and D_in → GS_A_in (long path up-and-right) -->
+        <polyline class="wire" data-net="D" points="0,280 35,280" />
+        <polyline class="wire" data-net="D" points="0,280 20,280 20,145 145,145" />
+
+        <!-- D_bar net: inv_out → GR_A_in (down and right) -->
+        <polyline class="wire" data-net="Dbar" points="105,280 125,280 125,355 145,355" />
+
+        <!-- EN net: TOP entry, drops to a corridor on the left of the gating NANDs,
+             then taps GS_B_in and GR_B_in. -->
+        <polyline class="wire" data-net="EN" points="315,35 315,75 125,75 125,415" />
+        <polyline class="wire" data-net="EN" points="125,205 145,205" />
+        <polyline class="wire" data-net="EN" points="125,415 145,415" />
+
+        <!-- S_bar net: GS_Y_out → latch_S_in -->
+        <polyline class="wire" data-net="Sbar" points="345,165 435,165 435,224 525,224" />
+
+        <!-- R_bar net: GR_Y_out → latch_R_in -->
+        <polyline class="wire" data-net="Rbar" points="345,375 435,375 435,308 525,308" />
+
+        <!-- Q out: latch_Q_out → Q pin -->
+        <polyline class="wire" data-net="Q"  points="805,233.33 820,233.33 820,175 840,175" />
+        <!-- QB out: latch_QB_out → QB pin -->
+        <polyline class="wire" data-net="QB" points="805,317.33 820,317.33 820,385 840,385" />
+
+        <!-- Inverter body (small rect, no hover overlay) -->
+        <rect class="tbody" id="iInv" x="35" y="259" width="70" height="42" rx="6" />
+        <text class="tlabel" x="70" y="280">inv</text>
+
+        <!-- Gating NAND for SET (GS) -->
+        <g class="child-slot" id="slot-gs">
+          <rect class="tbody simple-body" id="gGS" x="145" y="105" width="200" height="140" rx="10" />
+          <text class="tlabel simple-label" x="245" y="175">G_S</text>
+        </g>
+
+        <!-- Gating NAND for RESET (GR) -->
+        <g class="child-slot" id="slot-gr">
+          <rect class="tbody simple-body" id="gGR" x="145" y="315" width="200" height="140" rx="10" />
+          <text class="tlabel simple-label" x="245" y="385">G_R</text>
+        </g>
+
+        <!-- SR latch box (storage cell) -->
+        <g class="child-slot" id="slot-latch">
+          <rect class="tbody simple-body" id="gLatch" x="525" y="186.67" width="280" height="186.67" rx="10" />
+          <text class="tlabel simple-label" x="665" y="280">SR latch</text>
+        </g>
+
+        <!-- Pin nodes -->
+        <circle class="pin" id="pinD"  cx="0"   cy="280" r="7" />
+        <circle class="pin" id="pinEN" cx="315" cy="35"  r="7" />
+        <circle class="pin" id="pinQ"  cx="840" cy="175" r="7" />
+        <circle class="pin" id="pinQB" cx="840" cy="385" r="7" />
+        <text class="tlabel" x="0"   y="305">D</text>
+        <text class="tlabel" x="315" y="18" >EN</text>
+        <text class="tlabel" x="840" y="155">Q</text>
+        <text class="tlabel" x="840" y="405">Q̄</text>
+      </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>what you're looking at</h3>
+            <p>Same SR latch as before, but with a gate on its front door. <em>D</em> enters from the left (data). <em>EN</em> enters from the top (a control signal — "should I listen?"). Inside: two <em>gating NANDs</em> (G_S, G_R), an inverter, and the SR latch.</p>
+            <p>This layer adds <em>level-triggered capture</em>. While EN is high, the cell pays attention to D. While EN is low, the cell tunes D out entirely.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>EN = 0 (door closed)</h3>
+            <p>Hit <kbd>↺ reset</kbd>. Click D a few times. <em>Q doesn't move.</em></p>
+            <p>Look at G_S and G_R: <em>both glow</em>. By the NAND rule, any 0 forces the output to 1. EN=0 feeds that 0 to both gating NANDs, so both output 1 no matter what D does. And both S̄=R̄=1 is the SR latch's HOLD command. The cell is deaf.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click EN → 1 (door opens)</h3>
+            <p>Now the NAND rule has nothing forcing the outputs — they start computing. G_S outputs <em>NAND(D, EN) = NOT D</em>, G_R (fed by the inverter) outputs <em>NAND(!D, EN) = D</em>. Whatever D is, one of S̄/R̄ will be 0 and the other 1, and the SR latch snaps to match. <em>Q now equals D.</em></p>
+          </article>
+          <article class="step" hidden>
+            <h3>wiggle D (transparent mode)</h3>
+            <p>Click D back and forth. Q follows you. This is <em>transparent mode</em>: while the door is open, the output is a delayed echo of the input. There's no memory yet — it's a wire with a small delay.</p>
+            <p>Hover G_S, G_R, or the SR latch to see their interiors update in real time.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>EN → 0 (door closes)</h3>
+            <p>Whatever D was at the instant you released EN is now locked in. <em>Q freezes.</em> Wiggle D — nothing happens. The cell has captured.</p>
+            <p>Both gating NANDs went back to outputting 1, putting the SR latch in HOLD. The bit is being remembered by the same cross-coupled loop as before; the gating NANDs just decide <em>when</em> to deliver new inputs.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the trick that makes it work</h3>
+            <p>It all rests on one fact: <em>NAND with any 0 input is forced to 1</em>. EN=0 makes both gating NANDs output 1, which is the SR latch's HOLD command. EN=0 doesn't tell the cell "don't change" — it tells the gating NANDs to shout 1 at both S̄ and R̄.</p>
+            <p>The inverter on D guarantees one of S̄/R̄ is 0 and the other 1 when EN=1, so the forbidden state (both 0) is structurally impossible. The D latch is the SR latch made safe.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This is the first cell with a <em>control input separate from data</em>. The "clock" concept is born here. Everything downstream — registers, pipelines, the entire synchronous discipline of CPU design — rests on the idea that a control signal decides <em>when</em> data is captured.</p>
+            <p>The catch: while EN is held high, Q just tracks D. The next layer (D flip-flop) fixes that with edge-triggered capture.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/dlatch.ts"></script>
+  </body>
+</html>

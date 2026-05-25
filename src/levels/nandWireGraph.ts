@@ -27,10 +27,13 @@ export const WIRE_NODES = {
   // standalone Gate level), so the horizontal rail T-junctions into it.
   // RIGHT end terminates at the last tap (PB at x=1.6) area, stopping
   // short of the GND pillar at x=+5 to avoid net-crossing visuals.
-  Vdd_rail_left:  [-5,    3,    0] as [number, number, number],
-  Vdd_rail_right: [ 3,    3,    0] as [number, number, number],
-  Vdd_tap_PA:     [-1.6,  3,    0] as [number, number, number],
-  Vdd_tap_PB:     [ 1.6,  3,    0] as [number, number, number],
+  // Vdd rail sits at the SCENE TOP (y=3.5 = maxY of SCENE_BOUNDS) so
+  // `wire_sketches/check.mjs` rule 0 (supply-position) passes:
+  // Vdd at TOP, GND at BOTTOM.
+  Vdd_rail_left:  [-5,    3.5,  0] as [number, number, number],
+  Vdd_rail_right: [ 3,    3.5,  0] as [number, number, number],
+  Vdd_tap_PA:     [-1.6,  3.5,  0] as [number, number, number],
+  Vdd_tap_PB:     [ 1.6,  3.5,  0] as [number, number, number],
 
   // PMOS terminals (source = top toward Vdd, drain = bottom toward Y)
   PA_source: [-1.6, 1.85, 0] as [number, number, number],

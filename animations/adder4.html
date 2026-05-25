@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / 4-bit adder</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav {
+        display: flex; gap: 14px; justify-content: center;
+        padding: 14px 0 0; font-size: 11px; color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .nav a:hover { color: #aaa; }
+      .page-layout {
+        display: flex; gap: 24px;
+        padding: 14px 16px 20px; max-width: 1480px;
+        margin: 0 auto; align-items: flex-start;
+      }
+      .canvas-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 14px;
+      }
+      .step-panel {
+        width: 380px; flex-shrink: 0;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 24px 28px;
+        position: sticky; top: 14px;
+        max-height: calc(100vh - 28px);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        color: #666; letter-spacing: 0.18em; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace; font-size: 18px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 16px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 14px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px; line-height: 1.6;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 15px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 3px 9px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        display: flex; gap: 8px; justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .step-nav .btn {
+        min-width: 108px; font-size: 14px; padding: 10px 18px;
+      }
+      .step-nav .btn:disabled {
+        opacity: 0.35; cursor: not-allowed; box-shadow: none;
+      }
+      .controls {
+        display: flex; gap: 10px; align-items: center;
+        flex-wrap: wrap; justify-content: center;
+      }
+      .controls-row { display: flex; gap: 6px; align-items: center; }
+      .controls-row .label {
+        color: #555; font-size: 13px; min-width: 28px;
+        font-family: ui-monospace, monospace;
+      }
+      .btn {
+        appearance: none; background: var(--panel); color: #999;
+        border: 1px solid #222; border-radius: 999px; font: inherit;
+        font-size: 13px; padding: 6px 14px; cursor: pointer;
+        min-width: 48px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on); color: #1a0d00; border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      .btn-reset {
+        background: transparent; color: #555; border: 1px solid #222;
+      }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg {
+        display: block; background: var(--bg);
+        max-width: 100%; max-height: 64vh;
+        width: 100%; height: auto;
+      }
+      .wire {
+        fill: none; stroke: var(--off); stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none; stroke: #fff4d6; stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 5 26; opacity: 0; pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow {
+        from { stroke-dashoffset: 31; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .tbody {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #555; font-size: 22px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-small {
+        fill: #555; font-size: 13px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .pin {
+        fill: var(--off); stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      .word-display {
+        font-family: ui-monospace, monospace;
+        font-size: 14px; color: #777;
+        display: flex; align-items: center; gap: 18px;
+        padding: 10px 18px; background: var(--panel);
+        border: 1px solid #222; border-radius: 14px;
+      }
+      .word-display .label { color: #555; }
+      .word-display .bits { color: var(--on); letter-spacing: 0.15em; font-weight: 500; }
+      .word-display .dec { color: #aaa; }
+      .word-display .row { display: flex; gap: 10px; align-items: baseline; }
+      /* FA hover overlay */
+      .fa-slot { pointer-events: bounding-box; }
+      .fa-slot .simple-body,
+      .fa-slot .simple-label { transition: opacity 200ms; }
+      .fa-slot:hover .simple-body,
+      .fa-slot:hover .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+      .fa-slot:hover .detailed { opacity: 1; }
+      .tbody-mini {
+        fill: #111; stroke: #2a2a2a; stroke-width: 2;
+        stroke-dasharray: 8 6;
+        vector-effect: non-scaling-stroke;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody-mini[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.28); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.5));
+      }
+      .tlabel-mini {
+        fill: #888; font-size: 18px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody-mini[data-on="1"] + .tlabel-mini { fill: var(--on); }
+      .mini-bg {
+        fill: rgba(20, 20, 20, 0.94);
+        stroke: var(--on); stroke-width: 1.5;
+        vector-effect: non-scaling-stroke;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/latch.html">latch</a>
+      <a href="/dlatch.html">D latch</a>
+      <a href="/dff.html">DFF</a>
+      <a href="/register.html">register</a>
+      <a href="/halfadder.html">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html" aria-current="page">4-bit adder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <div class="controls-row">
+            <span class="label">A</span>
+            <button class="btn" id="btnA3" data-on="0">A3 0</button>
+            <button class="btn" id="btnA2" data-on="0">A2 0</button>
+            <button class="btn" id="btnA1" data-on="0">A1 0</button>
+            <button class="btn" id="btnA0" data-on="0">A0 0</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">B</span>
+            <button class="btn" id="btnB3" data-on="0">B3 0</button>
+            <button class="btn" id="btnB2" data-on="0">B2 0</button>
+            <button class="btn" id="btnB1" data-on="0">B1 0</button>
+            <button class="btn" id="btnB0" data-on="0">B0 0</button>
+          </div>
+          <button class="btn" id="btnCin" data-on="0">Cin 0</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="word-display">
+          <div class="row"><span class="label">A</span><span class="bits" id="aBits">0000</span><span class="dec">(<span id="aDec">0</span>)</span></div>
+          <div class="row"><span class="label">+ B</span><span class="bits" id="bBits">0000</span><span class="dec">(<span id="bDec">0</span>)</span></div>
+          <div class="row"><span class="label">=</span><span class="bits" id="sumBits">00000</span><span class="dec">(<span id="sumDec">0</span>)</span></div>
+        </div>
+        <svg id="adder4" viewBox="-30 -20 1240 600" role="img" aria-label="4-bit ripple-carry adder" preserveAspectRatio="xMidYMid meet">
+          <!-- Vdd / GND rails -->
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1180,0" />
+          <polyline class="wire" data-net="GND" points="0,560 1180,560" />
+
+          <!-- Input wires (A and B) — vertical drops from pins to each FA -->
+          <polyline class="wire" data-net="A3" points="135,80 135,200" />
+          <polyline class="wire" data-net="B3" points="245,80 245,200" />
+          <polyline class="wire" data-net="A2" points="385,80 385,200" />
+          <polyline class="wire" data-net="B2" points="495,80 495,200" />
+          <polyline class="wire" data-net="A1" points="635,80 635,200" />
+          <polyline class="wire" data-net="B1" points="745,80 745,200" />
+          <polyline class="wire" data-net="A0" points="885,80 885,200" />
+          <polyline class="wire" data-net="B0" points="995,80 995,200" />
+
+          <!-- Output (S) wires — vertical drops from each FA to S pin -->
+          <polyline class="wire" data-net="S3" points="190,400 190,460" />
+          <polyline class="wire" data-net="S2" points="440,400 440,460" />
+          <polyline class="wire" data-net="S1" points="690,400 690,460" />
+          <polyline class="wire" data-net="S0" points="940,400 940,460" />
+
+          <!-- Carry chain (right-to-left): Cin → FA0 → FA1 → FA2 → FA3 → Cout -->
+          <polyline class="wire" data-net="Cin"  points="1110,300 1050,300" />
+          <polyline class="wire" data-net="C01"  points="830,300 800,300" />
+          <polyline class="wire" data-net="C12"  points="580,300 550,300" />
+          <polyline class="wire" data-net="C23"  points="330,300 300,300" />
+          <polyline class="wire" data-net="Cout" points="80,300 40,300" />
+
+          <!-- FA boxes: FA3 (MSB) leftmost → FA0 (LSB) rightmost -->
+          <g class="fa-slot" id="slot-fa3">
+            <rect class="tbody simple-body" id="gFa3" x="80" y="200" width="220" height="200" rx="12" />
+            <text class="tlabel simple-label" x="190" y="290">FA3</text>
+            <text class="tlabel-small simple-label" x="190" y="320">bit 3 (MSB)</text>
+          </g>
+          <g class="fa-slot" id="slot-fa2">
+            <rect class="tbody simple-body" id="gFa2" x="330" y="200" width="220" height="200" rx="12" />
+            <text class="tlabel simple-label" x="440" y="290">FA2</text>
+            <text class="tlabel-small simple-label" x="440" y="320">bit 2</text>
+          </g>
+          <g class="fa-slot" id="slot-fa1">
+            <rect class="tbody simple-body" id="gFa1" x="580" y="200" width="220" height="200" rx="12" />
+            <text class="tlabel simple-label" x="690" y="290">FA1</text>
+            <text class="tlabel-small simple-label" x="690" y="320">bit 1</text>
+          </g>
+          <g class="fa-slot" id="slot-fa0">
+            <rect class="tbody simple-body" id="gFa0" x="830" y="200" width="220" height="200" rx="12" />
+            <text class="tlabel simple-label" x="940" y="290">FA0</text>
+            <text class="tlabel-small simple-label" x="940" y="320">bit 0 (LSB)</text>
+          </g>
+
+          <!-- Carry wire labels (visible markers for the prose) -->
+          <text class="tlabel-small" x="815" y="282">C01</text>
+          <text class="tlabel-small" x="565" y="282">C12</text>
+          <text class="tlabel-small" x="315" y="282">C23</text>
+
+          <!-- Pin nodes -->
+          <circle class="pin" id="pinA3" cx="135"  cy="80"  r="7" />
+          <circle class="pin" id="pinB3" cx="245"  cy="80"  r="7" />
+          <circle class="pin" id="pinA2" cx="385"  cy="80"  r="7" />
+          <circle class="pin" id="pinB2" cx="495"  cy="80"  r="7" />
+          <circle class="pin" id="pinA1" cx="635"  cy="80"  r="7" />
+          <circle class="pin" id="pinB1" cx="745"  cy="80"  r="7" />
+          <circle class="pin" id="pinA0" cx="885"  cy="80"  r="7" />
+          <circle class="pin" id="pinB0" cx="995"  cy="80"  r="7" />
+          <circle class="pin" id="pinS3" cx="190"  cy="460" r="7" />
+          <circle class="pin" id="pinS2" cx="440"  cy="460" r="7" />
+          <circle class="pin" id="pinS1" cx="690"  cy="460" r="7" />
+          <circle class="pin" id="pinS0" cx="940"  cy="460" r="7" />
+          <circle class="pin" id="pinCin"  cx="1110" cy="300" r="7" />
+          <circle class="pin" id="pinCout" cx="40"   cy="300" r="7" />
+
+          <!-- Pin labels -->
+          <text class="tlabel-small" x="135"  y="60" >A3</text>
+          <text class="tlabel-small" x="245"  y="60" >B3</text>
+          <text class="tlabel-small" x="385"  y="60" >A2</text>
+          <text class="tlabel-small" x="495"  y="60" >B2</text>
+          <text class="tlabel-small" x="635"  y="60" >A1</text>
+          <text class="tlabel-small" x="745"  y="60" >B1</text>
+          <text class="tlabel-small" x="885"  y="60" >A0</text>
+          <text class="tlabel-small" x="995"  y="60" >B0</text>
+          <text class="tlabel-small" x="190"  y="482">S3</text>
+          <text class="tlabel-small" x="440"  y="482">S2</text>
+          <text class="tlabel-small" x="690"  y="482">S1</text>
+          <text class="tlabel-small" x="940"  y="482">S0</text>
+          <text class="tlabel-small" x="1110" y="278">Cin</text>
+          <text class="tlabel-small" x="40"   y="278">Cout</text>
+        </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>what you're looking at</h3>
+            <p>Four full adders chained together — <em>FA0</em> on the right (the least-significant bit), <em>FA3</em> on the left (the most-significant). Together they add two 4-bit binary numbers.</p>
+            <p>Each <em>FA_i</em> takes three inputs (Ai, Bi, and a carry from the bit below it) and produces two outputs (Si and a carry to the bit above). The carries flow <em>right to left</em> through the wires labeled <em>C01</em>, <em>C12</em>, <em>C23</em>. This is called a <em>ripple-carry adder</em>.</p>
+            <p>Hover any FA to see its half-adder + half-adder + OR interior reflecting that bit's current state.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>0 + 0 = 0</h3>
+            <p>Hit <kbd>↺ reset</kbd>. All inputs are 0. Everything is dark. Display reads <em>0 + 0 = 00000</em>.</p>
+            <p>No FA needs to do anything: each one's three inputs are 0, so each output is 0. No carry is generated anywhere.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>1 + 1 = 0010 — the smallest carry</h3>
+            <p>Click <kbd>A0</kbd> and <kbd>B0</kbd>. Now A = 0001, B = 0001.</p>
+            <p><em>FA0</em> sees A0=1, B0=1, Cin=0. That's the case we already know: sum=0, but a carry is generated. <em>C01 lights up.</em></p>
+            <p><em>FA1</em> receives that carry. It now has A1=0, B1=0, but Cin=1. Exactly one input is 1, so FA1's S=1. No further carry. The result: <em>0010 = 2</em>.</p>
+            <p>FA2 and FA3 stay dark — the carry never reached them.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>5 + 3 = 1000 — multi-stage ripple</h3>
+            <p>Set A = 0101 (click <kbd>A2</kbd> and <kbd>A0</kbd>) and B = 0011 (click <kbd>B1</kbd> in addition to <kbd>B0</kbd>). Now A = 0101 (decimal 5) and B = 0011 (decimal 3).</p>
+            <p><em>FA0</em>: 1+1+0 = 10. S0=0, carry generated. <em>C01 fires.</em><br/><em>FA1</em>: 0+1+1 = 10. S1=0, another carry. <em>C12 fires.</em><br/><em>FA2</em>: 1+0+1 = 10. S2=0, another carry. <em>C23 fires.</em><br/><em>FA3</em>: 0+0+1 = 1. S3=1, no carry out.</p>
+            <p>Result: <em>1000 = 8</em>. Three carries in a row, all glowing across the bottom of the canvas. <span class="accent">This is what "ripple" means</span> — the carry travels from FA0 all the way up to FA3.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>15 + 1 = 10000 — max overflow</h3>
+            <p>Set A = 1111 (all four A bits) and B = 0001. A is decimal 15, the maximum 4-bit value.</p>
+            <p>Adding just 1 forces a carry at every position: 1+1+0=10 at FA0, then 1+0+1=10 at FA1, 1+0+1 at FA2, 1+0+1 at FA3. Every carry wire lights up — Cin (wait, Cin is 0), C01, C12, C23, and finally <em>Cout = 1</em>.</p>
+            <p>The result is 5 bits: <em>10000 = 16</em>. We've overflowed the 4-bit range. <em>Cout is how a 4-bit adder tells you the sum didn't fit.</em></p>
+          </article>
+          <article class="step" hidden>
+            <h3>the ripple delay</h3>
+            <p>Notice that FA3's output depends on a carry from FA2, which depends on FA1's carry, which depends on FA0's. The bits are computed in <em>sequence</em>, not in parallel.</p>
+            <p>In real silicon each FA takes ~50-100 picoseconds to settle. For a 4-bit adder, the worst-case delay is 4× that (the carry has to propagate through all four). For a 64-bit adder it would be 64×. That's why modern CPUs use <em>carry-lookahead</em> or <em>carry-save</em> adders that compute carries faster, in parallel.</p>
+            <p>But the underlying logic is exactly what you see here. The optimizations are about <em>when</em> each carry is computed; what's computed is the same.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This is integer addition. Every <em>add</em> instruction in every CPU ultimately runs a circuit shaped like this — typically 32 or 64 bits wide. Subtract reuses the same circuit with B inverted plus Cin=1 (two's complement). Multiply is repeated addition. Comparisons are subtraction with the carry inspected.</p>
+            <p>Combined with the register file from before (storage) and a clock (timing), the 4-bit adder is enough to build a complete, programmable arithmetic machine. Stack everything we've built on this page and you have a CPU.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/adder4.ts"></script>
+  </body>
+</html>

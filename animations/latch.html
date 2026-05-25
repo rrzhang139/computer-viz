@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / latch</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc;
+        min-height: 100vh;
+      }
+      .nav {
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        padding: 14px 0 0;
+        font-size: 11px;
+        color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .nav a:hover { color: #aaa; }
+      .page-layout {
+        display: flex; gap: 24px;
+        padding: 14px 16px 20px; max-width: 1480px;
+        margin: 0 auto; align-items: flex-start;
+      }
+      .canvas-col {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 14px;
+      }
+      .step-panel {
+        width: 380px; flex-shrink: 0;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 16px;
+        padding: 24px 28px;
+        position: sticky; top: 14px;
+        max-height: calc(100vh - 28px);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        color: #666; letter-spacing: 0.18em; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace; font-size: 18px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 16px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 14px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 18px; line-height: 1.6;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 15px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 3px 9px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        display: flex; gap: 8px; justify-content: space-between;
+        margin-bottom: 16px;
+      }
+      .step-nav .btn {
+        min-width: 108px; font-size: 14px; padding: 10px 18px;
+      }
+      .step-nav .btn:disabled {
+        opacity: 0.35; cursor: not-allowed; box-shadow: none;
+      }
+      .controls { display: flex; gap: 12px; align-items: center; }
+      .btn {
+        appearance: none;
+        background: var(--panel);
+        color: #999;
+        border: 1px solid #222;
+        border-radius: 999px;
+        font: inherit;
+        font-size: 13px;
+        padding: 8px 18px;
+        cursor: pointer;
+        min-width: 72px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on);
+        color: #1a0d00;
+        border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      svg {
+        display: block;
+        background: var(--bg);
+        max-width: 100%;
+        max-height: 70vh;
+        width: 100%;
+        height: auto;
+      }
+      .wire {
+        fill: none;
+        stroke: var(--off);
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none;
+        stroke: #fff4d6;
+        stroke-width: 3;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        stroke-dasharray: 5 26;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow {
+        from { stroke-dashoffset: 31; }
+        to   { stroke-dashoffset: 0; }
+      }
+      .tbody {
+        fill: #111;
+        stroke: #2a2a2a;
+        stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22);
+        stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #555;
+        font-size: 11px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle;
+        dominant-baseline: central;
+        pointer-events: none;
+        user-select: none;
+      }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .pin {
+        fill: var(--off);
+        stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      /* NAND hover-swap overlay: the simple .tbody/.tlabel inside a .nand-slot
+         fades out and the .detailed mini gate fades in when the slot is hovered. */
+      .nand-slot { pointer-events: bounding-box; }
+      .nand-slot .simple-body,
+      .nand-slot .simple-label {
+        transition: opacity 200ms;
+      }
+      .nand-slot:hover .simple-body,
+      .nand-slot:hover .simple-label {
+        opacity: 0;
+      }
+      .detailed {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 200ms;
+      }
+      .nand-slot:hover .detailed { opacity: 1; }
+      .wire-mini {
+        fill: none;
+        stroke: var(--off);
+        stroke-width: 6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire-mini[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 2.5px rgba(239, 159, 39, 0.7));
+      }
+      .tbody-mini {
+        fill: #111;
+        stroke: #2a2a2a;
+        stroke-width: 2;
+        stroke-dasharray: 8 6;
+        vector-effect: non-scaling-stroke;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody-mini[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.28);
+        stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.5));
+      }
+      .tlabel-mini {
+        fill: #666;
+        font-size: 28px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle;
+        dominant-baseline: central;
+        pointer-events: none;
+        user-select: none;
+      }
+      .tbody-mini[data-on="1"] + .tlabel-mini { fill: var(--on); }
+      .walkthrough {
+        max-width: 640px;
+        width: 100%;
+        margin: 0 auto;
+        color: #b5b5b5;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14.5px;
+        line-height: 1.65;
+      }
+      .walkthrough h3 {
+        font-family: ui-monospace, monospace;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: var(--on);
+        margin: 28px 0 10px;
+        font-weight: 500;
+      }
+      .walkthrough h3:first-child { margin-top: 0; }
+      .walkthrough p { margin: 0 0 12px; }
+      .walkthrough kbd {
+        font-family: ui-monospace, monospace;
+        font-size: 12px;
+        background: #1a1a1a;
+        border: 1px solid #2a2a2a;
+        padding: 1px 8px;
+        border-radius: 999px;
+        color: #ddd;
+      }
+      .walkthrough em { color: #fff; font-style: normal; }
+      .walkthrough .accent { color: var(--on); }
+      .btn-reset {
+        background: transparent;
+        color: #555;
+        border: 1px solid #222;
+      }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/latch.html" aria-current="page">latch</a>
+      <a href="/dlatch.html">D latch</a>
+      <a href="/dff.html">DFF</a>
+      <a href="/register.html">register</a>
+      <a href="/halfadder.html">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html">4-bit adder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+        <button class="btn" id="btnS" data-on="1">S̄ 1</button>
+        <button class="btn" id="btnR" data-on="1">R̄ 1</button>
+        <button class="btn btn-reset" id="btnReset">↺ reset</button>
+      </div>
+      <svg id="latch" viewBox="-30 -20 660 440" role="img" aria-label="SR latch with v2 NANDs" preserveAspectRatio="xMidYMid meet">
+        <!-- Vdd rail (always on) -->
+        <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 600,0" />
+        <!-- GND rail (always off) -->
+        <polyline class="wire" data-net="GND" points="0,400 600,400" />
+
+        <!-- S̄ input → N1.A_in (straight horizontal at y=80) -->
+        <polyline class="wire" data-net="S" points="0,80 230,80" />
+
+        <!-- R̄ input → N2.A_in (straight horizontal at y=260) -->
+        <polyline class="wire" data-net="R" points="0,260 230,260" />
+
+        <!-- Q out: N1.Y_out (430, 100) → Q pin (600, 100) -->
+        <polyline class="wire" data-net="Q" points="430,100 600,100" />
+
+        <!-- Q̄ out: N2.Y_out (430, 280) → QB pin (600, 280) -->
+        <polyline class="wire" data-net="QB" points="430,280 600,280" />
+
+        <!-- Q feedback: N1.Y_out → N2.B_in via the corridor at y=190.
+             Right past the boxes (x=470), down to y=190, left past the LEFT edge of
+             the boxes (x=180), down to N2.B's y=320, right into N2.B at x=230. -->
+        <polyline class="wire" data-net="Q" points="430,100 470,100 470,190 180,190 180,320 230,320" />
+
+        <!-- Q̄ feedback: N2.Y_out → N1.B_in via the corridor at y=210. Mirror of Q feedback. -->
+        <polyline class="wire" data-net="QB" points="430,280 490,280 490,210 190,210 190,140 230,140" />
+
+        <!-- NAND bodies (drawn AFTER wires so the dashed outline overlays wire stubs).
+             Each NAND lives in a .nand-slot group: the simple block fades out and
+             a detailed mini-gate fades in on hover. The mini is injected by JS. -->
+        <g class="nand-slot" id="slot-n1">
+          <rect class="tbody simple-body" id="nN1" x="230" y="40" width="200" height="140" rx="10" />
+          <text class="tlabel simple-label" x="330" y="110">N1 · SET</text>
+        </g>
+        <g class="nand-slot" id="slot-n2">
+          <rect class="tbody simple-body" id="nN2" x="230" y="220" width="200" height="140" rx="10" />
+          <text class="tlabel simple-label" x="330" y="290">N2 · RESET</text>
+        </g>
+
+        <!-- Pin nodes -->
+        <circle class="pin" id="pinS"  cx="0"   cy="80"  r="7" />
+        <circle class="pin" id="pinR"  cx="0"   cy="260" r="7" />
+        <circle class="pin" id="pinQ"  cx="600" cy="100" r="7" />
+        <circle class="pin" id="pinQB" cx="600" cy="280" r="7" />
+        <text class="tlabel" x="0"   y="58"  >S̄</text>
+        <text class="tlabel" x="0"   y="282" >R̄</text>
+        <text class="tlabel" x="600" y="78"  >Q</text>
+        <text class="tlabel" x="600" y="302" >Q̄</text>
+      </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>what you're looking at</h3>
+            <p>Hit <kbd>↺ reset</kbd>. Both buttons say 1. <em>S̄</em> and <em>R̄</em> are active-LOW — momentary commands, where 1 means "no command, do nothing." The cell is storing a 0: <em>N2 glows, N1 is dim</em>.</p>
+            <p>Pause and ask: <em>how does this thing remember anything?</em> A NAND has no memory. Two NANDs shouldn't either. Look at the corridor between N1 and N2 — N2's output leaves right, crosses the middle, and comes back as an <em>input</em> to N1. The two gates are arguing, and the outputs they've settled on keep the argument balanced. <em>That</em> is the memory — not in either gate, in the loop.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click S̄ → 0</h3>
+            <p>S̄ goes dark. N1 sees a 0 on one input. Here's the NAND rule that makes everything work: <em>any 0 on the inputs forces the output to 1</em>. The 0 dominates. <span class="accent">Q lights up.</span></p>
+            <p>That fresh 1 flows out N1's right side and <em>also</em> down into N2's other input. N2 now sees two 1s, output drops to 0. <span class="accent">Q̄ goes dark.</span> The bright wire in the middle has swapped direction. The cell now holds a 1.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click S̄ → 1 — the magic moment</h3>
+            <p>Release the command. S̄ goes back to 1. <em>But Q stays high.</em></p>
+            <p>Q̄ is 0, and that 0 feeds back into N1's other input. By the NAND rule, that 0 alone locks N1's output at 1 — S̄ has nothing more to say. And Q=1 keeps both of N2's inputs high, locking N2 at 0. The loop is sustaining itself.</p>
+            <p>The command is gone. The bit stays. <em>This is the moment a piece of memory just came into existence</em>, built from two gates that individually can't remember anything.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click R̄ → 0</h3>
+            <p>The opposite command. R̄ goes dark, N2 sees a 0, the NAND rule forces N2's output to 1. <span class="accent">Q̄ lights up</span>, climbs the corridor into N1's input, N1 sees two 1s, <span class="accent">Q goes dark.</span> Symmetric to the SET case.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>click R̄ → 1</h3>
+            <p>Release. Mirror of step 3. Q=0 feeds back into N2 and locks its output at 1. The loop holds itself again. The cell stores a 0 and will sit there indefinitely.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the loop IS the memory</h3>
+            <p>Two NANDs. One loop. Two stable patterns:</p>
+            <p>&nbsp;&nbsp;<em>pattern A</em> — (N1=0, N2=1) — "storing 0"<br/>&nbsp;&nbsp;<em>pattern B</em> — (N1=1, N2=0) — "storing 1"</p>
+            <p>Both are <em>self-consistent</em> — feed those outputs back and the NANDs compute the same outputs. Fixed points of the loop. The cell sits in whichever pattern it was last knocked into.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This is the simplest possible memory. Every byte of state in every digital machine ultimately bottoms out in some flavor of this loop.</p>
+            <p>One layer up (D latch) adds a clock-gated front door. One above that (D flip-flop) pairs two latches with opposing clocks for edge-triggered capture. From there it's quantity, not concept — a few thousand in a register file, hundreds of millions in an L1 cache.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/latch.ts"></script>
+  </body>
+</html>

@@ -24,17 +24,18 @@ distribution" below.
 | A_input | data in     | (-4.0,  1.5) | LEFT   |
 | B_input | data in     | ( 4.0,  1.5) | RIGHT  |
 | Y_out   | data out    | ( 3.0,  0.5) | RIGHT  |
-| Vdd     | supply (+V) | ( 0.0,  3.0) | TOP    |
+| Vdd     | supply (+V) | ( 0.0,  3.5) | TOP    |
 | GND     | supply (0V) | ( 0.0, -3.5) | BOTTOM |
 
 ## Internal supply distribution
 
-The Vdd rail runs horizontally at y=+3 from `Vdd_rail_left` (-5, 3) to
-`Vdd_rail_right` (3, 3). The parent's Vdd (top edge) connects to this
-rail. Vertical drops from the rail feed the two PMOS sources:
+The Vdd rail runs horizontally at y=+3.5 (the scene's TOP edge) from
+`Vdd_rail_left` (-5, 3.5) to `Vdd_rail_right` (3, 3.5). The parent's
+Vdd (top edge) connects to this rail. Vertical drops from the rail
+feed the two PMOS sources:
 
-- `Vdd_tap_PA` (-1.6, 3.0) drops to P_A.source at (-1.6, 1.85)
-- `Vdd_tap_PB` ( 1.6, 3.0) drops to P_B.source at ( 1.6, 1.85)
+- `Vdd_tap_PA` (-1.6, 3.5) drops to P_A.source at (-1.6, 1.85)
+- `Vdd_tap_PB` ( 1.6, 3.5) drops to P_B.source at ( 1.6, 1.85)
 
 The GND rail runs at y=-3.5 from `GND_rail_left` (-3, -3.5) to
 `GND_rail_right` (5, -3.5). A single vertical riser feeds the bottom of
@@ -55,10 +56,10 @@ layer's scene.
 
 | child id | child layer | center (cx, cy) | box (w × h) | gate→        | source→        | drain→         |
 |----------|-------------|-----------------|-------------|--------------|----------------|----------------|
-| P_A      | transistor  | (-1.6,  1.5)    | 0.9 × 1.0   | PA_gate      | PA_source      | PA_drain       |
-| P_B      | transistor  | ( 1.6,  1.5)    | 0.9 × 1.0   | PB_gate      | PB_source      | PB_drain       |
-| N_A      | transistor  | ( 0.0, -0.6)    | 0.9 × 1.0   | NA_gate      | NA_source      | NA_drain       |
-| N_B      | transistor  | ( 0.0, -2.4)    | 0.9 × 1.0   | NB_gate      | NB_source      | NB_drain       |
+| P_A      | transistor  | (-1.6,  1.5)    | 1.0 × 1.0   | PA_gate      | PA_source      | PA_drain       |
+| P_B      | transistor  | ( 1.6,  1.5)    | 1.0 × 1.0   | PB_gate      | PB_source      | PB_drain       |
+| N_A      | transistor  | ( 0.0, -0.6)    | 1.0 × 1.0   | NA_gate      | NA_source      | NA_drain       |
+| N_B      | transistor  | ( 0.0, -2.4)    | 1.0 × 1.0   | NB_gate      | NB_source      | NB_drain       |
 
 Absorbed-terminal coords (source: `WIRE_NODES` in `nandWireGraph.ts`):
 
@@ -99,7 +100,7 @@ Internal wires (source: `WIRES` in `nandWireGraph.ts`).
 | B_tap_to_NMOS  | NB_gate        | ( 3.2, -2.4)     | B   |
 
 Helper junction nodes (not external, not directly a child terminal):
-- `Vdd_tap_PA` (-1.6, 3.0), `Vdd_tap_PB` (1.6, 3.0)
+- `Vdd_tap_PA` (-1.6, 3.5), `Vdd_tap_PB` (1.6, 3.5)
 - `Y_junction` (0, 0.5), `Y_out` (3.0, 0.5)
 - `GND_tap_NB` (0, -3.5)
 - `A_tap_to_NMOS` (-3.2, 1.5), `B_tap_to_NMOS` (3.2, 1.5)
