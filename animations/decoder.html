@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / decoder</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav { display: none; }
+      .page-layout {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px;
+      }
+      .canvas-col {
+        width: 100%;
+        display: flex; flex-direction: column; align-items: center; gap: 14px;
+      }
+      .step-panel {
+        position: relative;
+        width: 100%; max-width: 1480px;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 14px;
+        padding: 14px 24px 14px;
+        height: 180px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        display: flex; flex-direction: column;
+      }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace;
+        font-size: 15px;
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on); margin: 0 0 10px; font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 10px; color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 15px; line-height: 1.5;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace; font-size: 13px;
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 2px 8px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
+      .controls {
+        display: flex; gap: 12px; align-items: center;
+        flex-wrap: wrap; justify-content: center;
+      }
+      .btn {
+        appearance: none; background: var(--panel); color: #999;
+        border: 1px solid #222; border-radius: 999px; font: inherit;
+        font-size: 13px; padding: 8px 18px; cursor: pointer; min-width: 64px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on); color: #1a0d00; border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg {
+        display: block; background: var(--bg);
+        max-width: 100%; max-height: 55vh; width: 100%; height: auto;
+      }
+      .wire {
+        fill: none; stroke: var(--off); stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none; stroke: #fff4d6; stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 5 26; opacity: 0; pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel { fill: #777; font-size: 16px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #555; font-size: 13px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-tag { fill: var(--on); font-size: 18px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; font-weight: 500; }
+      .pin {
+        fill: var(--off); stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+      .sel-readout {
+        font-family: ui-monospace, monospace; font-size: 15px; color: #888;
+        display: flex; align-items: center; gap: 16px;
+        padding: 10px 18px; background: var(--panel);
+        border: 1px solid #222; border-radius: 999px;
+      }
+      .sel-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .sel-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.22em; }
+      .sel-readout .dec { color: #ddd; }
+      .sel-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/decoder.html" aria-current="page">decoder</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn" id="btnA1" data-on="0">a1 0</button>
+          <button class="btn" id="btnA0" data-on="0">a0 0</button>
+          <button class="btn" id="btnEN" data-on="1">EN 1</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="sel-readout">
+          <span class="label">address</span>
+          <span class="bits" id="addrBits">00</span>
+          <span class="sep">·</span>
+          <span class="label">decimal</span>
+          <span class="dec" id="addrDec">0</span>
+          <span class="sep">·</span>
+          <span class="label">one-hot</span>
+          <span class="bits" id="oneHotBits">0001</span>
+        </div>
+        <!--
+          2-to-4 decoder
+          - 2 inverters on the left produce ~a1 and ~a0
+          - 5 vertical buses carry a1, ~a1, EN, a0, ~a0
+          - 4 AND-3 gates on the right combine three buses each
+          - One sel{N} output lights up per current (a1, a0, EN) state
+        -->
+        <svg id="decoder" viewBox="0 0 1200 600" role="img"
+             aria-label="2-to-4 decoder"
+             preserveAspectRatio="xMidYMid meet">
+          <!-- Vdd / GND rails -->
+          <polyline class="wire" data-net="Vdd" data-on="1" points="40,30 1160,30" />
+          <polyline class="wire" data-net="GND" points="40,570 1160,570" />
+
+          <!-- ── Input pins (LEFT) ─────────────────────────────────────── -->
+          <circle class="pin" id="pinA1" cx="40"  cy="200" r="7" />
+          <circle class="pin" id="pinA0" cx="40"  cy="400" r="7" />
+          <circle class="pin" id="pinEN" cx="600" cy="50"  r="7" />
+          <text class="tlabel-small" x="25"  y="200">a1</text>
+          <text class="tlabel-small" x="25"  y="400">a0</text>
+          <text class="tlabel-small" x="600" y="34">EN</text>
+
+          <!-- ── a1 path: pin → tap → inverter ─────────────────────────── -->
+          <polyline class="wire" data-net="a1"    points="40,200 220,200" />
+          <polyline class="wire" data-net="a1bar" points="350,200 400,200" />
+          <!-- Inverter inv_a1 -->
+          <rect class="tbody" id="gInvA1" x="220" y="170" width="130" height="60" rx="10" />
+          <text class="tlabel" x="285" y="200">~  inv</text>
+
+          <!-- ── a0 path: pin → tap → inverter ─────────────────────────── -->
+          <polyline class="wire" data-net="a0"    points="40,400 220,400" />
+          <polyline class="wire" data-net="a0bar" points="350,400 460,400" />
+          <rect class="tbody" id="gInvA0" x="220" y="370" width="130" height="60" rx="10" />
+          <text class="tlabel" x="285" y="400">~  inv</text>
+
+          <!-- ── EN path: pin drops down ───────────────────────────────── -->
+          <polyline class="wire" data-net="EN"    points="600,50 600,540" />
+
+          <!-- ── Bus drops from a1 tap and a0 tap (vertical lanes) ────── -->
+          <!-- a1 bus: from a1 wire at (160, 200) drop down past ANDs to feed and2/and3.A inputs.
+               Path: tap at (160, 200) → continue right is already drawn (a1 wire). Branch from
+               (160, 200) down to and3.A and and2.A heights, routed at x=160 vertical lane. -->
+          <polyline class="wire" data-net="a1" points="160,200 160,120" />
+          <polyline class="wire" data-net="a1" points="160,200 160,240" />
+          <!-- a1 enters and3.A at y=120, and2.A at y=240 -->
+          <polyline class="wire" data-net="a1" points="160,120 720,120" />
+          <polyline class="wire" data-net="a1" points="160,240 720,240" />
+
+          <!-- a1bar bus: from inv_a1.Y output → vertical lane at x=400, then horizontal to and1.A and and0.A.
+               a1bar feeds and0 (sel0=~a1·~a0·EN) and and1 (sel1=~a1·a0·EN). -->
+          <polyline class="wire" data-net="a1bar" points="400,200 400,360" />
+          <polyline class="wire" data-net="a1bar" points="400,200 400,480" />
+          <polyline class="wire" data-net="a1bar" points="400,360 720,360" />
+          <polyline class="wire" data-net="a1bar" points="400,480 720,480" />
+
+          <!-- a0 bus: from a0 tap (160, 400) → vertical to and1.B and and3.B y values -->
+          <polyline class="wire" data-net="a0" points="200,400 200,140" />
+          <polyline class="wire" data-net="a0" points="200,400 200,380" />
+          <polyline class="wire" data-net="a0" points="200,140 720,140" />
+          <polyline class="wire" data-net="a0" points="200,380 720,380" />
+
+          <!-- a0bar bus: from inv_a0.Y → feeds and0.B and and2.B -->
+          <polyline class="wire" data-net="a0bar" points="460,400 460,260" />
+          <polyline class="wire" data-net="a0bar" points="460,400 460,500" />
+          <polyline class="wire" data-net="a0bar" points="460,260 720,260" />
+          <polyline class="wire" data-net="a0bar" points="460,500 720,500" />
+
+          <!-- EN bus drops: from EN_pin (600, 50) → split to all 4 ANDs' C input.
+               EN main vertical wire already at x=600 from y=50 to y=540. Take horizontal taps. -->
+          <polyline class="wire" data-net="EN" points="600,160 720,160" />
+          <polyline class="wire" data-net="EN" points="600,280 720,280" />
+          <polyline class="wire" data-net="EN" points="600,400 720,400" />
+          <polyline class="wire" data-net="EN" points="600,520 720,520" />
+
+          <!-- ── AND-3 gate boxes ──────────────────────────────────────── -->
+          <!-- and3: y range [100, 180]; inputs at y=120 (A=a1), y=140 (B=a0), y=160 (C=EN); output at y=140 -->
+          <rect class="tbody" id="gAnd3" x="720" y="100" width="130" height="80" rx="10" />
+          <text class="tlabel" x="785" y="140">AND</text>
+          <text class="tlabel-small" x="785" y="160">sel3</text>
+
+          <rect class="tbody" id="gAnd2" x="720" y="220" width="130" height="80" rx="10" />
+          <text class="tlabel" x="785" y="260">AND</text>
+          <text class="tlabel-small" x="785" y="280">sel2</text>
+
+          <rect class="tbody" id="gAnd1" x="720" y="340" width="130" height="80" rx="10" />
+          <text class="tlabel" x="785" y="380">AND</text>
+          <text class="tlabel-small" x="785" y="400">sel1</text>
+
+          <rect class="tbody" id="gAnd0" x="720" y="460" width="130" height="80" rx="10" />
+          <text class="tlabel" x="785" y="500">AND</text>
+          <text class="tlabel-small" x="785" y="520">sel0</text>
+
+          <!-- ── AND output wires → sel pins ───────────────────────────── -->
+          <polyline class="wire" data-net="sel3" points="850,140 1160,140" />
+          <polyline class="wire" data-net="sel2" points="850,260 1160,260" />
+          <polyline class="wire" data-net="sel1" points="850,380 1160,380" />
+          <polyline class="wire" data-net="sel0" points="850,500 1160,500" />
+
+          <!-- Output pins -->
+          <circle class="pin" id="pinSel3" cx="1160" cy="140" r="7" />
+          <circle class="pin" id="pinSel2" cx="1160" cy="260" r="7" />
+          <circle class="pin" id="pinSel1" cx="1160" cy="380" r="7" />
+          <circle class="pin" id="pinSel0" cx="1160" cy="500" r="7" />
+          <text class="tlabel-small" x="1175" y="124">sel3</text>
+          <text class="tlabel-small" x="1175" y="244">sel2</text>
+          <text class="tlabel-small" x="1175" y="364">sel1</text>
+          <text class="tlabel-small" x="1175" y="484">sel0</text>
+
+          <!-- Tag in the gap -->
+          <text class="tlabel-tag" x="585" y="100">2-to-4 decoder</text>
+        </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: address-to-one-hot</h3>
+            <p>A 2-bit binary number can point at one of 4 things. The decoder converts that 2-bit address into a <em>one-hot</em> signal: exactly one of <kbd>sel0..sel3</kbd> goes high, the rest stay low. Toggle <kbd>a1</kbd> and <kbd>a0</kbd>, watch the lit output move.</p>
+            <p>This is the smallest interesting routing primitive. Every register file, multiplexer, and instruction decoder uses one. It's how a CPU "picks which register to read."</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the structure: 2 inverters + 4 ANDs</h3>
+            <p>The body of the decoder is <em>2 inverters</em> (left) that produce <kbd>~a1</kbd> and <kbd>~a0</kbd>, and <em>4 three-input AND gates</em> (right) — one per output. Each AND combines a unique polarity pattern of <kbd>a1</kbd>, <kbd>a0</kbd>, and <kbd>EN</kbd>.</p>
+            <p>Five vertical buses run between them: <kbd>a1</kbd>, <kbd>~a1</kbd>, <kbd>EN</kbd>, <kbd>a0</kbd>, <kbd>~a0</kbd>. Each AND taps three of the five — the right three for that AND's polarity pattern.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>EN gates the whole thing</h3>
+            <p>Click <kbd>EN</kbd> to toggle the enable. With <kbd>EN=0</kbd>, every AND's third input is 0 — so every output drops to 0, regardless of <kbd>a1</kbd>/<kbd>a0</kbd>. The decoder is silenced.</p>
+            <p>This is what makes the decoder useful in a register file: only the cycle where you want to write a register has <kbd>EN=1</kbd>, so only then does a sel line drive a write-enable wire. Other cycles, the register file is read-only.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>walk the truth table</h3>
+            <p>Cycle through all 4 addresses (<kbd>00 → 01 → 10 → 11</kbd>) and watch the lit sel move sel0 → sel1 → sel2 → sel3. Each combination is a unique polarity tap — the decoder is just 4 hardwired AND-of-polarities, one per address.</p>
+            <p>This scales: a 5-to-32 decoder (RISC-V's register-select) uses 5 inverters + 32 five-input ANDs. Same shape, more rows.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>The decoder is the bridge between a <em>compact representation</em> (a binary number) and a <em>wire-level select</em> (one wire per target). Computers store addresses compactly because they fit in registers; circuits route via per-target wires because that's what hardware can do.</p>
+            <p>Every place these two views meet — instruction decode, register-file read/write, memory address, branch target — there's a decoder shaped exactly like this one.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/decoder.ts"></script>
+  </body>
+</html>

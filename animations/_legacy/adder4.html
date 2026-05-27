@@ -398,125 +398,98 @@
           <div class="row"><span class="label">+ B</span><span class="bits" id="bBits">0000</span><span class="dec">(<span id="bDec">0</span>)</span></div>
           <div class="row"><span class="label">=</span><span class="bits" id="sumBits">00000</span><span class="dec">(<span id="sumDec">0</span>)</span></div>
         </div>
-        <!--
-          Vertical-stack layout (FA3 top → FA0 bottom):
-          • A and B pins on the LEFT edge of canvas — preserves "LEFT = data input"
-          • S pins on the RIGHT edge — preserves "RIGHT = data output"
-          • Carry chain rises (LSB → MSB) on a column at x≈660 just right of the FAs:
-            Cin enters bottom-LEFT (FA0.Cin), each FA's Cout exits RIGHT, the chain
-            jogs OUTSIDE the right edge into the gap above, then back LEFT into the
-            next FA's Cin. Cout exits the FA3 top-right as the external Cout.
+        <svg id="adder4" viewBox="-30 -20 1280 540" role="img" aria-label="4-bit ripple-carry adder" preserveAspectRatio="xMidYMid meet">
+          <!-- Vdd / GND rails -->
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1220,0" />
+          <polyline class="wire" data-net="GND" points="0,500 1220,500" />
 
-          Each FA box: 400 × 224. Mini FA scene local: 1020 × 560.
-            sx = 400/1020 ≈ 0.392, sy = 224/560 = 0.40
-            A   local (0,100)  → external y_top + 40    (top-third left entry)
-            B   local (0,180)  → external y_top + 72    (mid-left entry)
-            Cin local (0,380)  → external y_top + 152   (low-left entry)
-            S   local (1020,100) → external y_top + 40  (top-right exit)
-            Cout local (1020,360) → external y_top + 144 (low-right exit)
-        -->
-        <svg id="adder4" viewBox="-80 -20 1170 1140"
-             role="img"
-             aria-label="4-bit ripple-carry adder, vertical layout"
-             preserveAspectRatio="xMidYMid meet">
+          <!-- Input wires (A and B): each pin drops down then enters its FA on the LEFT edge -->
+          <!-- FA0 at x=60, A_in y=225, B_in y=245 -->
+          <polyline class="wire" data-net="A0" points="25,80 25,225 60,225" />
+          <polyline class="wire" data-net="B0" points="45,130 45,245 60,245" />
+          <!-- FA1 at x=345 -->
+          <polyline class="wire" data-net="A1" points="310,80 310,225 345,225" />
+          <polyline class="wire" data-net="B1" points="330,130 330,245 345,245" />
+          <!-- FA2 at x=630 -->
+          <polyline class="wire" data-net="A2" points="595,80 595,225 630,225" />
+          <polyline class="wire" data-net="B2" points="615,130 615,245 630,245" />
+          <!-- FA3 at x=915 -->
+          <polyline class="wire" data-net="A3" points="880,80 880,225 915,225" />
+          <polyline class="wire" data-net="B3" points="900,130 900,245 915,245" />
 
-          <!-- ── A and B input wires (entering LEFT into each FA) ─────────── -->
-          <!-- FA3 (top, MSB): y_top = 20 → A at y=60, B at y=92 -->
-          <polyline class="wire" data-net="A3" points="-30,60  200,60"  />
-          <polyline class="wire" data-net="B3" points="-30,92  200,92"  />
-          <!-- FA2: y_top = 300 → A at y=340, B at y=372 -->
-          <polyline class="wire" data-net="A2" points="-30,340 200,340" />
-          <polyline class="wire" data-net="B2" points="-30,372 200,372" />
-          <!-- FA1: y_top = 580 → A at y=620, B at y=652 -->
-          <polyline class="wire" data-net="A1" points="-30,620 200,620" />
-          <polyline class="wire" data-net="B1" points="-30,652 200,652" />
-          <!-- FA0 (bottom, LSB): y_top = 860 → A at y=900, B at y=932 -->
-          <polyline class="wire" data-net="A0" points="-30,900 200,900" />
-          <polyline class="wire" data-net="B0" points="-30,932 200,932" />
+          <!-- Output S wires: from each FA's RIGHT-edge S exit, jog right then drop to S pin -->
+          <polyline class="wire" data-net="S0" points="315,225 320,225 320,460" />
+          <polyline class="wire" data-net="S1" points="600,225 605,225 605,460" />
+          <polyline class="wire" data-net="S2" points="885,225 890,225 890,460" />
+          <polyline class="wire" data-net="S3" points="1170,225 1175,225 1175,460" />
 
-          <!-- ── S output wires (exiting RIGHT from each FA) ──────────────── -->
-          <polyline class="wire" data-net="S3" points="600,60  900,60"  />
-          <polyline class="wire" data-net="S2" points="600,340 900,340" />
-          <polyline class="wire" data-net="S1" points="600,620 900,620" />
-          <polyline class="wire" data-net="S0" points="600,900 900,900" />
+          <!-- Carry chain (left → right, LSB → MSB): external Cin enters FA0; each Cout feeds the next Cin -->
+          <polyline class="wire" data-net="Cin"  points="0,295 60,295" />
+          <polyline class="wire" data-net="C01"  points="315,290 330,290 330,295 345,295" />
+          <polyline class="wire" data-net="C12"  points="600,290 615,290 615,295 630,295" />
+          <polyline class="wire" data-net="C23"  points="885,290 900,290 900,295 915,295" />
+          <polyline class="wire" data-net="Cout" points="1170,290 1220,290" />
 
-          <!-- ── Carry chain (rising LSB → MSB on the right) ──────────────── -->
-          <!-- External Cin → FA0.Cin (enters FA0 from the LEFT at y=1012) -->
-          <polyline class="wire" data-net="Cin"  points="-30,1012 200,1012" />
-          <!--
-            Carry rail lives at x=970 — past the S exits at x=900, so S wires
-            and the rising carry never visually collide.
-              FA_n.Cout (600, y_top_n + 144)
-                → right to rail at x=970, same y
-                → climb UP to crossing-y in the gap between FA_n and FA_(n+1)
-                → cross LEFT across the canvas to x=180 (just outside FA_(n+1) left edge)
-                → climb to FA_(n+1).Cin level (y_top_(n+1) + 152)
-                → short stub right into FA_(n+1)
-          -->
-          <polyline class="wire" data-net="C01"  points="600,1004 970,1004 970,832 180,832 180,732 200,732" />
-          <polyline class="wire" data-net="C12"  points="600,724  970,724  970,552 180,552 180,452 200,452" />
-          <polyline class="wire" data-net="C23"  points="600,444  970,444  970,272 180,272 180,172 200,172" />
-          <!-- FA3.Cout → external Cout (direct RIGHT exit, doesn't need the rail) -->
-          <polyline class="wire" data-net="Cout" points="600,164  1000,164" />
-
-          <!-- ── FA boxes — FA3 top, FA0 bottom (LSB at bottom) ───────────── -->
-          <g class="fa-slot" id="slot-fa3" tabindex="0" role="button">
-            <rect class="tbody simple-body" id="gFa3" x="200" y="20"  width="400" height="224" rx="12" />
-            <text class="tlabel simple-label" x="400" y="118">FA3</text>
-            <text class="tlabel-small simple-label" x="400" y="148">bit 3 (MSB)</text>
-          </g>
-          <g class="fa-slot" id="slot-fa2" tabindex="0" role="button">
-            <rect class="tbody simple-body" id="gFa2" x="200" y="300" width="400" height="224" rx="12" />
-            <text class="tlabel simple-label" x="400" y="398">FA2</text>
-            <text class="tlabel-small simple-label" x="400" y="428">bit 2</text>
+          <!-- FA boxes — FA0 leftmost (LSB) so the carry chain flows naturally left → right.
+               Each box is 255 × 140 (aspect 1.82, exactly matching the standalone FA scene),
+               so the mini interior scales uniformly. -->
+          <g class="fa-slot" id="slot-fa0" tabindex="0" role="button">
+            <rect class="tbody simple-body" id="gFa0" x="60" y="200" width="255" height="140" rx="10" />
+            <text class="tlabel simple-label" x="187" y="265">FA0</text>
+            <text class="tlabel-small simple-label" x="187" y="295">bit 0 (LSB)</text>
           </g>
           <g class="fa-slot" id="slot-fa1" tabindex="0" role="button">
-            <rect class="tbody simple-body" id="gFa1" x="200" y="580" width="400" height="224" rx="12" />
-            <text class="tlabel simple-label" x="400" y="678">FA1</text>
-            <text class="tlabel-small simple-label" x="400" y="708">bit 1</text>
+            <rect class="tbody simple-body" id="gFa1" x="345" y="200" width="255" height="140" rx="10" />
+            <text class="tlabel simple-label" x="472" y="265">FA1</text>
+            <text class="tlabel-small simple-label" x="472" y="295">bit 1</text>
           </g>
-          <g class="fa-slot" id="slot-fa0" tabindex="0" role="button">
-            <rect class="tbody simple-body" id="gFa0" x="200" y="860" width="400" height="224" rx="12" />
-            <text class="tlabel simple-label" x="400" y="958">FA0</text>
-            <text class="tlabel-small simple-label" x="400" y="988">bit 0 (LSB)</text>
+          <g class="fa-slot" id="slot-fa2" tabindex="0" role="button">
+            <rect class="tbody simple-body" id="gFa2" x="630" y="200" width="255" height="140" rx="10" />
+            <text class="tlabel simple-label" x="757" y="265">FA2</text>
+            <text class="tlabel-small simple-label" x="757" y="295">bit 2</text>
+          </g>
+          <g class="fa-slot" id="slot-fa3" tabindex="0" role="button">
+            <rect class="tbody simple-body" id="gFa3" x="915" y="200" width="255" height="140" rx="10" />
+            <text class="tlabel simple-label" x="1042" y="265">FA3</text>
+            <text class="tlabel-small simple-label" x="1042" y="295">bit 3 (MSB)</text>
           </g>
 
           <!-- Carry wire labels (visible markers for the prose) -->
-          <text class="tlabel-small" x="990" y="900">C01</text>
-          <text class="tlabel-small" x="990" y="620">C12</text>
-          <text class="tlabel-small" x="990" y="340">C23</text>
+          <text class="tlabel-small" x="15"   y="278">Cin</text>
+          <text class="tlabel-small" x="330"  y="278">C01</text>
+          <text class="tlabel-small" x="615"  y="278">C12</text>
+          <text class="tlabel-small" x="900"  y="278">C23</text>
+          <text class="tlabel-small" x="1205" y="278">Cout</text>
 
-          <!-- ── Pin nodes ─────────────────────────────────────────────────── -->
-          <circle class="pin" id="pinA3"  cx="-30" cy="60"   r="7" />
-          <circle class="pin" id="pinB3"  cx="-30" cy="92"   r="7" />
-          <circle class="pin" id="pinA2"  cx="-30" cy="340"  r="7" />
-          <circle class="pin" id="pinB2"  cx="-30" cy="372"  r="7" />
-          <circle class="pin" id="pinA1"  cx="-30" cy="620"  r="7" />
-          <circle class="pin" id="pinB1"  cx="-30" cy="652"  r="7" />
-          <circle class="pin" id="pinA0"  cx="-30" cy="900"  r="7" />
-          <circle class="pin" id="pinB0"  cx="-30" cy="932"  r="7" />
-          <circle class="pin" id="pinS3"  cx="900" cy="60"   r="7" />
-          <circle class="pin" id="pinS2"  cx="900" cy="340"  r="7" />
-          <circle class="pin" id="pinS1"  cx="900" cy="620"  r="7" />
-          <circle class="pin" id="pinS0"  cx="900" cy="900"  r="7" />
-          <circle class="pin" id="pinCin"  cx="-30" cy="1012" r="7" />
-          <circle class="pin" id="pinCout" cx="1000" cy="164" r="7" />
+          <!-- Pin nodes -->
+          <circle class="pin" id="pinA0" cx="25"   cy="80"  r="7" />
+          <circle class="pin" id="pinB0" cx="45"   cy="130" r="7" />
+          <circle class="pin" id="pinA1" cx="310"  cy="80"  r="7" />
+          <circle class="pin" id="pinB1" cx="330"  cy="130" r="7" />
+          <circle class="pin" id="pinA2" cx="595"  cy="80"  r="7" />
+          <circle class="pin" id="pinB2" cx="615"  cy="130" r="7" />
+          <circle class="pin" id="pinA3" cx="880"  cy="80"  r="7" />
+          <circle class="pin" id="pinB3" cx="900"  cy="130" r="7" />
+          <circle class="pin" id="pinS0" cx="320"  cy="460" r="7" />
+          <circle class="pin" id="pinS1" cx="605"  cy="460" r="7" />
+          <circle class="pin" id="pinS2" cx="890"  cy="460" r="7" />
+          <circle class="pin" id="pinS3" cx="1175" cy="460" r="7" />
+          <circle class="pin" id="pinCin"  cx="0"    cy="295" r="7" />
+          <circle class="pin" id="pinCout" cx="1220" cy="290" r="7" />
 
-          <!-- Pin labels (just outside the canvas edge) -->
-          <text class="tlabel-small" x="-50" y="60">A3</text>
-          <text class="tlabel-small" x="-50" y="92">B3</text>
-          <text class="tlabel-small" x="-50" y="340">A2</text>
-          <text class="tlabel-small" x="-50" y="372">B2</text>
-          <text class="tlabel-small" x="-50" y="620">A1</text>
-          <text class="tlabel-small" x="-50" y="652">B1</text>
-          <text class="tlabel-small" x="-50" y="900">A0</text>
-          <text class="tlabel-small" x="-50" y="932">B0</text>
-          <text class="tlabel-small" x="-55" y="1012">Cin</text>
-          <text class="tlabel-small" x="920" y="60">S3</text>
-          <text class="tlabel-small" x="920" y="340">S2</text>
-          <text class="tlabel-small" x="920" y="620">S1</text>
-          <text class="tlabel-small" x="920" y="900">S0</text>
-          <text class="tlabel-small" x="1010" y="148">Cout</text>
+          <!-- Pin labels -->
+          <text class="tlabel-small" x="25"   y="60" >A0</text>
+          <text class="tlabel-small" x="45"   y="148">B0</text>
+          <text class="tlabel-small" x="310"  y="60" >A1</text>
+          <text class="tlabel-small" x="330"  y="148">B1</text>
+          <text class="tlabel-small" x="595"  y="60" >A2</text>
+          <text class="tlabel-small" x="615"  y="148">B2</text>
+          <text class="tlabel-small" x="880"  y="60" >A3</text>
+          <text class="tlabel-small" x="900"  y="148">B3</text>
+          <text class="tlabel-small" x="320"  y="478">S0</text>
+          <text class="tlabel-small" x="605"  y="478">S1</text>
+          <text class="tlabel-small" x="890"  y="478">S2</text>
+          <text class="tlabel-small" x="1175" y="478">S3</text>
         </svg>
       </div>
       <aside class="step-panel">
@@ -532,7 +505,7 @@
             <h3>where we are: a complete adder, end-to-end</h3>
             <p>Chain four of the full adders from the previous page. Each carry-out feeds the next carry-in. You can now add two 4-bit binary numbers and get a 5-bit result. This is a complete arithmetic circuit, end-to-end.</p>
             <p>Real CPUs use 32 or 64 bits per number; the only difference is more FAs in the chain. The pattern — chain of bit-slices, carries propagating LSB → MSB — is what every CPU's integer add ultimately runs.</p>
-            <p>FA0 at the bottom (LSB), FA3 at the top (MSB). Each FA's A and B inputs come in from the LEFT; each S exits to the RIGHT; the carry chain (C01, C12, C23) climbs LSB → MSB on the right side. Type two 4-bit numbers using A and B, then watch the carry ripple <em>up</em>.</p>
+            <p>FA0 on the left (LSB), FA3 on the right (MSB), with the carry chain (C01, C12, C23) between them. Type two 4-bit numbers using A and B, then watch the carry ripple.</p>
           </article>
           <article class="step" hidden>
             <h3>0 + 0 = 0</h3>
@@ -550,7 +523,7 @@
             <h3>5 + 3 = 1000 — multi-stage ripple</h3>
             <p>Set A = 0101 (<kbd>A2</kbd>, <kbd>A0</kbd>) and B = 0011 (<kbd>B1</kbd>, <kbd>B0</kbd>). A is 5, B is 3.</p>
             <p><em>FA0</em>: 1+1+0 = 10. S0=0, <em>C01 fires.</em><br/><em>FA1</em>: 0+1+1 = 10. S1=0, <em>C12 fires.</em><br/><em>FA2</em>: 1+0+1 = 10. S2=0, <em>C23 fires.</em><br/><em>FA3</em>: 0+0+1 = 1. S3=1, no Cout.</p>
-            <p>Result: <em>1000 = 8</em>. <span class="accent">Three carries in a row</span> — the carry "rippled" all the way <em>up</em> from FA0 to FA3.</p>
+            <p>Result: <em>1000 = 8</em>. <span class="accent">Three carries in a row</span> — the carry "rippled" all the way from FA0 across to FA3.</p>
           </article>
           <article class="step" hidden>
             <h3>15 + 1 = 10000 — max overflow</h3>

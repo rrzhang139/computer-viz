@@ -1,3 +1,6 @@
+import { initPanel } from "./panel";
+import { initToc } from "./toc";
+import { readBitParam, initDrillBreadcrumb } from "./drillContext";
 // Same logic as src/main.ts (NAND truth table). Only the SVG topology changes.
 
 type Bit = 0 | 1;
@@ -6,8 +9,10 @@ const btnA = document.getElementById('btnA') as HTMLButtonElement;
 const btnB = document.getElementById('btnB') as HTMLButtonElement;
 const svg = document.getElementById('gate') as unknown as SVGSVGElement;
 
-let A: Bit = 0;
-let B: Bit = 0;
+// Drill-down support: when arrived from a parent layer (e.g. /latch.html
+// clicked on slot-n1), initialize A and B from the URL ?A=… &B=…
+let A: Bit = readBitParam('A', 0);
+let B: Bit = readBitParam('B', 0);
 
 const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
@@ -97,3 +102,7 @@ function showStep(i: number) {
 stepPrev.addEventListener('click', () => showStep(currentStep - 1));
 stepNext.addEventListener('click', () => showStep(currentStep + 1));
 showStep(0);
+
+initPanel();
+initToc();
+initDrillBreadcrumb();

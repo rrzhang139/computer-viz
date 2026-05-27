@@ -1,3 +1,9 @@
+import { initPanel } from "./panel";
+import { initToc } from "./toc";
+import {
+  buildDrillUrl, readBitParam, initDrillBreadcrumb,
+  loadSnapshot, saveSnapshot, clearSnapshot,
+} from "./drillContext";
 // DFF (master-slave D flip-flop):
 //   - master D latch is transparent when CLK = 0 (its EN = !CLK)
 //   - slave  D latch is transparent when CLK = 1 (its EN =  CLK)
@@ -13,11 +19,17 @@ const btnPulse = document.getElementById('btnPulse') as HTMLButtonElement;
 const btnReset = document.getElementById('btnReset') as HTMLButtonElement;
 const svg      = document.getElementById('dff')      as unknown as SVGSVGElement;
 
-let D: Bit = 0;
-let CLK: Bit = 0;
+type DffSnap = { D: Bit; CLK: Bit; Q: Bit };
+const SNAP_KEY = 'dff';
+const _snap = loadSnapshot<DffSnap>(SNAP_KEY);
+let D: Bit = readBitParam('D', _snap?.D ?? 0);
+let CLK: Bit = readBitParam('CLK', _snap?.CLK ?? 0);
+// Initial Q state — set when drilled-in from register, so the DFF shows
+// the bit's current stored value without needing a CLK pulse first.
+const _initialQ: Bit = readBitParam('Q', _snap?.Q ?? 0);
 // Master and slave latch internal states.
-let Qm: Bit = 0;  let QBm: Bit = 1;
-let Q:  Bit = 0;  let QB:  Bit = 1;
+let Qm: Bit = _initialQ;  let QBm: Bit = (_initialQ === 0 ? 1 : 0) as Bit;
+let Q:  Bit = _initialQ;  let QB:  Bit = QBm;
 
 // Each D latch settles by:
 //   Sbar = NAND(input, EN)
@@ -192,19 +204,38 @@ function render() {
   setBtn(btnCLK, 'CLK', CLK);
 }
 
-btnD.addEventListener('click', () => { D = D === 0 ? 1 : 0; render(); });
-btnCLK.addEventListener('click', () => { CLK = CLK === 0 ? 1 : 0; render(); });
+function persist() { saveSnapshot<DffSnap>(SNAP_KEY, { D, CLK, Q }); }
+
+btnD.addEventListener('click', () => { D = D === 0 ? 1 : 0; render(); persist(); });
+btnCLK.addEventListener('click', () => { CLK = CLK === 0 ? 1 : 0; render(); persist(); });
 btnPulse.addEventListener('click', () => {
-  // CLK: 0 → 1 → 0, with visible pauses so the rising edge feels dramatic.
   CLK = 0; render();
-  setTimeout(() => { CLK = 1; render(); }, 500);
-  setTimeout(() => { CLK = 0; render(); }, 1100);
+  setTimeout(() => { CLK = 1; render(); persist(); }, 500);
+  setTimeout(() => { CLK = 0; render(); persist(); }, 1100);
 });
 btnReset.addEventListener('click', () => {
   D = 0; CLK = 0;
   Qm = 0; QBm = 1; Q = 0; QB = 1;
+  clearSnapshot(SNAP_KEY);
   render();
 });
+
+// ── Drill-down to children (master / slave D latches) ────────────────
+// master D latch: D_in = D, EN = !CLK
+// slave  D latch: D_in = Qm (master output), EN = CLK
+document.getElementById('slot-master')?.addEventListener('click', () => {
+  const notCLK: Bit = (CLK === 0 ? 1 : 0) as Bit;
+  window.location.assign(buildDrillUrl('/dlatch.html', {
+    from: 'dff', which: 'master', D, EN: notCLK,
+  }));
+});
+document.getElementById('slot-slave')?.addEventListener('click', () => {
+  window.location.assign(buildDrillUrl('/dlatch.html', {
+    from: 'dff', which: 'slave', D: Qm, EN: CLK,
+  }));
+});
+
+initDrillBreadcrumb();
 
 render();
 
@@ -226,3 +257,6 @@ function showStep(i: number) {
 stepPrev.addEventListener('click', () => showStep(currentStep - 1));
 stepNext.addEventListener('click', () => showStep(currentStep + 1));
 showStep(0);
+
+initPanel();
+initToc();

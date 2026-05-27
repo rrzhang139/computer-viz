@@ -31,61 +31,77 @@
       .nav a[aria-current="page"] { color: var(--on); }
       .nav a:hover { color: #aaa; }
       .page-layout {
-        display: flex; gap: 24px;
-        padding: 14px 16px 20px; max-width: 1480px;
-        margin: 0 auto; align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 14px 16px 20px;
+        max-width: 100%;
+        margin: 0 auto;
+        gap: 14px;
       }
       .canvas-col {
-        flex: 1; min-width: 0;
+        width: 100%;
         display: flex; flex-direction: column;
         align-items: center; gap: 14px;
       }
       .step-panel {
-        width: 380px; flex-shrink: 0;
+        position: relative;
+        width: 100%; max-width: 1480px;
         background: var(--panel);
         border: 1px solid #1f1f1f;
-        border-radius: 16px;
-        padding: 24px 28px;
-        position: sticky; top: 14px;
-        max-height: calc(100vh - 28px);
+        border-radius: 14px;
+        padding: 14px 24px 14px;
+        height: 180px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
         display: flex; flex-direction: column;
       }
+      .drag-handle { all: unset; }
       .step-meta {
-        font-family: ui-monospace, monospace; font-size: 13px;
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
         color: #666; letter-spacing: 0.18em; text-transform: uppercase;
-        margin-bottom: 14px;
+        margin: 0 0 10px;
       }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
       .step[hidden] { display: none; }
       .step h3 {
-        font-family: ui-monospace, monospace; font-size: 18px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(15px * var(--content-scale, 1));
         text-transform: uppercase; letter-spacing: 0.14em;
-        color: var(--on); margin: 0 0 16px; font-weight: 500;
+        color: var(--on);
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        font-weight: 500;
       }
       .step p {
-        margin: 0 0 14px; color: #cccccc;
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        color: #cccccc;
         font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 18px; line-height: 1.6;
+        font-size: calc(15px * var(--content-scale, 1));
+        line-height: 1.5;
       }
       .step p:last-child { margin-bottom: 0; }
       .step kbd {
-        font-family: ui-monospace, monospace; font-size: 15px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(13px * var(--content-scale, 1));
         background: #1a1a1a; border: 1px solid #2a2a2a;
-        padding: 3px 9px; border-radius: 999px; color: #ddd;
+        padding: 2px 8px;
+        border-radius: 999px; color: #ddd;
       }
       .step em { color: #fff; font-style: normal; }
       .step .accent { color: var(--on); }
       .step-nav {
-        display: flex; gap: 8px; justify-content: space-between;
-        margin-bottom: 16px;
+        position: absolute;
+        top: 12px; right: 24px;
+        display: flex; gap: 8px;
+        margin: 0;
       }
       .step-nav .btn {
-        min-width: 108px; font-size: 14px; padding: 10px 18px;
+        min-width: 90px;
+        font-size: 13px;
+        padding: 7px 14px;
       }
-      .step-nav .btn:disabled {
-        opacity: 0.35; cursor: not-allowed; box-shadow: none;
-      }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
       .controls { display: flex; gap: 12px; align-items: center; }
       .btn {
         appearance: none;
@@ -110,7 +126,7 @@
         display: block;
         background: var(--bg);
         max-width: 100%;
-        max-height: 70vh;
+        max-height: 55vh;
         width: 100%;
         height: auto;
       }
@@ -181,17 +197,27 @@
       .nand-slot .simple-body,
       .nand-slot .simple-label {
         transition: opacity 200ms;
-      }
-      .nand-slot:hover .simple-body,
-      .nand-slot:hover .simple-label {
+      }.nand-slot:hover .simple-body,
+      .nand-slot:focus-within .simple-body,
+      .nand-slot.is-active .simple-body,
+      .nand-slot:focus-within .simple-body,
+      .nand-slot.is-active .simple-body,
+      .nand-slot:hover .simple-label,
+      .nand-slot:focus-within .simple-label,
+      .nand-slot.is-active .simple-label,
+      .nand-slot:focus-within .simple-label,
+      .nand-slot.is-active .simple-label {
         opacity: 0;
       }
       .detailed {
         opacity: 0;
         pointer-events: none;
         transition: opacity 200ms;
-      }
-      .nand-slot:hover .detailed { opacity: 1; }
+      }.nand-slot:hover .detailed,
+      .nand-slot:focus-within .detailed,
+      .nand-slot.is-active .detailed,
+      .nand-slot:focus-within .detailed,
+      .nand-slot.is-active .detailed { opacity: 1; }
       .wire-mini {
         fill: none;
         stroke: var(--off);
@@ -266,6 +292,125 @@
         border: 1px solid #222;
       }
       .btn-reset:hover { color: #aaa; border-color: #333; }
+      /* ── Responsive / mobile additions ───────────────────────────────── */
+
+      /* Make every percentage-width container respect its width budget. */
+      *, *::before, *::after { box-sizing: border-box; }
+
+      .nav {
+        flex-wrap: wrap;
+        row-gap: 6px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .child-slot,
+      .fa-slot,
+      .gate-slot,
+      .nand-slot,
+      .dff-slot { outline: none; cursor: pointer; }
+
+      /* Touch devices (no hover): always use larger tap targets,
+         regardless of viewport width. */
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn,
+        .controls-row .btn,
+        .step-nav .btn {
+          min-height: 44px;
+          padding: 10px 14px;
+          font-size: 14px;
+        }
+        /* Slot focus shows the detail on tap (handled by selector expansion). */
+        .child-slot:focus-visible,
+        .fa-slot:focus-visible,
+        .gate-slot:focus-visible,
+        .nand-slot:focus-visible,
+        .dff-slot:focus-visible { outline: none; }
+      }
+
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .nav { font-size: 11px; gap: 10px; padding-top: 10px; }
+        .step-panel {
+          height: auto;
+          min-height: 180px;
+          padding: 12px 16px 14px;
+        }
+        .step-nav {
+          position: static;
+          margin: 0 0 8px;
+          justify-content: flex-end;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .nav {
+          font-size: 12px;
+          gap: 8px;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          justify-content: flex-start;
+          padding: 12px 12px 4px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .nav::-webkit-scrollbar { display: none; }
+        .nav a { flex: 0 0 auto; padding: 6px 4px; }
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn,
+        .controls-row .btn {
+          min-height: 44px;
+          min-width: 56px;
+          font-size: 14px;
+          padding: 10px 14px;
+        }
+        .step-panel {
+          height: auto;
+          min-height: 0;
+          padding: 12px 14px 14px;
+        }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: calc(14px * var(--content-scale, 1)); }
+        .step p { font-size: calc(14px * var(--content-scale, 1)); }
+        .step-nav {
+          position: static;
+          margin: 8px 0 10px;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+        .step-nav .btn {
+          min-height: 44px;
+          min-width: 80px;
+        }
+        svg { max-height: 50vh; }
+        .word-display {
+          font-size: 12px !important;
+          flex-wrap: wrap;
+          row-gap: 6px;
+          padding: 8px 12px !important;
+        }
+      }
+
+      @media (max-width: 380px) {
+        .controls .btn,
+        .controls-row .btn { min-width: 48px; padding: 10px 10px; font-size: 13px; }
+        .controls-row .label { min-width: 20px !important; font-size: 12px !important; }
+      }
+
+      @media (min-width: 1700px) {
+        .canvas-col { max-width: 1480px; }
+      }
+
+      @media (hover: none) {
+        .child-slot:focus,
+        .fa-slot:focus,
+        .gate-slot:focus,
+        .nand-slot:focus,
+        .dff-slot:focus { outline: none; }
+      }
+
     </style>
   </head>
   <body>
@@ -315,11 +460,11 @@
         <!-- NAND bodies (drawn AFTER wires so the dashed outline overlays wire stubs).
              Each NAND lives in a .nand-slot group: the simple block fades out and
              a detailed mini-gate fades in on hover. The mini is injected by JS. -->
-        <g class="nand-slot" id="slot-n1">
+        <g class="nand-slot" id="slot-n1" tabindex="0" role="button">
           <rect class="tbody simple-body" id="nN1" x="230" y="40" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="330" y="110">N1 · SET</text>
         </g>
-        <g class="nand-slot" id="slot-n2">
+        <g class="nand-slot" id="slot-n2" tabindex="0" role="button">
           <rect class="tbody simple-body" id="nN2" x="230" y="220" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="330" y="290">N2 · RESET</text>
         </g>
@@ -336,7 +481,7 @@
       </svg>
       </div>
       <aside class="step-panel">
-        <div class="step-meta">
+        <div class="step-meta drag-handle">
           <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span>
         </div>
         <div class="step-nav">
@@ -345,9 +490,10 @@
         </div>
         <div class="step-bodies">
           <article class="step">
-            <h3>what you're looking at</h3>
-            <p>Hit <kbd>↺ reset</kbd>. Both buttons say 1. <em>S̄</em> and <em>R̄</em> are active-LOW — momentary commands, where 1 means "no command, do nothing." The cell is storing a 0: <em>N2 glows, N1 is dim</em>.</p>
-            <p>Pause and ask: <em>how does this thing remember anything?</em> A NAND has no memory. Two NANDs shouldn't either. Look at the corridor between N1 and N2 — N2's output leaves right, crosses the middle, and comes back as an <em>input</em> to N1. The two gates are arguing, and the outputs they've settled on keep the argument balanced. <em>That</em> is the memory — not in either gate, in the loop.</p>
+            <h3>where we are: from "compute" to "remember"</h3>
+            <p>The NAND on the previous page was <em>stateless</em> — same inputs, same output, no memory of the past. This page does something paradoxical: it wires two of those memoryless gates into a loop, and the result <em>remembers</em>.</p>
+            <p>There's no special memory cell anywhere — just two stateless gates whose outputs feed each other's inputs. The wiring creates two self-consistent patterns, and once knocked into one, the loop holds itself indefinitely. This is the seed of <em>all</em> digital memory.</p>
+            <p>Two NANDs (N1, N2), cross-coupled in the middle. Active-low commands S̄ and R̄ knock the loop into one stable state or the other.</p>
           </article>
           <article class="step" hidden>
             <h3>click S̄ → 0</h3>

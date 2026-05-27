@@ -1,9 +1,5 @@
 import { initPanel } from "./panel";
 import { initToc } from "./toc";
-import {
-  buildDrillUrl, readBitParam, initDrillBreadcrumb,
-  loadSnapshot, saveSnapshot, clearSnapshot,
-} from "./drillContext";
 // Full adder: A + B + Cin → (S, Cout)
 //   sum1   = A XOR B          (HA1's sum)
 //   carry1 = A AND B          (HA1's carry)
@@ -25,12 +21,9 @@ const svg = document.getElementById('fulladder') as unknown as SVGSVGElement;
 const sumDisplay = document.getElementById('sumDisplay')!;
 const coutDisplay = document.getElementById('coutDisplay')!;
 
-type FaSnap = { A: Bit; B: Bit; Cin: Bit };
-const SNAP_KEY = 'fulladder';
-const _snap = loadSnapshot<FaSnap>(SNAP_KEY);
-let A: Bit = readBitParam('A', _snap?.A ?? 0);
-let B: Bit = readBitParam('B', _snap?.B ?? 0);
-let Cin: Bit = readBitParam('Cin', _snap?.Cin ?? 0);
+let A: Bit = 0;
+let B: Bit = 0;
+let Cin: Bit = 0;
 
 // ── HA mini geometry ──────────────────────────────────────────────────
 // Local coords match the HA box (240 × 160). Inside: two stylized sub-boxes
@@ -273,37 +266,10 @@ function render() {
   setBtn(btnCin, 'Cin', Cin);
 }
 
-function persist() { saveSnapshot<FaSnap>(SNAP_KEY, { A, B, Cin }); }
-btnA.addEventListener('click',   () => { A   = A   === 0 ? 1 : 0; render(); persist(); });
-btnB.addEventListener('click',   () => { B   = B   === 0 ? 1 : 0; render(); persist(); });
-btnCin.addEventListener('click', () => { Cin = Cin === 0 ? 1 : 0; render(); persist(); });
-btnReset.addEventListener('click', () => {
-  A = 0; B = 0; Cin = 0;
-  clearSnapshot(SNAP_KEY);
-  render();
-});
-
-// ── Drill-down to children ───────────────────────────────────────────
-// HA1 takes (A, B) directly, produces sum1 and carry1.
-// HA2 takes (sum1, Cin), produces S (final sum) and carry2.
-// OR  takes (carry1, carry2), produces Cout.
-document.getElementById('slot-ha1')?.addEventListener('click', () => {
-  window.location.assign(buildDrillUrl('/halfadder.html', {
-    from: 'fulladder', which: 'HA1', A, B,
-  }));
-});
-document.getElementById('slot-ha2')?.addEventListener('click', () => {
-  const sum1: Bit = ((A ^ B) & 1) as Bit;
-  window.location.assign(buildDrillUrl('/halfadder.html', {
-    from: 'fulladder', which: 'HA2', A: sum1, B: Cin,
-  }));
-});
-// The OR gate doesn't have its own dedicated page (we only have /index.html
-// for NAND), so no drill-down on slot-or. Hovering still reveals the OR's
-// internal representation via CSS; clicks just no-op.
-document.getElementById('slot-or')?.style.setProperty('cursor', 'default');
-
-initDrillBreadcrumb();
+btnA.addEventListener('click',   () => { A   = A   === 0 ? 1 : 0; render(); });
+btnB.addEventListener('click',   () => { B   = B   === 0 ? 1 : 0; render(); });
+btnCin.addEventListener('click', () => { Cin = Cin === 0 ? 1 : 0; render(); });
+btnReset.addEventListener('click', () => { A = 0; B = 0; Cin = 0; render(); });
 
 render();
 

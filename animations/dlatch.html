@@ -24,61 +24,77 @@
       .nav a[aria-current="page"] { color: var(--on); }
       .nav a:hover { color: #aaa; }
       .page-layout {
-        display: flex; gap: 24px;
-        padding: 14px 16px 20px; max-width: 1480px;
-        margin: 0 auto; align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 14px 16px 20px;
+        max-width: 100%;
+        margin: 0 auto;
+        gap: 14px;
       }
       .canvas-col {
-        flex: 1; min-width: 0;
+        width: 100%;
         display: flex; flex-direction: column;
         align-items: center; gap: 14px;
       }
       .step-panel {
-        width: 380px; flex-shrink: 0;
+        position: relative;
+        width: 100%; max-width: 1480px;
         background: var(--panel);
         border: 1px solid #1f1f1f;
-        border-radius: 16px;
-        padding: 24px 28px;
-        position: sticky; top: 14px;
-        max-height: calc(100vh - 28px);
+        border-radius: 14px;
+        padding: 14px 24px 14px;
+        height: 180px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
         display: flex; flex-direction: column;
       }
+      .drag-handle { all: unset; }
       .step-meta {
-        font-family: ui-monospace, monospace; font-size: 13px;
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
         color: #666; letter-spacing: 0.18em; text-transform: uppercase;
-        margin-bottom: 14px;
+        margin: 0 0 10px;
       }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
       .step[hidden] { display: none; }
       .step h3 {
-        font-family: ui-monospace, monospace; font-size: 18px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(15px * var(--content-scale, 1));
         text-transform: uppercase; letter-spacing: 0.14em;
-        color: var(--on); margin: 0 0 16px; font-weight: 500;
+        color: var(--on);
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        font-weight: 500;
       }
       .step p {
-        margin: 0 0 14px; color: #cccccc;
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        color: #cccccc;
         font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 18px; line-height: 1.6;
+        font-size: calc(15px * var(--content-scale, 1));
+        line-height: 1.5;
       }
       .step p:last-child { margin-bottom: 0; }
       .step kbd {
-        font-family: ui-monospace, monospace; font-size: 15px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(13px * var(--content-scale, 1));
         background: #1a1a1a; border: 1px solid #2a2a2a;
-        padding: 3px 9px; border-radius: 999px; color: #ddd;
+        padding: 2px 8px;
+        border-radius: 999px; color: #ddd;
       }
       .step em { color: #fff; font-style: normal; }
       .step .accent { color: var(--on); }
       .step-nav {
-        display: flex; gap: 8px; justify-content: space-between;
-        margin-bottom: 16px;
+        position: absolute;
+        top: 12px; right: 24px;
+        display: flex; gap: 8px;
+        margin: 0;
       }
       .step-nav .btn {
-        min-width: 108px; font-size: 14px; padding: 10px 18px;
+        min-width: 90px;
+        font-size: 13px;
+        padding: 7px 14px;
       }
-      .step-nav .btn:disabled {
-        opacity: 0.35; cursor: not-allowed; box-shadow: none;
-      }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
       .controls { display: flex; gap: 12px; align-items: center; }
       .btn {
         appearance: none; background: var(--panel); color: #999;
@@ -93,7 +109,7 @@
       }
       svg {
         display: block; background: var(--bg);
-        max-width: 100%; max-height: 70vh;
+        max-width: 100%; max-height: 55vh;
         width: 100%; height: auto;
       }
       .wire {
@@ -146,11 +162,21 @@
       .child-slot .simple-body,
       .child-slot .simple-label {
         transition: opacity 200ms;
-      }
-      .child-slot:hover .simple-body,
-      .child-slot:hover .simple-label { opacity: 0; }
-      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
-      .child-slot:hover .detailed { opacity: 1; }
+      }.child-slot:hover .simple-body,
+      .child-slot:focus-within .simple-body,
+      .child-slot.is-active .simple-body,
+      .child-slot:focus-within .simple-body,
+      .child-slot.is-active .simple-body,
+      .child-slot:hover .simple-label,
+      .child-slot:focus-within .simple-label,
+      .child-slot.is-active .simple-label,
+      .child-slot:focus-within .simple-label,
+      .child-slot.is-active .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }.child-slot:hover .detailed,
+      .child-slot:focus-within .detailed,
+      .child-slot.is-active .detailed,
+      .child-slot:focus-within .detailed,
+      .child-slot.is-active .detailed { opacity: 1; }
       .wire-mini {
         fill: none; stroke: var(--off); stroke-width: 6;
         stroke-linecap: round; stroke-linejoin: round;
@@ -202,6 +228,125 @@
         background: transparent; color: #555; border: 1px solid #222;
       }
       .btn-reset:hover { color: #aaa; border-color: #333; }
+      /* ── Responsive / mobile additions ───────────────────────────────── */
+
+      /* Make every percentage-width container respect its width budget. */
+      *, *::before, *::after { box-sizing: border-box; }
+
+      .nav {
+        flex-wrap: wrap;
+        row-gap: 6px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .child-slot,
+      .fa-slot,
+      .gate-slot,
+      .nand-slot,
+      .dff-slot { outline: none; cursor: pointer; }
+
+      /* Touch devices (no hover): always use larger tap targets,
+         regardless of viewport width. */
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn,
+        .controls-row .btn,
+        .step-nav .btn {
+          min-height: 44px;
+          padding: 10px 14px;
+          font-size: 14px;
+        }
+        /* Slot focus shows the detail on tap (handled by selector expansion). */
+        .child-slot:focus-visible,
+        .fa-slot:focus-visible,
+        .gate-slot:focus-visible,
+        .nand-slot:focus-visible,
+        .dff-slot:focus-visible { outline: none; }
+      }
+
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .nav { font-size: 11px; gap: 10px; padding-top: 10px; }
+        .step-panel {
+          height: auto;
+          min-height: 180px;
+          padding: 12px 16px 14px;
+        }
+        .step-nav {
+          position: static;
+          margin: 0 0 8px;
+          justify-content: flex-end;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .nav {
+          font-size: 12px;
+          gap: 8px;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          justify-content: flex-start;
+          padding: 12px 12px 4px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .nav::-webkit-scrollbar { display: none; }
+        .nav a { flex: 0 0 auto; padding: 6px 4px; }
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn,
+        .controls-row .btn {
+          min-height: 44px;
+          min-width: 56px;
+          font-size: 14px;
+          padding: 10px 14px;
+        }
+        .step-panel {
+          height: auto;
+          min-height: 0;
+          padding: 12px 14px 14px;
+        }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: calc(14px * var(--content-scale, 1)); }
+        .step p { font-size: calc(14px * var(--content-scale, 1)); }
+        .step-nav {
+          position: static;
+          margin: 8px 0 10px;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+        .step-nav .btn {
+          min-height: 44px;
+          min-width: 80px;
+        }
+        svg { max-height: 50vh; }
+        .word-display {
+          font-size: 12px !important;
+          flex-wrap: wrap;
+          row-gap: 6px;
+          padding: 8px 12px !important;
+        }
+      }
+
+      @media (max-width: 380px) {
+        .controls .btn,
+        .controls-row .btn { min-width: 48px; padding: 10px 10px; font-size: 13px; }
+        .controls-row .label { min-width: 20px !important; font-size: 12px !important; }
+      }
+
+      @media (min-width: 1700px) {
+        .canvas-col { max-width: 1480px; }
+      }
+
+      @media (hover: none) {
+        .child-slot:focus,
+        .fa-slot:focus,
+        .gate-slot:focus,
+        .nand-slot:focus,
+        .dff-slot:focus { outline: none; }
+      }
+
     </style>
   </head>
   <body>
@@ -257,19 +402,19 @@
         <text class="tlabel" x="70" y="280">inv</text>
 
         <!-- Gating NAND for SET (GS) -->
-        <g class="child-slot" id="slot-gs">
+        <g class="child-slot" id="slot-gs" tabindex="0" role="button">
           <rect class="tbody simple-body" id="gGS" x="145" y="105" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="245" y="175">G_S</text>
         </g>
 
         <!-- Gating NAND for RESET (GR) -->
-        <g class="child-slot" id="slot-gr">
+        <g class="child-slot" id="slot-gr" tabindex="0" role="button">
           <rect class="tbody simple-body" id="gGR" x="145" y="315" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="245" y="385">G_R</text>
         </g>
 
         <!-- SR latch box (storage cell) -->
-        <g class="child-slot" id="slot-latch">
+        <g class="child-slot" id="slot-latch" tabindex="0" role="button">
           <rect class="tbody simple-body" id="gLatch" x="525" y="186.67" width="280" height="186.67" rx="10" />
           <text class="tlabel simple-label" x="665" y="280">SR latch</text>
         </g>
@@ -286,7 +431,7 @@
       </svg>
       </div>
       <aside class="step-panel">
-        <div class="step-meta">
+        <div class="step-meta drag-handle">
           <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span>
         </div>
         <div class="step-nav">
@@ -295,9 +440,10 @@
         </div>
         <div class="step-bodies">
           <article class="step">
-            <h3>what you're looking at</h3>
-            <p>Same SR latch as before, but with a gate on its front door. <em>D</em> enters from the left (data). <em>EN</em> enters from the top (a control signal — "should I listen?"). Inside: two <em>gating NANDs</em> (G_S, G_R), an inverter, and the SR latch.</p>
-            <p>This layer adds <em>level-triggered capture</em>. While EN is high, the cell pays attention to D. While EN is low, the cell tunes D out entirely.</p>
+            <h3>where we are: adding a door</h3>
+            <p>The SR latch can store a bit, but its interface is clumsy — separate set/reset commands and a "forbidden" input combination that breaks it. This page wraps it in a gating circuit that exposes a clean API: one <em>data</em> input (D), one <em>control</em> input (EN).</p>
+            <p>This is the first cell with separate <em>data</em> and <em>control</em> lines. The "clock" idea starts here. EN=1 means "listen to D"; EN=0 means "hold what you have." Every clocked CPU register follows this pattern.</p>
+            <p>An inverter, two gating NANDs (G_S, G_R), and an SR latch — now demoted to a building block. Toggle D and EN to see when the cell is deaf and when it's listening.</p>
           </article>
           <article class="step" hidden>
             <h3>EN = 0 (door closed)</h3>

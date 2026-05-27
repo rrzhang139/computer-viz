@@ -24,61 +24,77 @@
       .nav a[aria-current="page"] { color: var(--on); }
       .nav a:hover { color: #aaa; }
       .page-layout {
-        display: flex; gap: 24px;
-        padding: 14px 16px 20px; max-width: 1480px;
-        margin: 0 auto; align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 14px 16px 20px;
+        max-width: 100%;
+        margin: 0 auto;
+        gap: 14px;
       }
       .canvas-col {
-        flex: 1; min-width: 0;
+        width: 100%;
         display: flex; flex-direction: column;
         align-items: center; gap: 14px;
       }
       .step-panel {
-        width: 380px; flex-shrink: 0;
+        position: relative;
+        width: 100%; max-width: 1480px;
         background: var(--panel);
         border: 1px solid #1f1f1f;
-        border-radius: 16px;
-        padding: 24px 28px;
-        position: sticky; top: 14px;
-        max-height: calc(100vh - 28px);
+        border-radius: 14px;
+        padding: 14px 24px 14px;
+        height: 180px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
         display: flex; flex-direction: column;
       }
+      .drag-handle { all: unset; }
       .step-meta {
-        font-family: ui-monospace, monospace; font-size: 13px;
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
         color: #666; letter-spacing: 0.18em; text-transform: uppercase;
-        margin-bottom: 14px;
+        margin: 0 0 10px;
       }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
       .step[hidden] { display: none; }
       .step h3 {
-        font-family: ui-monospace, monospace; font-size: 18px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(15px * var(--content-scale, 1));
         text-transform: uppercase; letter-spacing: 0.14em;
-        color: var(--on); margin: 0 0 16px; font-weight: 500;
+        color: var(--on);
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        font-weight: 500;
       }
       .step p {
-        margin: 0 0 14px; color: #cccccc;
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        color: #cccccc;
         font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 18px; line-height: 1.6;
+        font-size: calc(15px * var(--content-scale, 1));
+        line-height: 1.5;
       }
       .step p:last-child { margin-bottom: 0; }
       .step kbd {
-        font-family: ui-monospace, monospace; font-size: 15px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(13px * var(--content-scale, 1));
         background: #1a1a1a; border: 1px solid #2a2a2a;
-        padding: 3px 9px; border-radius: 999px; color: #ddd;
+        padding: 2px 8px;
+        border-radius: 999px; color: #ddd;
       }
       .step em { color: #fff; font-style: normal; }
       .step .accent { color: var(--on); }
       .step-nav {
-        display: flex; gap: 8px; justify-content: space-between;
-        margin-bottom: 16px;
+        position: absolute;
+        top: 12px; right: 24px;
+        display: flex; gap: 8px;
+        margin: 0;
       }
       .step-nav .btn {
-        min-width: 108px; font-size: 14px; padding: 10px 18px;
+        min-width: 90px;
+        font-size: 13px;
+        padding: 7px 14px;
       }
-      .step-nav .btn:disabled {
-        opacity: 0.35; cursor: not-allowed; box-shadow: none;
-      }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
       .controls { display: flex; gap: 12px; align-items: center; }
       .btn {
         appearance: none; background: var(--panel); color: #999;
@@ -97,7 +113,7 @@
       .btn-reset:hover { color: #aaa; border-color: #333; }
       svg {
         display: block; background: var(--bg);
-        max-width: 100%; max-height: 70vh;
+        max-width: 100%; max-height: 55vh;
         width: 100%; height: auto;
       }
       .wire {
@@ -163,11 +179,21 @@
       /* Gate hover overlay: simple body fades out, truth table fades in */
       .gate-slot { pointer-events: bounding-box; }
       .gate-slot .simple-body,
-      .gate-slot .simple-label { transition: opacity 200ms; }
-      .gate-slot:hover .simple-body,
-      .gate-slot:hover .simple-label { opacity: 0; }
-      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
-      .gate-slot:hover .detailed { opacity: 1; }
+      .gate-slot .simple-label { transition: opacity 200ms; }.gate-slot:hover .simple-body,
+      .gate-slot:focus-within .simple-body,
+      .gate-slot.is-active .simple-body,
+      .gate-slot:focus-within .simple-body,
+      .gate-slot.is-active .simple-body,
+      .gate-slot:hover .simple-label,
+      .gate-slot:focus-within .simple-label,
+      .gate-slot.is-active .simple-label,
+      .gate-slot:focus-within .simple-label,
+      .gate-slot.is-active .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }.gate-slot:hover .detailed,
+      .gate-slot:focus-within .detailed,
+      .gate-slot.is-active .detailed,
+      .gate-slot:focus-within .detailed,
+      .gate-slot.is-active .detailed { opacity: 1; }
       .tt-bg {
         fill: rgba(20, 20, 20, 0.95);
         stroke: var(--on); stroke-width: 1.5;
@@ -202,6 +228,125 @@
         fill: rgba(239, 159, 39, 0.18);
       }
       .tt-row[data-on="1"] + .tt-cell-group .tt-cell { fill: var(--on); }
+      /* ── Responsive / mobile additions ───────────────────────────────── */
+
+      /* Make every percentage-width container respect its width budget. */
+      *, *::before, *::after { box-sizing: border-box; }
+
+      .nav {
+        flex-wrap: wrap;
+        row-gap: 6px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .child-slot,
+      .fa-slot,
+      .gate-slot,
+      .nand-slot,
+      .dff-slot { outline: none; cursor: pointer; }
+
+      /* Touch devices (no hover): always use larger tap targets,
+         regardless of viewport width. */
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn,
+        .controls-row .btn,
+        .step-nav .btn {
+          min-height: 44px;
+          padding: 10px 14px;
+          font-size: 14px;
+        }
+        /* Slot focus shows the detail on tap (handled by selector expansion). */
+        .child-slot:focus-visible,
+        .fa-slot:focus-visible,
+        .gate-slot:focus-visible,
+        .nand-slot:focus-visible,
+        .dff-slot:focus-visible { outline: none; }
+      }
+
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .nav { font-size: 11px; gap: 10px; padding-top: 10px; }
+        .step-panel {
+          height: auto;
+          min-height: 180px;
+          padding: 12px 16px 14px;
+        }
+        .step-nav {
+          position: static;
+          margin: 0 0 8px;
+          justify-content: flex-end;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .nav {
+          font-size: 12px;
+          gap: 8px;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          justify-content: flex-start;
+          padding: 12px 12px 4px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .nav::-webkit-scrollbar { display: none; }
+        .nav a { flex: 0 0 auto; padding: 6px 4px; }
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn,
+        .controls-row .btn {
+          min-height: 44px;
+          min-width: 56px;
+          font-size: 14px;
+          padding: 10px 14px;
+        }
+        .step-panel {
+          height: auto;
+          min-height: 0;
+          padding: 12px 14px 14px;
+        }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: calc(14px * var(--content-scale, 1)); }
+        .step p { font-size: calc(14px * var(--content-scale, 1)); }
+        .step-nav {
+          position: static;
+          margin: 8px 0 10px;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+        .step-nav .btn {
+          min-height: 44px;
+          min-width: 80px;
+        }
+        svg { max-height: 50vh; }
+        .word-display {
+          font-size: 12px !important;
+          flex-wrap: wrap;
+          row-gap: 6px;
+          padding: 8px 12px !important;
+        }
+      }
+
+      @media (max-width: 380px) {
+        .controls .btn,
+        .controls-row .btn { min-width: 48px; padding: 10px 10px; font-size: 13px; }
+        .controls-row .label { min-width: 20px !important; font-size: 12px !important; }
+      }
+
+      @media (min-width: 1700px) {
+        .canvas-col { max-width: 1480px; }
+      }
+
+      @media (hover: none) {
+        .child-slot:focus,
+        .fa-slot:focus,
+        .gate-slot:focus,
+        .nand-slot:focus,
+        .dff-slot:focus { outline: none; }
+      }
+
     </style>
   </head>
   <body>
@@ -249,13 +394,13 @@
           <polyline class="wire" data-net="carry" points="560,360 840,360" />
 
           <!-- XOR gate (hover swaps to truth table) -->
-          <g class="gate-slot" id="slot-xor">
+          <g class="gate-slot" id="slot-xor" tabindex="0" role="button">
             <rect class="tbody simple-body" id="gXor" x="320" y="60" width="240" height="160" rx="12" />
             <text class="tlabel simple-label" x="440" y="135">XOR</text>
             <text class="tlabel-small simple-label" x="440" y="160">sum</text>
           </g>
           <!-- AND gate -->
-          <g class="gate-slot" id="slot-and">
+          <g class="gate-slot" id="slot-and" tabindex="0" role="button">
             <rect class="tbody simple-body" id="gAnd" x="320" y="280" width="240" height="160" rx="12" />
             <text class="tlabel simple-label" x="440" y="355">AND</text>
             <text class="tlabel-small simple-label" x="440" y="380">carry</text>
@@ -273,7 +418,7 @@
         </svg>
       </div>
       <aside class="step-panel">
-        <div class="step-meta">
+        <div class="step-meta drag-handle">
           <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 6</span>
         </div>
         <div class="step-nav">
@@ -282,10 +427,10 @@
         </div>
         <div class="step-bodies">
           <article class="step">
-            <h3>what you're looking at</h3>
-            <p>Two single-bit inputs A and B. Two single-bit outputs: <em>sum</em> and <em>carry</em>. This is the simplest possible arithmetic circuit — it adds two bits and produces the two-bit result.</p>
-            <p>1 + 1 = 2, which in binary is <em>10</em>. The "1" is the carry, the "0" is the sum. So we need <em>two</em> output bits to handle even one-bit addition.</p>
-            <p>Hover the XOR or AND box to see its truth table. Both gates are treated as black boxes — you already know what they do.</p>
+            <h3>where we are: from memory to compute</h3>
+            <p>Until this page, we built circuits that <em>store</em>. Starting here, we build circuits that <em>do something</em>. The first thing they'll do is add.</p>
+            <p>The half adder is the simplest possible arithmetic: two binary inputs (A, B), two binary outputs (sum, carry). Why two outputs? Because 1+1=2, which is binary "10" — two bits. The carry is the overflow into the next column.</p>
+            <p>An XOR gate (sum = "exactly one input is 1") and an AND gate (carry = "both inputs are 1"). From here on, we treat gates as black boxes — hover any to see its truth table.</p>
           </article>
           <article class="step" hidden>
             <h3>A = 0, B = 0</h3>

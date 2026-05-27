@@ -1,3 +1,9 @@
+import { initPanel } from "./panel";
+import { initToc } from "./toc";
+import {
+  readBitParam, initDrillBreadcrumb,
+  loadSnapshot, saveSnapshot, clearSnapshot,
+} from "./drillContext";
 // Half adder: A + B → (sum, carry)
 //   sum   = A XOR B
 //   carry = A AND B
@@ -14,8 +20,11 @@ const svg = document.getElementById('halfadder') as unknown as SVGSVGElement;
 const sumDisplay = document.getElementById('sumDisplay')!;
 const carryDisplay = document.getElementById('carryDisplay')!;
 
-let A: Bit = 0;
-let B: Bit = 0;
+type HaSnap = { A: Bit; B: Bit };
+const SNAP_KEY = 'halfadder';
+const _snap = loadSnapshot<HaSnap>(SNAP_KEY);
+let A: Bit = readBitParam('A', _snap?.A ?? 0);
+let B: Bit = readBitParam('B', _snap?.B ?? 0);
 
 // ── Truth-table overlay builder ──────────────────────────────────────
 // Each gate's overlay is a small panel that fills the gate box with:
@@ -186,9 +195,23 @@ function render() {
   setBtn(btnB, 'B', B);
 }
 
-btnA.addEventListener('click', () => { A = A === 0 ? 1 : 0; render(); });
-btnB.addEventListener('click', () => { B = B === 0 ? 1 : 0; render(); });
-btnReset.addEventListener('click', () => { A = 0; B = 0; render(); });
+function persist() { saveSnapshot<HaSnap>(SNAP_KEY, { A, B }); }
+btnA.addEventListener('click', () => { A = A === 0 ? 1 : 0; render(); persist(); });
+btnB.addEventListener('click', () => { B = B === 0 ? 1 : 0; render(); persist(); });
+btnReset.addEventListener('click', () => {
+  A = 0; B = 0; clearSnapshot(SNAP_KEY); render();
+});
+
+// XOR and AND don't have dedicated gate pages of their own — /index.html
+// is the NAND gate, not XOR or AND. So no drill-down for these slots.
+// Hovering still swaps the simple body for the gate's mini representation;
+// that's purely CSS-driven and works without a click handler.
+// Mark these slots as non-clickable so the cursor doesn't lie.
+for (const id of ['slot-xor', 'slot-and']) {
+  document.getElementById(id)?.style.setProperty('cursor', 'default');
+}
+
+initDrillBreadcrumb();
 
 render();
 
@@ -210,3 +233,6 @@ function showStep(i: number) {
 stepPrev.addEventListener('click', () => showStep(currentStep - 1));
 stepNext.addEventListener('click', () => showStep(currentStep + 1));
 showStep(0);
+
+initPanel();
+initToc();

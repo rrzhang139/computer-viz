@@ -31,61 +31,77 @@
       .nav a[aria-current="page"] { color: var(--on); }
       .nav a:hover { color: #aaa; }
       .page-layout {
-        display: flex; gap: 24px;
-        padding: 14px 16px 20px; max-width: 1480px;
-        margin: 0 auto; align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 14px 16px 20px;
+        max-width: 100%;
+        margin: 0 auto;
+        gap: 14px;
       }
       .canvas-col {
-        flex: 1; min-width: 0;
+        width: 100%;
         display: flex; flex-direction: column;
         align-items: center; gap: 14px;
       }
       .step-panel {
-        width: 380px; flex-shrink: 0;
+        position: relative;
+        width: 100%; max-width: 1480px;
         background: var(--panel);
         border: 1px solid #1f1f1f;
-        border-radius: 16px;
-        padding: 24px 28px;
-        position: sticky; top: 14px;
-        max-height: calc(100vh - 28px);
+        border-radius: 14px;
+        padding: 14px 24px 14px;
+        height: 180px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
         display: flex; flex-direction: column;
       }
+      .drag-handle { all: unset; }
       .step-meta {
-        font-family: ui-monospace, monospace; font-size: 13px;
+        font-family: ui-monospace, monospace;
+        font-size: 13px;
         color: #666; letter-spacing: 0.18em; text-transform: uppercase;
-        margin-bottom: 14px;
+        margin: 0 0 10px;
       }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 1; overflow-y: auto; min-height: 0; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
       .step[hidden] { display: none; }
       .step h3 {
-        font-family: ui-monospace, monospace; font-size: 18px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(15px * var(--content-scale, 1));
         text-transform: uppercase; letter-spacing: 0.14em;
-        color: var(--on); margin: 0 0 16px; font-weight: 500;
+        color: var(--on);
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        font-weight: 500;
       }
       .step p {
-        margin: 0 0 14px; color: #cccccc;
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        color: #cccccc;
         font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        font-size: 18px; line-height: 1.6;
+        font-size: calc(15px * var(--content-scale, 1));
+        line-height: 1.5;
       }
       .step p:last-child { margin-bottom: 0; }
       .step kbd {
-        font-family: ui-monospace, monospace; font-size: 15px;
+        font-family: ui-monospace, monospace;
+        font-size: calc(13px * var(--content-scale, 1));
         background: #1a1a1a; border: 1px solid #2a2a2a;
-        padding: 3px 9px; border-radius: 999px; color: #ddd;
+        padding: 2px 8px;
+        border-radius: 999px; color: #ddd;
       }
       .step em { color: #fff; font-style: normal; }
       .step .accent { color: var(--on); }
       .step-nav {
-        display: flex; gap: 8px; justify-content: space-between;
-        margin-bottom: 16px;
+        position: absolute;
+        top: 12px; right: 24px;
+        display: flex; gap: 8px;
+        margin: 0;
       }
       .step-nav .btn {
-        min-width: 108px; font-size: 14px; padding: 10px 18px;
+        min-width: 90px;
+        font-size: 13px;
+        padding: 7px 14px;
       }
-      .step-nav .btn:disabled {
-        opacity: 0.35; cursor: not-allowed; box-shadow: none;
-      }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; box-shadow: none; }
       .controls { display: flex; gap: 12px; align-items: center; }
       .btn {
         appearance: none;
@@ -110,7 +126,7 @@
         display: block;
         background: var(--bg);
         max-width: 100%;
-        max-height: 70vh;
+        max-height: 55vh;
         width: 100%;
         height: auto;
       }
@@ -213,6 +229,125 @@
         border: 1px solid #222;
       }
       .btn-reset:hover { color: #aaa; border-color: #333; }
+      /* ── Responsive / mobile additions ───────────────────────────────── */
+
+      /* Make every percentage-width container respect its width budget. */
+      *, *::before, *::after { box-sizing: border-box; }
+
+      .nav {
+        flex-wrap: wrap;
+        row-gap: 6px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+
+      .child-slot,
+      .fa-slot,
+      .gate-slot,
+      .nand-slot,
+      .dff-slot { outline: none; cursor: pointer; }
+
+      /* Touch devices (no hover): always use larger tap targets,
+         regardless of viewport width. */
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn,
+        .controls-row .btn,
+        .step-nav .btn {
+          min-height: 44px;
+          padding: 10px 14px;
+          font-size: 14px;
+        }
+        /* Slot focus shows the detail on tap (handled by selector expansion). */
+        .child-slot:focus-visible,
+        .fa-slot:focus-visible,
+        .gate-slot:focus-visible,
+        .nand-slot:focus-visible,
+        .dff-slot:focus-visible { outline: none; }
+      }
+
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .nav { font-size: 11px; gap: 10px; padding-top: 10px; }
+        .step-panel {
+          height: auto;
+          min-height: 180px;
+          padding: 12px 16px 14px;
+        }
+        .step-nav {
+          position: static;
+          margin: 0 0 8px;
+          justify-content: flex-end;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .nav {
+          font-size: 12px;
+          gap: 8px;
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          overflow-y: hidden;
+          justify-content: flex-start;
+          padding: 12px 12px 4px;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+        }
+        .nav::-webkit-scrollbar { display: none; }
+        .nav a { flex: 0 0 auto; padding: 6px 4px; }
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn,
+        .controls-row .btn {
+          min-height: 44px;
+          min-width: 56px;
+          font-size: 14px;
+          padding: 10px 14px;
+        }
+        .step-panel {
+          height: auto;
+          min-height: 0;
+          padding: 12px 14px 14px;
+        }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: calc(14px * var(--content-scale, 1)); }
+        .step p { font-size: calc(14px * var(--content-scale, 1)); }
+        .step-nav {
+          position: static;
+          margin: 8px 0 10px;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+        .step-nav .btn {
+          min-height: 44px;
+          min-width: 80px;
+        }
+        svg { max-height: 50vh; }
+        .word-display {
+          font-size: 12px !important;
+          flex-wrap: wrap;
+          row-gap: 6px;
+          padding: 8px 12px !important;
+        }
+      }
+
+      @media (max-width: 380px) {
+        .controls .btn,
+        .controls-row .btn { min-width: 48px; padding: 10px 10px; font-size: 13px; }
+        .controls-row .label { min-width: 20px !important; font-size: 12px !important; }
+      }
+
+      @media (min-width: 1700px) {
+        .canvas-col { max-width: 1480px; }
+      }
+
+      @media (hover: none) {
+        .child-slot:focus,
+        .fa-slot:focus,
+        .gate-slot:focus,
+        .nand-slot:focus,
+        .dff-slot:focus { outline: none; }
+      }
+
     </style>
   </head>
   <body>
@@ -281,7 +416,7 @@
       </svg>
       </div>
       <aside class="step-panel">
-        <div class="step-meta">
+        <div class="step-meta drag-handle">
           <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 6</span>
         </div>
         <div class="step-nav">
@@ -290,9 +425,10 @@
         </div>
         <div class="step-bodies">
           <article class="step">
-            <h3>start at A = 0, B = 0</h3>
-            <p>Hit <kbd>↺ reset</kbd> so both buttons say 0. Up top — both <em>P_A</em> and <em>P_B</em> glow. A PMOS conducts when its gate is <em>low</em>, and both gates are at 0. The pull-up path is wide open: Vdd flows through <em>either</em> PMOS into Y. <span class="accent">Y lights up.</span></p>
-            <p>Both NMOS stay dark — an NMOS needs a <em>high</em> gate. The chain to GND is broken.</p>
+            <h3>where we are: the bottom of the stack</h3>
+            <p>You're looking at four transistors. Below this is silicon physics; above is everything we'll build — memory, arithmetic, registers, a CPU. This page is the simplest universal logic device: a <em>CMOS NAND gate</em>.</p>
+            <p>Why start with NAND? Because it's <em>functionally complete</em> — every other logic operation (AND, OR, NOT, XOR), every kind of memory, every arithmetic circuit can be built from just NANDs. A billion of these wired in clever patterns is, very literally, what a computer is.</p>
+            <p>Vdd at the top, GND at the bottom, A and B inputs from the left, Y output on the right. Click <kbd>A</kbd> or <kbd>B</kbd> to toggle inputs and watch which transistors conduct.</p>
           </article>
           <article class="step" hidden>
             <h3>click A → 1</h3>

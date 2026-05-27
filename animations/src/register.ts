@@ -1,3 +1,13 @@
+import { initPanel } from "./panel";
+import { initToc } from "./toc";
+import {
+  buildDrillUrl, readBitParam, initDrillBreadcrumb,
+  loadSnapshot, saveSnapshot, clearSnapshot,
+} from "./drillContext";
+import {
+  buildDffScene, bindDffSceneState,
+  DFF_SCENE_W, DFF_SCENE_H,
+} from "./scenes/dffScene";
 // 4-bit register: four DFFs sharing one CLK. Each cell is independent; the
 // shared clock is what gives the bundle its atomic-update property.
 
@@ -22,8 +32,34 @@ const cells: DFFState[] = [
   { Qm: 0, QBm: 1, Q: 0, QB: 1 },
   { Qm: 0, QBm: 1, Q: 0, QB: 1 },
 ];
-const D: Bit[] = [0, 0, 0, 0];
-let CLK: Bit = 0;
+type RegSnap = { D: Bit[]; CLK: Bit; cells: { Q: Bit; QB: Bit; Qm: Bit; QBm: Bit }[] };
+const SNAP_KEY = 'register';
+const _snap = loadSnapshot<RegSnap>(SNAP_KEY);
+// URL params (drilled-into from PC) take priority over snapshot.
+const D: Bit[] = [
+  readBitParam('D0', _snap?.D?.[0] ?? 0),
+  readBitParam('D1', _snap?.D?.[1] ?? 0),
+  readBitParam('D2', _snap?.D?.[2] ?? 0),
+  readBitParam('D3', _snap?.D?.[3] ?? 0),
+];
+let CLK: Bit = readBitParam('CLK', _snap?.CLK ?? 0);
+if (_snap?.cells) {
+  for (let i = 0; i < 4; i++) {
+    cells[i].Qm = _snap.cells[i].Qm;
+    cells[i].QBm = _snap.cells[i].QBm;
+    cells[i].Q  = _snap.cells[i].Q;
+    cells[i].QB = _snap.cells[i].QB;
+  }
+}
+// If Q params are provided (PC drill), force the cell to that Q state.
+for (let i = 0; i < 4; i++) {
+  const q = new URLSearchParams(window.location.search).get(`Q${i}`);
+  if (q === '0' || q === '1') {
+    const b: Bit = Number(q) as Bit;
+    cells[i].Q = b; cells[i].QB = (b === 0 ? 1 : 0) as Bit;
+    cells[i].Qm = b; cells[i].QBm = cells[i].QB;
+  }
+}
 
 function settleDLatch(input: Bit, EN: Bit, state: { Q: Bit; QB: Bit }) {
   const Sbar: Bit = (input & EN) === 1 ? 0 : 1;
@@ -39,88 +75,38 @@ function settleDLatch(input: Bit, EN: Bit, state: { Q: Bit; QB: Bit }) {
   state.Q = q; state.QB = qb;
 }
 
-// ── DFF mini geometry ─────────────────────────────────────────────────
-// Local coords 500 × 200 (aspect 2.5, matches the parent DFF box 300 × 120).
-// When the user hovers a bit slot, this mini fills the box: D enters left,
-// CLK enters top and fans out (one branch to slave EN, one "notCLK" branch
-// to master EN — both share the trunk start to suggest the inversion).
-const DFF_MINI_WIRES: { net: string; points: string }[] = [
-  { net: 'D',      points: '0,100 60,100' },
-  { net: 'CLK',    points: '250,0 250,25' },
-  { net: 'CLK',    points: '250,25 360,25 360,40' },
-  { net: 'notCLK', points: '250,25 140,25 140,40' },
-  { net: 'M',      points: '220,100 280,100' },
-  { net: 'Q',      points: '440,100 500,100' },
-];
-const DFF_MINI_BOXES = [
-  { tid: 'master', x: 60,  y: 40, w: 160, h: 120, lx: 140, ly: 100 },
-  { tid: 'slave',  x: 280, y: 40, w: 160, h: 120, lx: 360, ly: 100 },
-];
+// ── DFF mini geometry: imported from src/scenes/dffScene.ts ───────────
+// The DFF visualization lives in ONE module, shared by /dff.html, this
+// register's per-bit overlay, and /counter.html's register-overlay
+// sub-component. To change how a DFF looks anywhere, edit dffScene.ts.
 
 const DFF_BOX = { w: 300, h: 120 };
+// LSB-at-BOTTOM: bit 0 lives in the bottom slot, bit 3 in the top.
 const DFF_SLOT_POS = [
-  { x: 350, y: 60  },
-  { x: 350, y: 220 },
-  { x: 350, y: 380 },
-  { x: 350, y: 540 },
+  { x: 350, y: 540 },  // bit 0 — bottom
+  { x: 350, y: 380 },  // bit 1
+  { x: 350, y: 220 },  // bit 2
+  { x: 350, y: 60  },  // bit 3 — top
 ];
 
-function buildDffMini(slot: string, posX: number, posY: number): SVGGElement {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'detailed');
-  g.setAttribute('data-slot', slot);
-  g.setAttribute('transform',
-    `translate(${posX}, ${posY}) scale(${DFF_BOX.w / 500}, ${DFF_BOX.h / 200})`);
-
-  for (const w of DFF_MINI_WIRES) {
-    const wire = document.createElementNS(SVG_NS, 'polyline');
-    wire.setAttribute('class', 'wire-mini');
-    wire.setAttribute('data-net', w.net);
-    wire.setAttribute('data-on', '0');
-    wire.setAttribute('points', w.points);
-    g.appendChild(wire);
-  }
-  for (const b of DFF_MINI_BOXES) {
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('class', 'tbody-mini');
-    r.setAttribute('data-tid', b.tid);
-    r.setAttribute('x', String(b.x));
-    r.setAttribute('y', String(b.y));
-    r.setAttribute('width', String(b.w));
-    r.setAttribute('height', String(b.h));
-    r.setAttribute('rx', '8');
-    g.appendChild(r);
-    const txt = document.createElementNS(SVG_NS, 'text');
-    txt.setAttribute('class', 'tlabel-mini');
-    txt.setAttribute('data-tid', b.tid);
-    txt.setAttribute('x', String(b.lx));
-    txt.setAttribute('y', String(b.ly));
-    txt.textContent = b.tid;
-    g.appendChild(txt);
-  }
-  return g;
-}
-
+// Mount one DFF scene per bit slot. Each <g class="detailed" data-slot>
+// wraps the scene with the translate+scale needed to fit the slot.
 for (let i = 0; i < 4; i++) {
   const slot = `bit${i}`;
   const pos = DFF_SLOT_POS[i];
-  document.getElementById(`slot-${slot}`)
-    ?.appendChild(buildDffMini(slot, pos.x, pos.y));
+  const wrap = document.createElementNS(SVG_NS, 'g');
+  wrap.setAttribute('class', 'detailed');
+  wrap.setAttribute('data-slot', slot);
+  wrap.setAttribute('transform',
+    `translate(${pos.x}, ${pos.y}) scale(${DFF_BOX.w / DFF_SCENE_W}, ${DFF_BOX.h / DFF_SCENE_H})`);
+  wrap.appendChild(buildDffScene());
+  document.getElementById(`slot-${slot}`)?.appendChild(wrap);
 }
 
 function setMiniState(i: number, D: Bit, CLK: Bit, Qm: Bit, Q: Bit) {
-  const root = svg.querySelector(`g.detailed[data-slot="bit${i}"]`);
+  const root = svg.querySelector<SVGGElement>(`g.detailed[data-slot="bit${i}"]`);
   if (!root) return;
-  const notCLK: Bit = CLK === 0 ? 1 : 0;
-  const set = (sel: string, on: Bit) =>
-    root.querySelectorAll(sel).forEach((el) => el.setAttribute('data-on', String(on)));
-  set('.wire-mini[data-net="D"]',      D);
-  set('.wire-mini[data-net="CLK"]',    CLK);
-  set('.wire-mini[data-net="notCLK"]', notCLK);
-  set('.wire-mini[data-net="M"]',      Qm);
-  set('.wire-mini[data-net="Q"]',      Q);
-  root.querySelector(`.tbody-mini[data-tid="master"]`)?.setAttribute('data-on', String(Qm));
-  root.querySelector(`.tbody-mini[data-tid="slave"]`)?.setAttribute('data-on', String(Q));
+  bindDffSceneState(root, { D, CLK, Qm, Q });
 }
 
 const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
@@ -196,15 +182,22 @@ function render() {
   wordEl.textContent = `${cells[3].Q}${cells[2].Q}${cells[1].Q}${cells[0].Q}`;
 }
 
+function persist() {
+  saveSnapshot<RegSnap>(SNAP_KEY, {
+    D: [...D] as Bit[], CLK,
+    cells: cells.map((c) => ({ Qm: c.Qm, QBm: c.QBm, Q: c.Q, QB: c.QB })),
+  });
+}
+
 for (let i = 0; i < 4; i++) {
   const btn = [btnD0, btnD1, btnD2, btnD3][i];
-  btn.addEventListener('click', () => { D[i] = D[i] === 0 ? 1 : 0; render(); });
+  btn.addEventListener('click', () => { D[i] = D[i] === 0 ? 1 : 0; render(); persist(); });
 }
-btnCLK.addEventListener('click', () => { CLK = CLK === 0 ? 1 : 0; render(); });
+btnCLK.addEventListener('click', () => { CLK = CLK === 0 ? 1 : 0; render(); persist(); });
 btnPulse.addEventListener('click', () => {
   CLK = 0; render();
-  setTimeout(() => { CLK = 1; render(); }, 500);
-  setTimeout(() => { CLK = 0; render(); }, 1100);
+  setTimeout(() => { CLK = 1; render(); persist(); }, 500);
+  setTimeout(() => { CLK = 0; render(); persist(); }, 1100);
 });
 btnReset.addEventListener('click', () => {
   CLK = 0;
@@ -213,8 +206,20 @@ btnReset.addEventListener('click', () => {
     cells[i].Qm = 0; cells[i].QBm = 1;
     cells[i].Q = 0; cells[i].QB = 1;
   }
+  clearSnapshot(SNAP_KEY);
   render();
 });
+
+// ── Drill-down: click any bit cell to view it as a standalone DFF ────
+for (let i = 0; i < 4; i++) {
+  document.getElementById(`slot-bit${i}`)?.addEventListener('click', () => {
+    window.location.assign(buildDrillUrl('/dff.html', {
+      from: 'register', which: `bit${i}`, D: D[i], CLK, Q: cells[i].Q,
+    }));
+  });
+}
+
+initDrillBreadcrumb();
 
 render();
 
@@ -236,3 +241,6 @@ function showStep(i: number) {
 stepPrev.addEventListener('click', () => showStep(currentStep - 1));
 stepNext.addEventListener('click', () => showStep(currentStep + 1));
 showStep(0);
+
+initPanel();
+initToc();

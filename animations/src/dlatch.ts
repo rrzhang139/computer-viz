@@ -1,3 +1,9 @@
+import { initPanel } from "./panel";
+import { initToc } from "./toc";
+import {
+  buildDrillUrl, readBitParam, initDrillBreadcrumb,
+  loadSnapshot, saveSnapshot, clearSnapshot,
+} from "./drillContext";
 // D latch (level-triggered) with hover-swap overlays for the gating NANDs and the SR latch.
 //
 // Logic:
@@ -17,8 +23,13 @@ const btnEN = document.getElementById('btnEN') as HTMLButtonElement;
 const btnReset = document.getElementById('btnReset') as HTMLButtonElement;
 const svg = document.getElementById('dlatch') as unknown as SVGSVGElement;
 
-let D: Bit = 0;
-let EN: Bit = 0;
+// Snapshot user inputs across browser-back from a drill-down.
+type DlatchSnap = { D: Bit; EN: Bit };
+const SNAP_KEY = 'dlatch';
+const _snap = loadSnapshot<DlatchSnap>(SNAP_KEY);
+// URL params (when DRILLED INTO from DFF) override the snapshot.
+let D: Bit = readBitParam('D', _snap?.D ?? 0);
+let EN: Bit = readBitParam('EN', _snap?.EN ?? 0);
 let Q: Bit = 0;
 let QB: Bit = 1;
 
@@ -256,11 +267,45 @@ function render() {
   setBtn(btnEN, 'EN', EN);
 }
 
-btnD.addEventListener('click', () => { D = D === 0 ? 1 : 0; render(); });
-btnEN.addEventListener('click', () => { EN = EN === 0 ? 1 : 0; render(); });
+function persist() { saveSnapshot<DlatchSnap>(SNAP_KEY, { D, EN }); }
+
+btnD.addEventListener('click', () => { D = D === 0 ? 1 : 0; render(); persist(); });
+btnEN.addEventListener('click', () => { EN = EN === 0 ? 1 : 0; render(); persist(); });
 btnReset.addEventListener('click', () => {
-  D = 0; EN = 0; Q = 0; QB = 1; render();
+  D = 0; EN = 0; Q = 0; QB = 1;
+  clearSnapshot(SNAP_KEY);
+  render();
 });
+
+// ── Drill-down to children ───────────────────────────────────────────
+// slot-gs: gating NAND for S_bar. Takes A=D, B=EN, outputs Y=S_bar.
+// slot-gr: gating NAND for R_bar. Takes A=D_bar, B=EN, outputs Y=R_bar.
+// slot-latch: SR latch core. Takes Sbar, Rbar from the gating NANDs.
+function recomputeForDrill() {
+  const Dbar: Bit = (D === 0 ? 1 : 0) as Bit;
+  const Sbar: Bit = ((D & EN) === 1 ? 0 : 1) as Bit;
+  const Rbar: Bit = ((Dbar & EN) === 1 ? 0 : 1) as Bit;
+  return { Dbar, Sbar, Rbar };
+}
+document.getElementById('slot-gs')?.addEventListener('click', () => {
+  window.location.assign(buildDrillUrl('/', {
+    from: 'dlatch', which: 'gS', A: D, B: EN,
+  }));
+});
+document.getElementById('slot-gr')?.addEventListener('click', () => {
+  const { Dbar } = recomputeForDrill();
+  window.location.assign(buildDrillUrl('/', {
+    from: 'dlatch', which: 'gR', A: Dbar, B: EN,
+  }));
+});
+document.getElementById('slot-latch')?.addEventListener('click', () => {
+  const { Sbar, Rbar } = recomputeForDrill();
+  window.location.assign(buildDrillUrl('/latch.html', {
+    from: 'dlatch', which: 'SR-core', Sbar, Rbar,
+  }));
+});
+
+initDrillBreadcrumb();
 
 render();
 
@@ -282,3 +327,6 @@ function showStep(i: number) {
 stepPrev.addEventListener('click', () => showStep(currentStep - 1));
 stepNext.addEventListener('click', () => showStep(currentStep + 1));
 showStep(0);
+
+initPanel();
+initToc();

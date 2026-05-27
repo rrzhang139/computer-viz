@@ -1,9 +1,5 @@
 import { initPanel } from "./panel";
 import { initToc } from "./toc";
-import {
-  buildDrillUrl, readBitParam, initDrillBreadcrumb,
-  loadSnapshot, saveSnapshot, clearSnapshot,
-} from "./drillContext";
 // 4-bit ripple-carry adder: four full adders chained left-to-right.
 //   FA0 is the LSB (leftmost) so the carry chain flows naturally LSB → MSB,
 //   i.e. each FA's right-edge Cout feeds the next FA's left-edge Cin.
@@ -24,22 +20,9 @@ const aDecEl    = document.getElementById('aDec')!;
 const bDecEl    = document.getElementById('bDec')!;
 const sumDecEl  = document.getElementById('sumDec')!;
 
-type Adder4Snap = { A: Bit[]; B: Bit[]; Cin: Bit };
-const SNAP_KEY = 'adder4';
-const _snap = loadSnapshot<Adder4Snap>(SNAP_KEY);
-const A: Bit[] = [
-  readBitParam('A0', _snap?.A?.[0] ?? 0),
-  readBitParam('A1', _snap?.A?.[1] ?? 0),
-  readBitParam('A2', _snap?.A?.[2] ?? 0),
-  readBitParam('A3', _snap?.A?.[3] ?? 0),
-];
-const B: Bit[] = [
-  readBitParam('B0', _snap?.B?.[0] ?? 0),
-  readBitParam('B1', _snap?.B?.[1] ?? 0),
-  readBitParam('B2', _snap?.B?.[2] ?? 0),
-  readBitParam('B3', _snap?.B?.[3] ?? 0),
-];
-let Cin: Bit = readBitParam('Cin', _snap?.Cin ?? 0);
+const A: Bit[] = [0, 0, 0, 0];
+const B: Bit[] = [0, 0, 0, 0];
+let Cin: Bit = 0;
 
 // ── FA mini geometry (copied verbatim from fulladder.html) ───────────
 // Local coords use the standalone FA's scene: 0..1020 wide × 0..560 tall.
@@ -73,13 +56,11 @@ const FA_MINI_WIRELABELS = [
 ];
 
 interface SlotBox { x: number; y: number; w: number; h: number; }
-// Vertical layout: FA3 top, FA0 bottom. Each box is 400×224 (sx=0.392, sy=0.40
-// against the 1020×560 FA-mini local frame).
 const FA_BOXES: Record<string, SlotBox> = {
-  fa3: { x: 200, y: 20,  w: 400, h: 224 },
-  fa2: { x: 200, y: 300, w: 400, h: 224 },
-  fa1: { x: 200, y: 580, w: 400, h: 224 },
-  fa0: { x: 200, y: 860, w: 400, h: 224 },
+  fa0: { x: 60,  y: 200, w: 255, h: 140 },
+  fa1: { x: 345, y: 200, w: 255, h: 140 },
+  fa2: { x: 630, y: 200, w: 255, h: 140 },
+  fa3: { x: 915, y: 200, w: 255, h: 140 },
 };
 
 function buildFaMini(slot: string, box: SlotBox): SVGGElement {
@@ -250,51 +231,19 @@ function render() {
   setBtn(document.getElementById('btnCin') as HTMLButtonElement, 'Cin', Cin);
 }
 
-function persist() {
-  saveSnapshot<Adder4Snap>(SNAP_KEY, { A: [...A] as Bit[], B: [...B] as Bit[], Cin });
-}
-
 for (let i = 0; i < 4; i++) {
   const ba = document.getElementById(`btnA${i}`) as HTMLButtonElement;
-  ba.addEventListener('click', () => { A[i] = A[i] === 0 ? 1 : 0; render(); persist(); });
+  ba.addEventListener('click', () => { A[i] = A[i] === 0 ? 1 : 0; render(); });
   const bb = document.getElementById(`btnB${i}`) as HTMLButtonElement;
-  bb.addEventListener('click', () => { B[i] = B[i] === 0 ? 1 : 0; render(); persist(); });
+  bb.addEventListener('click', () => { B[i] = B[i] === 0 ? 1 : 0; render(); });
 }
 (document.getElementById('btnCin') as HTMLButtonElement)
-  .addEventListener('click', () => { Cin = Cin === 0 ? 1 : 0; render(); persist(); });
+  .addEventListener('click', () => { Cin = Cin === 0 ? 1 : 0; render(); });
 (document.getElementById('btnReset') as HTMLButtonElement)
   .addEventListener('click', () => {
     for (let i = 0; i < 4; i++) { A[i] = 0; B[i] = 0; }
-    Cin = 0;
-    clearSnapshot(SNAP_KEY);
-    render();
+    Cin = 0; render();
   });
-
-// ── Drill-down: click any FA cell to view it standalone ──────────────
-// FA_n receives A[n], B[n], and the carry-in computed by ripple from
-// FA_{n-1}. FA_0's Cin is the external Cin.
-function carryChain(): Bit[] {
-  // c[0] = Cin, c[i+1] = full-adder carry-out of bit i.
-  const c: Bit[] = new Array(5).fill(0) as Bit[];
-  c[0] = Cin;
-  for (let i = 0; i < 4; i++) {
-    const sum1: Bit = ((A[i] ^ B[i]) & 1) as Bit;
-    const carry1: Bit = ((A[i] & B[i]) & 1) as Bit;
-    const carry2: Bit = ((sum1 & c[i]) & 1) as Bit;
-    c[i + 1] = ((carry1 | carry2) & 1) as Bit;
-  }
-  return c;
-}
-for (let i = 0; i < 4; i++) {
-  document.getElementById(`slot-fa${i}`)?.addEventListener('click', () => {
-    const c = carryChain();
-    window.location.assign(buildDrillUrl('/fulladder.html', {
-      from: 'adder4', which: `FA${i}`, A: A[i], B: B[i], Cin: c[i],
-    }));
-  });
-}
-
-initDrillBreadcrumb();
 
 render();
 

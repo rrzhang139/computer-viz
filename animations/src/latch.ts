@@ -1,3 +1,9 @@
+import { initPanel } from "./panel";
+import { initToc } from "./toc";
+import {
+  buildDrillUrl, readBitParam, initDrillBreadcrumb,
+  loadSnapshot, saveSnapshot, clearSnapshot,
+} from "./drillContext";
 // Same logic as src/latch.ts — only the SVG topology differs (v2 NAND with
 // both A and B on the LEFT edge, so the cross-coupled feedback forms an X
 // in the corridor between N1 and N2 rather than wrapping around the right).
@@ -111,8 +117,15 @@ function setMiniState(slot: 'n1' | 'n2', A: Bit, B: Bit, Y: Bit) {
   }
 }
 
-let Sbar: Bit = 1;
-let Rbar: Bit = 1;
+// Per-page snapshot keeps the latch's inputs across navigation. Q/QB are
+// derived from settle(), so we only need to persist the user-controlled
+// inputs (Sbar and Rbar).
+type LatchSnap = { Sbar: Bit; Rbar: Bit };
+const SNAP_KEY = 'latch';
+const snap = loadSnapshot<LatchSnap>(SNAP_KEY);
+// URL params (drilled-into from D latch) override the snapshot.
+let Sbar: Bit = readBitParam('Sbar', snap?.Sbar ?? 1);
+let Rbar: Bit = readBitParam('Rbar', snap?.Rbar ?? 1);
 let Q: Bit = 0;
 let QB: Bit = 1;
 
@@ -178,13 +191,21 @@ function render() {
   setBtn(btnR, 'R̄', Rbar);
 }
 
+// Save is explicit in the input handlers — keeping it out of render() so
+// reset can clear the snapshot without immediately rewriting it.
+function persist() {
+  saveSnapshot<LatchSnap>(SNAP_KEY, { Sbar, Rbar });
+}
+
 btnS.addEventListener('click', () => {
   Sbar = Sbar === 0 ? 1 : 0;
   render();
+  persist();
 });
 btnR.addEventListener('click', () => {
   Rbar = Rbar === 0 ? 1 : 0;
   render();
+  persist();
 });
 
 const btnReset = document.getElementById('btnReset') as HTMLButtonElement | null;
@@ -193,7 +214,10 @@ btnReset?.addEventListener('click', () => {
   Rbar = 1;
   Q = 0;
   QB = 1;
+  clearSnapshot(SNAP_KEY);
   render();
+  // NB: no persist() call — leave the snapshot cleared so a refresh
+  // shows the default state, not the post-reset state.
 });
 
 render();
@@ -216,3 +240,26 @@ function showStep(i: number) {
 stepPrev.addEventListener('click', () => showStep(currentStep - 1));
 stepNext.addEventListener('click', () => showStep(currentStep + 1));
 showStep(0);
+
+// ── Drill-down: clicking a NAND inside the latch navigates to /index.html
+// with that NAND's current A and B baked into the URL. Hovering still
+// reveals the NAND mini in-place; click is what triggers navigation.
+//
+//   N1: A = S̄,  B = Q̄    (top NAND)
+//   N2: A = R̄,  B = Q     (bottom NAND)
+const slotN1 = document.getElementById('slot-n1');
+const slotN2 = document.getElementById('slot-n2');
+slotN1?.addEventListener('click', () => {
+  window.location.assign(buildDrillUrl('/', {
+    from: 'latch', which: 'N1', A: Sbar, B: QB,
+  }));
+});
+slotN2?.addEventListener('click', () => {
+  window.location.assign(buildDrillUrl('/', {
+    from: 'latch', which: 'N2', A: Rbar, B: Q,
+  }));
+});
+
+initPanel();
+initToc();
+initDrillBreadcrumb();

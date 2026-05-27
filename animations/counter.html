@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / program counter</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav {
+        display: flex; gap: 14px; justify-content: center;
+        padding: 14px 0 0; font-size: 11px; color: #444;
+      }
+      .nav a { color: #555; text-decoration: none; }
+      .nav a[aria-current="page"] { color: var(--on); }
+      .page-layout {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px;
+      }
+      .canvas-col {
+        width: 100%;
+        display: flex; flex-direction: column; align-items: center; gap: 14px;
+      }
+      .step-panel {
+        position: relative;
+        width: 100%; max-width: 1480px;
+        background: var(--panel);
+        border: 1px solid #1f1f1f;
+        border-radius: 14px;
+        padding: 14px 24px 14px;
+        height: 180px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        display: flex; flex-direction: column;
+      }
+      .step-meta {
+        font-size: 13px; color: #666;
+        letter-spacing: 0.18em; text-transform: uppercase;
+        margin: 0 0 10px;
+      }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 {
+        font-family: ui-monospace, monospace;
+        font-size: calc(15px * var(--content-scale, 1));
+        text-transform: uppercase; letter-spacing: 0.14em;
+        color: var(--on);
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        font-weight: 500;
+      }
+      .step p {
+        margin: 0 0 calc(10px * var(--content-scale, 1));
+        color: #cccccc;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: calc(15px * var(--content-scale, 1));
+        line-height: 1.5;
+      }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd {
+        font-family: ui-monospace, monospace;
+        font-size: calc(13px * var(--content-scale, 1));
+        background: #1a1a1a; border: 1px solid #2a2a2a;
+        padding: 2px 8px; border-radius: 999px; color: #ddd;
+      }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav {
+        position: absolute;
+        top: 12px; right: 24px;
+        display: flex; gap: 8px;
+        margin: 0;
+      }
+      .step-nav .btn {
+        min-width: 90px; font-size: 13px; padding: 7px 14px;
+      }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls {
+        display: flex; gap: 12px; align-items: center;
+        flex-wrap: wrap; justify-content: center;
+      }
+      .btn {
+        appearance: none; background: var(--panel); color: #999;
+        border: 1px solid #222; border-radius: 999px; font: inherit;
+        font-size: 13px; padding: 8px 18px; cursor: pointer;
+        min-width: 72px;
+        transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms;
+      }
+      .btn[data-on="1"] {
+        background: var(--on); color: #1a0d00; border-color: var(--on);
+        box-shadow: 0 0 18px rgba(239, 159, 39, 0.45);
+      }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      .btn-pulse {
+        background: rgba(239, 159, 39, 0.12);
+        color: var(--on);
+        border: 1px solid rgba(239, 159, 39, 0.5);
+      }
+      .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
+      svg {
+        display: block; background: var(--bg);
+        max-width: 100%; width: 100%; height: auto;
+        max-height: 55vh;
+      }
+      .wire {
+        fill: none; stroke: var(--off); stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65));
+      }
+      .pulse {
+        fill: none; stroke: #fff4d6; stroke-width: 3;
+        stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 5 26; opacity: 0; pointer-events: none;
+        transition: opacity 140ms;
+        animation: flow 1.3s linear infinite;
+      }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.2;
+        stroke-dasharray: 4 3;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4));
+      }
+      .tlabel {
+        fill: #777; font-size: 22px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-bit {
+        fill: #555; font-size: 16px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-small {
+        fill: #555; font-size: 13px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-tag {
+        fill: var(--on); font-size: 26px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none; font-weight: 500;
+      }
+      .tbody[data-on="1"] + .tlabel,
+      .tbody[data-on="1"] ~ .tlabel-bit,
+      .tbody[data-on="1"] ~ .tlabel-tag { fill: var(--on); }
+      .pin {
+        fill: var(--off); stroke: none;
+        transition: fill 140ms, filter 140ms;
+      }
+      .pin[data-on="1"] {
+        fill: var(--on);
+        filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
+      }
+
+      /* ── Hover overlay swap (register + adder boxes) ─────────────────── */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot .simple-body,
+      .child-slot .simple-label { transition: opacity 200ms; }
+      .child-slot:hover .simple-body,
+      .child-slot:focus-within .simple-body,
+      .child-slot.is-active .simple-body,
+      .child-slot:hover .simple-label,
+      .child-slot:focus-within .simple-label,
+      .child-slot.is-active .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+      .child-slot:hover .detailed,
+      .child-slot:focus-within .detailed,
+      .child-slot.is-active .detailed { opacity: 1; }
+
+      .mini-bg {
+        fill: rgba(20, 20, 20, 0.96);
+        stroke: var(--on); stroke-width: 1.5;
+        vector-effect: non-scaling-stroke;
+      }
+      .wire-mini {
+        fill: none; stroke: var(--off); stroke-width: 4;
+        stroke-linecap: round; stroke-linejoin: round;
+        vector-effect: non-scaling-stroke;
+        transition: stroke 140ms, filter 140ms;
+      }
+      .wire-mini[data-on="1"] {
+        stroke: var(--on);
+        filter: drop-shadow(0 0 2.5px rgba(239, 159, 39, 0.7));
+      }
+      .tbody-mini {
+        fill: #111; stroke: #2a2a2a; stroke-width: 1.5;
+        stroke-dasharray: 5 4;
+        vector-effect: non-scaling-stroke;
+        transition: fill 160ms, stroke 160ms, filter 160ms;
+      }
+      .tbody-mini[data-on="1"] {
+        fill: rgba(239, 159, 39, 0.22); stroke: var(--on);
+        stroke-dasharray: none;
+        filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.45));
+      }
+      .tlabel-mini {
+        fill: #888; font-size: 18px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tlabel-mini-tiny {
+        fill: #666; font-size: 12px; font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tbody-mini[data-on="1"] + .tlabel-mini,
+      .tbody-mini[data-on="1"] ~ .tlabel-mini-tiny { fill: var(--on); }
+
+      .pc-readout {
+        font-family: ui-monospace, monospace;
+        font-size: 15px; color: #888;
+        display: flex; align-items: center; gap: 16px;
+        padding: 10px 18px; background: var(--panel);
+        border: 1px solid #222; border-radius: 999px;
+      }
+      .pc-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .pc-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.22em; }
+      .pc-readout .dec  { color: #ddd; }
+      .pc-readout .sep  { color: #333; }
+
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn, .step-nav .btn {
+          min-height: 44px; padding: 10px 14px; font-size: 14px;
+        }
+      }
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .step-panel { height: auto; min-height: 180px; padding: 12px 16px 14px; }
+        .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; }
+      }
+      @media (max-width: 600px) {
+        .step-panel { height: auto; min-height: 0; padding: 12px 14px 14px; }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: calc(14px * var(--content-scale, 1)); }
+        .step p { font-size: calc(14px * var(--content-scale, 1)); }
+        svg { max-height: 50vh; }
+        .pc-readout { font-size: 13px; padding: 8px 14px; flex-wrap: wrap; row-gap: 6px; }
+      }
+      @media (min-width: 1700px) { .canvas-col { max-width: 1480px; } }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">gate</a>
+      <a href="/latch.html">latch</a>
+      <a href="/dlatch.html">D latch</a>
+      <a href="/dff.html">DFF</a>
+      <a href="/register.html">register</a>
+      <a href="/halfadder.html">half adder</a>
+      <a href="/fulladder.html">full adder</a>
+      <a href="/adder4.html">4-bit adder</a>
+      <a href="/counter.html" aria-current="page">program counter</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn" id="btnCLK" data-on="0">CLK 0</button>
+          <button class="btn btn-pulse" id="btnPulse">pulse CLK 0→1→0</button>
+          <button class="btn" id="btnStep">step: +1</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="pc-readout">
+          <span class="label">PC</span>
+          <span class="bits" id="pcBits">0000</span>
+          <span class="sep">·</span>
+          <span class="label">decimal</span>
+          <span class="dec" id="pcDec">0</span>
+          <span class="sep">·</span>
+          <span class="label">next</span>
+          <span class="bits" id="nextBits">0001</span>
+        </div>
+
+        <!--
+          Program Counter v1:
+            register (4 DFFs) — adder (+1) — feedback loop
+            CLK enters TOP (control signal invariant)
+            no external data input (PC self-feeds)
+        -->
+        <svg id="counter" viewBox="-40 -30 1380 800" role="img"
+             aria-label="Program counter: 4-bit register with +1 adder feedback"
+             preserveAspectRatio="xMidYMid meet">
+          <!-- ── CLK fan-in from top to register ─────────────────────────── -->
+          <polyline class="wire" data-net="CLK" points="270,30 270,140" />
+          <text class="tlabel-small" x="270" y="14">CLK</text>
+          <circle class="pin" id="pinCLK" cx="270" cy="30" r="7" />
+
+          <!-- ── Register box (left) ──────────────────────────────────────── -->
+          <g class="child-slot" id="slot-register" tabindex="0" role="button"
+             aria-label="Register internals">
+            <rect class="tbody simple-body" id="boxReg" x="80" y="140" width="380" height="480" rx="14" />
+            <text class="tlabel simple-label"      x="270" y="178">register</text>
+            <text class="tlabel-small simple-label" x="270" y="204">4 × DFF · shared CLK</text>
+            <text class="tlabel-bit simple-label" id="qLabel3" x="270" y="200">Q3 = 0</text>
+            <text class="tlabel-bit simple-label" id="qLabel2" x="270" y="320">Q2 = 0</text>
+            <text class="tlabel-bit simple-label" id="qLabel1" x="270" y="440">Q1 = 0</text>
+            <text class="tlabel-bit simple-label" id="qLabel0" x="270" y="560">Q0 = 0</text>
+            <!-- detailed overlay injected at runtime by counter.ts -->
+          </g>
+          <!-- D input labels (always visible, outside the box) -->
+          <text class="tlabel-small" x="60"  y="212">D3</text>
+          <text class="tlabel-small" x="60"  y="332">D2</text>
+          <text class="tlabel-small" x="60"  y="452">D1</text>
+          <text class="tlabel-small" x="60"  y="572">D0</text>
+          <text class="tlabel-small" x="480" y="212">Q3</text>
+          <text class="tlabel-small" x="480" y="332">Q2</text>
+          <text class="tlabel-small" x="480" y="452">Q1</text>
+          <text class="tlabel-small" x="480" y="572">Q0</text>
+
+          <!-- ── Adder box (right) ────────────────────────────────────────── -->
+          <g class="child-slot" id="slot-adder" tabindex="0" role="button"
+             aria-label="Adder internals">
+            <rect class="tbody simple-body" id="boxAdd" x="800" y="140" width="380" height="480" rx="14" />
+            <text class="tlabel simple-label" id="adderTitle" x="990" y="178">+1 adder</text>
+            <text class="tlabel-small simple-label" id="adderSubtitle" x="990" y="204">4-bit · B = 0001 (constant)</text>
+            <text class="tlabel-bit simple-label" id="sLabel3" x="990" y="200">S3 = 0</text>
+            <text class="tlabel-bit simple-label" id="sLabel2" x="990" y="320">S2 = 0</text>
+            <text class="tlabel-bit simple-label" id="sLabel1" x="990" y="440">S1 = 0</text>
+            <text class="tlabel-bit simple-label" id="sLabel0" x="990" y="560">S0 = 0</text>
+            <!-- detailed overlay injected at runtime by counter.ts -->
+          </g>
+          <!-- A and S input/output labels (always visible, outside the box) -->
+          <text class="tlabel-small" x="780" y="212">A3</text>
+          <text class="tlabel-small" x="780" y="332">A2</text>
+          <text class="tlabel-small" x="780" y="452">A1</text>
+          <text class="tlabel-small" x="780" y="572">A0</text>
+          <text class="tlabel-small" x="1200" y="212">S3</text>
+          <text class="tlabel-small" x="1200" y="332">S2</text>
+          <text class="tlabel-small" x="1200" y="452">S1</text>
+          <text class="tlabel-small" x="1200" y="572">S0</text>
+
+          <!-- ── Q → A connections (forward bus, always live) ─────────────── -->
+          <polyline class="wire" data-net="Q3" points="460,200 800,200" />
+          <polyline class="wire" data-net="Q2" points="460,320 800,320" />
+          <polyline class="wire" data-net="Q1" points="460,440 800,440" />
+          <polyline class="wire" data-net="Q0" points="460,560 800,560" />
+
+          <!--
+            ── Feedback bus (S → D), routed BELOW both boxes.
+            Each lane uses a distinct right-exit-x, bottom-y, left-return-x
+            so they don't visually collide. Bit 3 (top) uses the OUTER lane.
+          -->
+          <!-- S3 → D3 -->
+          <polyline class="wire" data-net="S3" points="1180,200 1260,200 1260,720 20,720 20,200 80,200" />
+          <!-- S2 → D2 -->
+          <polyline class="wire" data-net="S2" points="1180,320 1240,320 1240,700 40,700 40,320 80,320" />
+          <!-- S1 → D1 -->
+          <polyline class="wire" data-net="S1" points="1180,440 1220,440 1220,680 60,680 60,440 80,440" />
+          <!-- S0 → D0 -->
+          <polyline class="wire" data-net="S0" points="1180,560 1200,560 1200,660 75,660 75,560 80,560" />
+
+          <!-- Small "+N" tag in the gap between boxes, on the wire bus -->
+          <text class="tlabel-tag" id="loopTag" x="630" y="100">+1 feedback loop</text>
+
+          <!-- Pin nodes at register left edge (D) and adder right edge (S) -->
+          <circle class="pin" id="pinD3" cx="80"   cy="200" r="6" />
+          <circle class="pin" id="pinD2" cx="80"   cy="320" r="6" />
+          <circle class="pin" id="pinD1" cx="80"   cy="440" r="6" />
+          <circle class="pin" id="pinD0" cx="80"   cy="560" r="6" />
+          <circle class="pin" id="pinS3" cx="1180" cy="200" r="6" />
+          <circle class="pin" id="pinS2" cx="1180" cy="320" r="6" />
+          <circle class="pin" id="pinS1" cx="1180" cy="440" r="6" />
+          <circle class="pin" id="pinS0" cx="1180" cy="560" r="6" />
+        </svg>
+      </div>
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 8</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: the machine knows where it is</h3>
+            <p>You have storage (the <em>register</em>) and arithmetic (the <em>adder</em>). Wire the register's output back through the adder into its own input, and you've crossed a threshold: a circuit that <em>updates itself</em> on every clock edge.</p>
+            <p>This is a <span class="accent">program counter</span>. It holds an address. Every clock tick, it advances. That's how a CPU knows which instruction to fetch next — without a PC, the machine has no sense of "now I am here".</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the layout</h3>
+            <p>On the left, the 4-bit <em>register</em> from the previous page. On the right, the 4-bit <em>adder</em>, with its B input hardwired to <kbd>0001</kbd> — so its job is simply "output A + 1".</p>
+            <p>The register's outputs <span class="accent">Q3..Q0</span> feed straight into the adder's <span class="accent">A3..A0</span>. The adder's outputs <span class="accent">S3..S0</span> loop back along the bottom into the register's <span class="accent">D3..D0</span>. <em>That loop is the whole trick.</em></p>
+          </article>
+          <article class="step" hidden>
+            <h3>press pulse — PC increments</h3>
+            <p>Hit <kbd>pulse CLK 0→1→0</kbd>. Watch carefully: the rising edge transfers the adder's output into the register. The register's Q now equals the OLD adder output — which was OLD-PC + 1. So <em>PC has advanced by one</em>.</p>
+            <p>Immediately after the edge, the adder sees the new Q and recomputes — so <span class="accent">"next" already shows PC + 1 again</span>, queued up for the next pulse. Keep pulsing: 0 → 1 → 2 → 3 → ... → 15 → wraps to 0.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why doesn't it race?</h3>
+            <p>The feedback loop is "obviously" a problem: Q feeds A, A drives S, S feeds back to D, and D would seem to feed Q. If the register were transparent, this would oscillate uncontrollably as the adder kept incrementing its own output.</p>
+            <p>It doesn't because the register is built from <em>edge-triggered DFFs</em>. Between clock edges, D is ignored — the loop is open. Only at the brief rising edge does D snap into Q, and by then the new adder output is "the value to capture next time," not "the value to chase right now."</p>
+            <p>This is exactly why we spent so long on edge-triggering. A latch-based register here would explode.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>combinational vs sequential, made physical</h3>
+            <p>Look at the diagram. The adder (right) is <em>purely combinational</em>: between clock pulses, its output is whatever Q + 1 happens to be, immediately. The register (left) is <em>purely sequential</em>: it only changes at clock edges.</p>
+            <p>Combinational logic computes <em>what could be next</em>. Sequential logic decides <em>when next happens</em>. Every interesting circuit in a CPU has this same shape — a hot, always-computing combinational cloud feeding a clock-gated state element.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>where the constants come from</h3>
+            <p>Hover the adder box. You'll see each FA's left side has THREE inputs: <kbd>A</kbd> (from the register's Q wire, lights up per-bit), <kbd>B</kbd> (a short stub labeled <em>"B=1 (Vdd)"</em> or <em>"B=0 (GND)"</em>), and <kbd>Cin</kbd> (the carry from the FA below). Where do the B and Cin values physically come from?</p>
+            <p>Not from anywhere — they're <span class="accent">hardwired</span>. The B bit of FA0 is just a wire permanently soldered to the chip's Vdd rail (for B=1) or GND rail (for B=0). FA0's Cin is similarly tied to GND because we're only doing addition (subtraction would tie it to Vdd and flip the B inputs through inverters). Same with FA1, FA2, FA3 — each B is either a tie to Vdd or to GND, fixed forever at chip-design time.</p>
+            <p>This is what the <kbd>step: +1</kbd> / <kbd>step: +4</kbd> toggle is really showing you: <em>two different physical circuits</em>, not one circuit that switches at runtime. A real chip can't dynamically rewire which rail B is tied to — that would require multiplexers (which IS what branch/jump logic uses to feed a different value into the PC's adder, but that's a different B source, not a runtime tie-change).</p>
+          </article>
+          <article class="step" hidden>
+            <h3>flip to +4 — the CPU's actual fetch stride</h3>
+            <p>Hit <kbd>step: +1</kbd> to toggle into <kbd>step: +4</kbd> mode. The adder's hardwired B input switches from <kbd>0001</kbd> to <kbd>0100</kbd> — a constant 4 instead of a constant 1. The "+1 feedback loop" label updates to "+4 feedback loop"; the adder relabels itself. <em>Nothing else changes in the topology</em> — the register, the feedback wires, the clock fan-out are all identical. Only the constant being added is different.</p>
+            <p>Now pulse the clock and watch PC step through <span class="accent">0 → 4 → 8 → 12 → 0</span> (wraps because 16 = 10000 overflows the 4-bit width). At each pulse, the same single carry rises through the same adder lanes — but starting at bit 2 instead of bit 0, because the "+1" lives in bit 2 of the B constant.</p>
+            <p>Open the adder's hover overlay during a pulse to watch the lit B-constant indicator shift from FA0 (in +1 mode) to FA2 (in +4 mode). That single bit's position is the only physical difference between a demo counter and a real CPU's program counter.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>The CPU's instruction-fetch loop is exactly this circuit, scaled up. RV32I has a 32-bit PC; instructions are 4 bytes long; so the adder adds <kbd>+4</kbd> on every fetch (which you just simulated above). Branches and jumps inject a different value into the adder, replacing the constant — same loop, different addend.</p>
+            <p>Now you can see the shape of a CPU. The PC chases itself through memory, the fetched instruction routes data through an ALU (a generalized adder), and the ALU's output lands back in a register on the next clock — same loop, more cargo. We've just built the spine.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/counter.ts"></script>
+  </body>
+</html>

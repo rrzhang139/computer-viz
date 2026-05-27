@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-7.4399999999999995 -4.96 14.879999999999999 9.92" width="900" height="600">
+<rect x="-6" y="-4" width="12" height="8" fill="#f7efde" stroke="#c5b69a" stroke-width="0.04"/>
+<line x1="0" y1="4" x2="0" y2="-4" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
+<line x1="-6" y1="0" x2="6" y2="0" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
+<text x="-6" y="4.384" font-size="0.25" fill="#8a7864" font-family="serif">LEFT (data in)</text>
+<text x="6" y="4.384" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="end">RIGHT (data out)</text>
+<text x="0" y="-4.24" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">TOP (control)</text>
+<text x="0" y="4.672" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">BOTTOM (power/ground)</text>
+<polyline points="-6.000,-4.000 6.000,-4.000" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-6.000,4.000 6.000,4.000" fill="none" stroke="#3b2718" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<circle cx="-6" cy="-2" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="-6.35" y="-2" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">a1_in</text>
+<text x="-6.35" y="-1.72" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-6, 2)</text>
+<circle cx="-6" cy="2" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="-6.35" y="2" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">a0_in</text>
+<text x="-6.35" y="2.2800000000000002" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-6, -2)</text>
+<circle cx="0" cy="-3.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="0" y="-3.85" text-anchor="middle" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">EN_in</text>
+<text x="0" y="-3.5700000000000003" text-anchor="middle" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(0, 3.5)</text>
+<circle cx="6" cy="-3" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="6.35" y="-3" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">sel3_out</text>
+<text x="6.35" y="-2.7199999999999998" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(6, 3)</text>
+<circle cx="6" cy="-1" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="6.35" y="-1" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">sel2_out</text>
+<text x="6.35" y="-0.72" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(6, 1)</text>
+<circle cx="6" cy="1" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="6.35" y="1" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">sel1_out</text>
+<text x="6.35" y="1.28" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(6, -1)</text>
+<circle cx="6" cy="3" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="6.35" y="3" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">sel0_out</text>
+<text x="6.35" y="3.2800000000000002" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(6, -3)</text>
+<line x1="-6" y1="-4" x2="6" y2="-4" stroke="#3a7d34" stroke-width="0.10" stroke-linecap="round"/>
+<text x="-6" y="-4.25" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3a7d34" font-family="serif" font-weight="700">Vdd</text>
+<text x="6" y="-4.25" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=4</text>
+<line x1="-6" y1="4" x2="6" y2="4" stroke="#3b2718" stroke-width="0.10" stroke-linecap="round"/>
+<text x="-6" y="4.45" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3b2718" font-family="serif" font-weight="700">GND</text>
+<text x="6" y="4.45" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=-4</text>
+</svg>
