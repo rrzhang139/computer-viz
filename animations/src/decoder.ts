@@ -4,6 +4,7 @@ import {
   readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
+import { renderDecoderScene } from "./scenes/decoderScene";
 
 // 2-to-4 decoder: 2 address bits + 1 enable → 4 one-hot outputs.
 //   sel0 = ~a1 · ~a0 · EN
@@ -33,8 +34,18 @@ let a1: Bit = readBitParam('a1', _snap?.a1 ?? 0);
 let a0: Bit = readBitParam('a0', _snap?.a0 ?? 0);
 let EN: Bit = readBitParam('EN', _snap?.EN ?? 1);
 
-// Add pulse overlays for each wire so lit lines visibly flow.
 const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Populate the SVG from the shared wireframe-derived renderer. Scene
+// is 1200×800 (= 100 px per world unit). The same renderer is used in
+// /mux.html for the decoder hover-preview — guarantees the two views
+// stay 1:1 with wire_sketches/layer10_decoder.md.
+svg.appendChild(renderDecoderScene(
+  { x: 0, y: 0, w: 1200, h: 800 },
+  { idPrefix: 'g', showPins: true },
+));
+
+// Add pulse overlays for each wire so lit lines visibly flow.
 const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {

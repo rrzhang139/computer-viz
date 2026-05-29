@@ -22,6 +22,8 @@ const MEMORY: Entry[] = [
 const DATAPATH: Entry[] = [
   { href: "/counter.html",  label: "program counter", tag: "1" },
   { href: "/decoder.html",  label: "2-to-4 decoder",  tag: "2" },
+  { href: "/mux.html",      label: "4-to-1 MUX",      tag: "3" },
+  { href: "/regfile.html",  label: "register file",   tag: "4" },
 ];
 
 const CSS = `

@@ -14,7 +14,11 @@
     "test:e2e": "playwright test",
     "test:all": "npm run test && npm run test:e2e",
     "sketch": "node wire_sketches/render.mjs --all",
-    "sketch:check": "node wire_sketches/check.mjs --all"
+    "sketch:check": "node wire_sketches/check.mjs --all",
+    "wireframes": "npm run sketch && npm run sketch:check",
+    "presketch:check": "node wire_sketches/render.mjs --all",
+    "pretest": "npm run wireframes",
+    "pretest:e2e": "npm run wireframes"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

@@ -29,8 +29,6 @@ const svg      = document.getElementById('counter')  as unknown as SVGSVGElement
 const pcBits   = document.getElementById('pcBits')   as HTMLElement;
 const pcDec    = document.getElementById('pcDec')    as HTMLElement;
 const nextBits = document.getElementById('nextBits') as HTMLElement;
-const adderTitle = document.getElementById('adderTitle')    as unknown as SVGTextElement;
-const adderSubtitle = document.getElementById('adderSubtitle') as unknown as SVGTextElement;
 const loopTag    = document.getElementById('loopTag')       as unknown as SVGTextElement;
 
 type PcSnap = { PC: number; CLK: Bit; STEP: 1 | 4 };
@@ -331,11 +329,7 @@ function render() {
 
   const newNext = (PC + STEP) & 0b1111;
 
-  // Dynamic labels for the current STEP mode.
-  adderTitle.textContent = `+${STEP} adder`;
-  adderSubtitle.textContent = STEP === 1
-    ? '4-bit · B = 0001 (constant)'
-    : '4-bit · B = 0100 (constant)';
+  // Dynamic label for the current STEP mode.
   loopTag.textContent = `+${STEP} feedback loop`;
   btnStep.textContent = `step: +${STEP}`;
 
@@ -350,10 +344,6 @@ function render() {
     const s = bitOf(newNext, i);
     setWire(`Q${i}`, q);
     setWire(`S${i}`, s);
-    document.getElementById(`qLabel${i}`)!.textContent = `Q${i} = ${q}`;
-    document.getElementById(`sLabel${i}`)!.textContent = `S${i} = ${s}`;
-    document.getElementById(`qLabel${i}`)!.setAttribute('fill', q ? 'var(--on)' : '#555');
-    document.getElementById(`sLabel${i}`)!.setAttribute('fill', s ? 'var(--on)' : '#555');
     setPin(`pinS${i}`, s);
     setPin(`pinD${i}`, s); // D inputs = adder outputs (feedback)
 

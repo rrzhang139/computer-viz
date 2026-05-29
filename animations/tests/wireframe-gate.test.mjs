@@ -51,6 +51,8 @@ const LAYER_TO_PAGE = {
   adder4:     'adder4.html',
   counter:    'counter.html',
   decoder:    'decoder.html',
+  mux:        'mux.html',
+  regfile:    'regfile.html',
 };
 
 // Terminals that don't appear as data-net wires because they're
@@ -91,9 +93,41 @@ function parseWireframeTerminals(mdPath) {
 function extractDataNets(htmlPath) {
   const src = readFileSync(htmlPath, 'utf8');
   const nets = new Set();
-  const re = /data-net="([^"]+)"/g;
   let m;
+  const re = /data-net="([^"]+)"/g;
   while ((m = re.exec(src)) !== null) nets.add(m[1]);
+  // Pages that inject SVG from src/scenes/*.ts at runtime have no static
+  // data-net attrs in their HTML; pick those up by also scanning any
+  // scene/TS module the page imports (recursively).
+  const visited = new Set();
+  const walkTs = (tsPath) => {
+    if (visited.has(tsPath)) return;
+    visited.add(tsPath);
+    let body;
+    try { body = readFileSync(tsPath, 'utf8'); } catch { return; }
+    // Pull `net: '...'` literal strings (renderer's wire spec format)
+    const netRe = /net:\s*['"]([^'"]+)['"]/g;
+    let mm;
+    while ((mm = netRe.exec(body)) !== null) nets.add(mm[1]);
+    // Pull `data-net="..."` and `setAttribute('data-net', ...)` calls
+    const dnRe = /data-net["']?\s*[,:=]\s*["']([^"']+)["']/g;
+    while ((mm = dnRe.exec(body)) !== null) nets.add(mm[1]);
+    // Recurse into local imports `from "./scenes/foo"` / `from "./foo"`
+    const imp = /from\s+["'](\.[^"']+)["']/g;
+    while ((mm = imp.exec(body)) !== null) {
+      const rel = mm[1];
+      const baseDir = path.dirname(tsPath);
+      for (const ext of ['.ts', '.tsx', '/index.ts']) {
+        const candidate = path.resolve(baseDir, rel + ext);
+        try { readFileSync(candidate); walkTs(candidate); break; } catch {}
+      }
+    }
+  };
+  // Convention: <page>.html ↔ src/<page>.ts (entry point). Walk from there.
+  const pageStem = path.basename(htmlPath, '.html');
+  const stem = pageStem === 'index' ? 'main' : pageStem;
+  const entryTs = path.resolve(ROOT, 'src', `${stem}.ts`);
+  walkTs(entryTs);
   return nets;
 }
 

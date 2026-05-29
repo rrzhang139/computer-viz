@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / 4-to-1 MUX</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav { display: none; }
+      .page-layout {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px;
+      }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel {
+        position: relative; width: 100%; max-width: 1480px;
+        background: var(--panel); border: 1px solid #1f1f1f;
+        border-radius: 14px; padding: 14px 24px 14px;
+        height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        display: flex; flex-direction: column;
+      }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
+      .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .controls-row { display: flex; gap: 10px; align-items: center; }
+      .controls-row .label { color: #666; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; min-width: 50px; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 18px; cursor: pointer; min-width: 64px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 55vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #777; font-size: 16px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #555; font-size: 13px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-tag { fill: var(--on); font-size: 18px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; font-weight: 500; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+
+      /* Hover-swap on each gate-slot — truth tables for the AND row + OR */
+      .gate-slot { pointer-events: bounding-box; cursor: default; outline: none; }
+      .gate-slot .simple-body, .gate-slot .simple-label { transition: opacity 200ms; }
+      .gate-slot:hover .simple-body, .gate-slot:focus-within .simple-body,
+      .gate-slot:hover .simple-label, .gate-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+      .gate-slot:hover .detailed, .gate-slot:focus-within .detailed { opacity: 1; }
+      .tt-bg { fill: rgba(20, 20, 20, 0.96); stroke: var(--on); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+      .tt-title { fill: var(--on); font-size: 14px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; letter-spacing: 0.15em; }
+      .tt-divider { stroke: #2a2a2a; stroke-width: 1; }
+      .tt-header { fill: #777; font-size: 11px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tt-cell { fill: #888; font-size: 11px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; transition: fill 140ms; }
+      .tt-row { fill: transparent; transition: fill 140ms; }
+      .tt-row[data-on="1"] { fill: rgba(239, 159, 39, 0.22); }
+      .tt-row[data-on="1"] + .tt-cell-group .tt-cell { fill: var(--on); }
+
+      /* Slot for the decoder sub-block: hover swaps the plain rect for a
+         scaled-down mini of the real /decoder.html scene; click drills. */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot > .simple-body, .child-slot > .simple-label { transition: opacity 180ms; }
+      .child-slot:hover > .simple-body, .child-slot:focus-within > .simple-body,
+      .child-slot:hover > .simple-label, .child-slot:focus-within > .simple-label { opacity: 0; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      /* Inside the preview, gates are smaller so use thinner strokes */
+      #decoderDetail .tbody { stroke-width: 0.8; }
+      #decoderDetail .wire { stroke-width: 1.5; }
+      #decoderDetail .pulse { display: none; }
+      #decoderDetail .tlabel-small { font-size: 9px; }
+
+      .out-readout {
+        font-family: ui-monospace, monospace; font-size: 15px; color: #888;
+        display: flex; align-items: center; gap: 16px;
+        padding: 10px 18px; background: var(--panel);
+        border: 1px solid #222; border-radius: 999px;
+      }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.22em; }
+      .out-readout .dec { color: #ddd; }
+      .out-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/mux.html" aria-current="page">4-to-1 MUX</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <div class="controls-row">
+            <span class="label">inputs</span>
+            <button class="btn" id="btnIn3" data-on="0">in3 0</button>
+            <button class="btn" id="btnIn2" data-on="0">in2 0</button>
+            <button class="btn" id="btnIn1" data-on="0">in1 0</button>
+            <button class="btn" id="btnIn0" data-on="0">in0 0</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">select</span>
+            <button class="btn" id="btnS1" data-on="0">s1 0</button>
+            <button class="btn" id="btnS0" data-on="0">s0 0</button>
+          </div>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">select</span>
+          <span class="bits" id="selBits">00</span>
+          <span class="dec" id="selDec">(0)</span>
+          <span class="sep">·</span>
+          <span class="label">picked</span>
+          <span class="bits" id="pickedLabel">in0</span>
+          <span class="sep">·</span>
+          <span class="label">out</span>
+          <span class="bits" id="outBit">0</span>
+        </div>
+
+        <!--
+          4-to-1 MUX:
+            - 4 inputs on the left
+            - 2 select bits at the top
+            - Decoder block in the upper-center converts (s1, s0) → sel0..sel3
+            - 4 AND gates in the middle-right: each ANDs one input with one sel
+            - 1 OR-4 collapses all 4 AND outputs into 'out' on the right
+          The decoder block is drillable — clicking opens /decoder.html with
+          the current s1/s0 baked into the URL.
+        -->
+        <!-- Coordinates are 1:1 with wire_sketches/layer11_mux.md.
+             Mapping:  SVG_x = 80*(x_world + 9),  SVG_y = 80*(6 - y_world)
+             Scene world x∈[-9,9], y∈[-6,6] → 1440 × 960 at scale 80. -->
+        <svg id="mux" viewBox="-30 -30 1500 1020" role="img"
+             aria-label="4-to-1 multiplexer"
+             preserveAspectRatio="xMidYMid meet">
+          <!-- Rails (Vdd at world y=6, GND at world y=-6) -->
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1440,0" />
+          <polyline class="wire" data-net="GND" points="0,960 1440,960" />
+
+          <!-- ── External-terminal pins (ALL inputs LEFT, ONE output RIGHT) -->
+          <circle class="pin" id="pinS1"  cx="0"    cy="100" r="7" />
+          <circle class="pin" id="pinS0"  cx="0"    cy="220" r="7" />
+          <circle class="pin" id="pinIn3" cx="0"    cy="352" r="7" />
+          <circle class="pin" id="pinIn2" cx="0"    cy="480" r="7" />
+          <circle class="pin" id="pinIn1" cx="0"    cy="608" r="7" />
+          <circle class="pin" id="pinIn0" cx="0"    cy="736" r="7" />
+          <circle class="pin" id="pinOut" cx="1440" cy="544" r="7" />
+          <text class="tlabel-small" x="-18" y="100">s1</text>
+          <text class="tlabel-small" x="-18" y="220">s0</text>
+          <text class="tlabel-small" x="-18" y="352">in3</text>
+          <text class="tlabel-small" x="-18" y="480">in2</text>
+          <text class="tlabel-small" x="-18" y="608">in1</text>
+          <text class="tlabel-small" x="-18" y="736">in0</text>
+          <text class="tlabel-small" x="1458" y="544">out</text>
+
+          <!-- ── Wires (1:1 with layer11 wires table) -->
+          <!-- s1 / s0 are pure horizontals from LEFT-edge pins into the
+               decoder's LEFT-edge a1/a0 terminals (matching y exactly). -->
+          <polyline class="wire" data-net="s1" points="0,100 560,100" />
+          <polyline class="wire" data-net="s0" points="0,220 560,220" />
+
+          <!-- in_n: LEFT-pin → jog (3.85, y_n) → (3.85, andN_A_in.y) → andN_A_in -->
+          <polyline class="wire" data-net="in3" points="0,352 1028,352 1028,324 1040,324" />
+          <polyline class="wire" data-net="in2" points="0,480 1028,480 1028,452 1040,452" />
+          <polyline class="wire" data-net="in1" points="0,608 1028,608 1028,580 1040,580" />
+          <polyline class="wire" data-net="in0" points="0,736 1028,736 1028,708 1040,708" />
+
+          <!-- sel_n: decoder RIGHT-edge (x=880) → lane (x=2.4/2.7/3.0/3.3) → andN.B_in -->
+          <polyline class="wire" data-net="sel3" points="880,70  912,70   912,380  1040,380" />
+          <polyline class="wire" data-net="sel2" points="880,130 936,130  936,508  1040,508" />
+          <polyline class="wire" data-net="sel1" points="880,190 960,190  960,636  1040,636" />
+          <polyline class="wire" data-net="sel0" points="880,250 984,250  984,764  1040,764" />
+
+          <!-- andOut_n: each is a STRAIGHT horizontal because OR-input fracs align with AND output y -->
+          <polyline class="wire" data-net="andOut3" points="1200,352 1260,352" />
+          <polyline class="wire" data-net="andOut2" points="1200,480 1260,480" />
+          <polyline class="wire" data-net="andOut1" points="1200,608 1260,608" />
+          <polyline class="wire" data-net="andOut0" points="1200,736 1260,736" />
+
+          <!-- out: OR_y_out → out_out, single horizontal -->
+          <polyline class="wire" data-net="out" points="1380,544 1440,544" />
+
+          <!-- ── Children ─────────────────────────────────────────── -->
+          <!-- Decoder composite: rect (560, 40, 320, 240) = w 4 × h 3 world.
+               Hover swaps the plain box for a 1:1 scaled mini of /decoder.html.
+               s1/s0 wires are pure horizontals into dec_a1_in / dec_a0_in
+               (LEFT edge at fracs 0.25 / 0.75 = SVG y 100 / 220). -->
+          <g class="child-slot" id="slot-decoder" tabindex="0" role="button"
+             aria-label="2-to-4 decoder for select bits — click to drill in">
+            <rect class="tbody simple-body" id="gDecoder" x="560" y="40" width="320" height="240" rx="10" />
+            <text class="tlabel simple-label" x="720" y="160">decoder</text>
+            <g class="detailed" id="decoderDetail"></g>
+          </g>
+
+          <!-- AND-2 D-shapes at NAND scale (160×112 SVG = 2.0×1.4 wu, aspect 10/7) -->
+          <path class="tbody" id="gAnd3" d="M 1040 296 L 1144 296 A 56 56 0 0 1 1144 408 L 1040 408 Z" />
+          <path class="tbody" id="gAnd2" d="M 1040 424 L 1144 424 A 56 56 0 0 1 1144 536 L 1040 536 Z" />
+          <path class="tbody" id="gAnd1" d="M 1040 552 L 1144 552 A 56 56 0 0 1 1144 664 L 1040 664 Z" />
+          <path class="tbody" id="gAnd0" d="M 1040 680 L 1144 680 A 56 56 0 0 1 1144 792 L 1040 792 Z" />
+          <text class="tlabel" x="1100" y="352">AND</text>
+          <text class="tlabel" x="1100" y="480">AND</text>
+          <text class="tlabel" x="1100" y="608">AND</text>
+          <text class="tlabel" x="1100" y="736">AND</text>
+
+          <!-- OR-4 shield (h=6.4 wu = 512px so its 4 inputs land at the 4 AND.Y_out y values):
+               top-left (1260, 288), right-tip (1380, 544), bottom-left (1260, 800) -->
+          <path class="tbody" id="gOr"
+                d="M 1260 288 C 1340 288 1380 416 1380 544 C 1380 672 1340 800 1260 800 C 1300 672 1300 416 1260 288 Z" />
+          <text class="tlabel" x="1310" y="544">OR</text>
+
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: pick one of many</h3>
+            <p>The <em>multiplexer</em> takes <kbd>N</kbd> inputs and a binary select, and routes the selected input to a single output. Toggle <kbd>s1</kbd> and <kbd>s0</kbd> to change which input lights up the output wire.</p>
+            <p>This is the <span class="accent">dual</span> of the decoder. Decoder takes an address and produces one-hot wires. MUX takes one-hot wires (from a decoder!) and uses them to gate exactly one input through.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the structure: decoder + ANDs + OR</h3>
+            <p>The block in the upper-center is a literal <kbd>2-to-4 decoder</kbd> (click it to drill into <kbd>/decoder.html</kbd>). It takes <kbd>(s1, s0)</kbd> and produces 4 one-hot lines.</p>
+            <p>Each line feeds into one of the 4 AND gates below. Each AND's OTHER input is one of the 4 data inputs. So when <kbd>sel0=1</kbd> (i.e. select=00), only the AND for <kbd>in0</kbd> can pass its value through. The other 3 ANDs see a 0 from their decoder line and output 0.</p>
+            <p>All 4 AND outputs feed a 4-input <kbd>OR</kbd>, which collapses them into a single wire. Since only one AND is active, the OR's output equals whichever input is selected.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>walk all 4 selects</h3>
+            <p>Set all 4 inputs to 1 (so any selection produces a 1 output). Now cycle <kbd>s1, s0</kbd> through <kbd>00, 01, 10, 11</kbd>. The lit AND moves bit by bit; the output stays 1.</p>
+            <p>Now flip <kbd>in2</kbd> to 0 and select <kbd>10</kbd> (s1=1, s0=0). The output drops to 0 — because the selected input is 0. Pick any other select and the output rises again. The MUX is showing you the value at the addressed input.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the duality with the decoder</h3>
+            <p>You just used the decoder TWICE in different roles: the page <kbd>/decoder.html</kbd> shows it standalone — address-in, one-hot-out. Here it sits embedded inside the MUX, producing the same one-hot — but the MUX then uses that one-hot to GATE inputs.</p>
+            <p>Decoder: "I have an address, light up one of N wires."<br/>MUX: "I have one of N values to pick — use the decoder's one-hot as the gate." Same primitive, opposite role.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>A CPU is mostly MUXes. The register file's read port is a 32-to-1 MUX picking one of 32 register outputs. The ALU result selector is a MUX picking add/sub/and/or based on opcode. The next-PC selector is a MUX picking sequential vs branch vs jump. Even instruction memory's "which word to fetch" is a giant MUX wrapped in addressing logic.</p>
+            <p>You've built a 4-input version. Scale the inputs to 32 and the select to 5 bits, and it's the read port of an RV32I register file.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/mux.ts"></script>
+  </body>
+</html>

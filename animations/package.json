@@ -7,9 +7,15 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "wireframes": "node ../wire_sketches/render.mjs --all && node ../wire_sketches/check.mjs --all",
     "test:drilldown": "node tests/drilldown.test.mjs",
     "test:wireframe-gate": "node tests/wireframe-gate.test.mjs",
-    "test:all": "npm run test:wireframe-gate && npm run test:drilldown",
+    "test:decoder-1to1": "node tests/decoder-1to1.test.mjs",
+    "test:spatial-conventions": "node tests/spatial-conventions.test.mjs",
+    "test:hover-preview": "node tests/hover-preview.test.mjs",
+    "test:all": "npm run test:spatial-conventions && npm run test:wireframe-gate && npm run test:decoder-1to1 && npm run test:hover-preview && npm run test:drilldown",
+    "prewireframes": "npm run test:spatial-conventions",
+    "pretest": "npm run wireframes && npm run build",
     "test": "npm run test:all"
   },
   "devDependencies": {

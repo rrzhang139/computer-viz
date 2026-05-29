@@ -322,6 +322,127 @@ try {
   expect('counter back STEP=+4 (snapshot)', (await page.$eval('#btnStep', (el) => el.textContent)), 'step: +4');
 
   // ════════════════════════════════════════════════════════════════
+  // 15) MUX truth-table smoke
+  // ════════════════════════════════════════════════════════════════
+  // Set distinct values on the 4 inputs so the MUX's choice is observable.
+  // Then walk all 4 select combinations and verify out == in[select].
+  console.log('\n── 15) MUX truth-table smoke ─────────────────────');
+  await page.goto(`${HOST}/mux.html`);
+  await clearSession();
+  // Set in0=0, in1=1, in2=0, in3=1 so we can tell which is selected.
+  await page.click('#btnIn1');
+  await page.click('#btnIn3');
+  await page.waitForTimeout(40);
+  const muxCases = [
+    { s1: 0, s0: 0, expectedOut: 0 },  // → in0 = 0
+    { s1: 0, s0: 1, expectedOut: 1 },  // → in1 = 1
+    { s1: 1, s0: 0, expectedOut: 0 },  // → in2 = 0
+    { s1: 1, s0: 1, expectedOut: 1 },  // → in3 = 1
+  ];
+  for (const tc of muxCases) {
+    // Toggle s1/s0 to reach the desired state
+    const curS1 = await page.$eval('#btnS1', (el) => el.getAttribute('data-on'));
+    if (curS1 !== String(tc.s1)) await page.click('#btnS1');
+    const curS0 = await page.$eval('#btnS0', (el) => el.getAttribute('data-on'));
+    if (curS0 !== String(tc.s0)) await page.click('#btnS0');
+    await page.waitForTimeout(40);
+    const out = await page.$eval('[data-net="out"]', (el) => el.getAttribute('data-on'));
+    expect(`select=(${tc.s1},${tc.s0}) → out=${tc.expectedOut}`, out, String(tc.expectedOut));
+    // Exactly one sel{N} is lit
+    let litCount = 0;
+    for (let n = 0; n < 4; n++) {
+      const litN = await page.$eval(`[data-net="sel${n}"]`, (el) => el.getAttribute('data-on'));
+      if (litN === '1') litCount++;
+    }
+    expect(`select=(${tc.s1},${tc.s0}): exactly one sel line lit`, litCount, 1);
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // 16) Register file: write via decoder+clock-gate, read via MUX
+  // ════════════════════════════════════════════════════════════════
+  // Write 1 into reg2, confirm one-hot write-enable + clock-gated commit,
+  // read it back through the MUX, and drill into all three child types.
+  console.log('\n── 16) Register file write/read + drill-downs ─────');
+  await page.goto(`${HOST}/regfile.html`);
+  await clearSession();
+  // we=1, waddr=10 (waddr1=1, waddr0=0), wdata=1
+  await page.click('#btnWe');
+  await page.click('#btnWaddr1');
+  await page.click('#btnWdata');
+  await page.waitForTimeout(40);
+  // Exactly one write-enable line is armed, and it's wen2 (address 10).
+  let armed = 0;
+  for (let n = 0; n < 4; n++) {
+    if (await wireOn(`wen${n}`) === '1') armed++;
+  }
+  expect('regfile: exactly one wen armed when we=1', armed, 1);
+  expect('regfile: wen2 armed for waddr=10', await wireOn('wen2'), '1');
+  // Clock the write; wait for the pulse (200ms→commit, 1000ms→fall) to finish.
+  await page.click('#btnPulse');
+  await page.waitForTimeout(1300);
+  expect('regfile: reg2 stored bit lit after write', await wireOn('q2'), '1');
+  expect('regfile: reg0/1/3 still 0',
+    [await wireOn('q0'), await wireOn('q1'), await wireOn('q3')].join(''), '000');
+  // Read it back: raddr=10 → rdata=1
+  await page.click('#btnRaddr1');
+  await page.waitForTimeout(40);
+  expect('regfile: rdata=1 reading addr 10', await wireOn('rdata'), '1');
+  // Read an empty register: raddr=00 → rdata=0
+  await page.click('#btnRaddr1');
+  await page.waitForTimeout(40);
+  expect('regfile: rdata=0 reading addr 00', await wireOn('rdata'), '0');
+  // Restore raddr=10 so the MUX drill below carries s1=1.
+  await page.click('#btnRaddr1');
+  await page.waitForTimeout(40);
+
+  // Drill into the write decoder — carries waddr + we
+  await drill('#slot-decoder');
+  expect('regfile→decoder from=regfile', new URL(page.url()).searchParams.get('from'), 'regfile');
+  expect('regfile→decoder which=wdec',   new URL(page.url()).searchParams.get('which'), 'wdec');
+  expect('regfile→decoder a1=1 (waddr1)', new URL(page.url()).searchParams.get('a1'), '1');
+  expect('regfile→decoder a0=0 (waddr0)', new URL(page.url()).searchParams.get('a0'), '0');
+  expect('regfile→decoder EN=1 (we)',     new URL(page.url()).searchParams.get('EN'), '1');
+  await checkBreadcrumb('← back to regfile · wdec');
+  await page.screenshot({ path: path.join(OUT_DIR, '09_regfile_to_decoder.png') });
+  await backAndExpectAlive('#slot-decoder');
+
+  // Drill into reg2 (a DFF) — carries Q=1 (stored)
+  await drill('#slot-reg2');
+  expect('regfile→dff which=reg2', new URL(page.url()).searchParams.get('which'), 'reg2');
+  expect('regfile→dff Q=1 (reg2 stored)', new URL(page.url()).searchParams.get('Q'), '1');
+  expect('drilled DFF Q lit', await wireOn('Q'), '1');
+  await checkBreadcrumb('← back to regfile · reg2');
+  await backAndExpectAlive('#slot-reg2');
+
+  // Drill into the read MUX — carries the 4 stored bits + read address
+  await drill('#slot-mux');
+  expect('regfile→mux which=rmux', new URL(page.url()).searchParams.get('which'), 'rmux');
+  expect('regfile→mux in2=1 (reg2 stored)', new URL(page.url()).searchParams.get('in2'), '1');
+  expect('regfile→mux s1=1 (raddr1)',       new URL(page.url()).searchParams.get('s1'), '1');
+  await checkBreadcrumb('← back to regfile · rmux');
+  await page.screenshot({ path: path.join(OUT_DIR, '10_regfile_to_mux.png') });
+  await backAndExpectAlive('#slot-mux');
+  expect('regfile back: reg2 still stored (snapshot)', await wireOn('q2'), '1');
+
+  // ════════════════════════════════════════════════════════════════
+  // 14) Decoder gate symbols: rendered as logic-gate shapes (no hover)
+  // ════════════════════════════════════════════════════════════════
+  // AND/OR/NOT truth tables are trivial — we removed the hover overlays
+  // and replaced the rect placeholders with proper ANSI logic-symbol
+  // <path> elements (NOT triangle+bubble, AND D-shape). Smoke-check the
+  // shapes exist and lit-state still propagates via data-on.
+  console.log('\n── 14) Decoder gate symbols are paths, no overlays ─');
+  await page.goto(`${HOST}/decoder.html`);
+  await clearSession();
+  for (const id of ['gInvA1', 'gInvA0', 'gAnd0', 'gAnd1', 'gAnd2', 'gAnd3']) {
+    const tag = await page.$eval(`#${id}`, (el) => el.tagName.toLowerCase());
+    expect(`#${id} is a <path> (logic-gate symbol)`, tag, 'path');
+  }
+  // No .gate-slot or .detailed overlays remain for the simple gates.
+  const overlayCount = await page.$$eval('#decoder .detailed', (els) => els.length);
+  expect(`decoder: no .detailed truth-table overlays`, overlayCount, 0);
+
+  // ════════════════════════════════════════════════════════════════
   // 13) Decoder truth-table smoke
   // ════════════════════════════════════════════════════════════════
   // For each of 4 addresses with EN=1, assert exactly one sel{N} wire
@@ -465,6 +586,10 @@ try {
     { page: '/adder4.html',    slot: 'slot-fa0',      expectedTitle: /full adder|computer-viz/i },
     { page: '/counter.html',   slot: 'slot-register', expectedTitle: /register|computer-viz/i },
     { page: '/counter.html',   slot: 'slot-adder',    expectedTitle: /adder|computer-viz/i },
+    { page: '/mux.html',       slot: 'slot-decoder',  expectedTitle: /decoder|computer-viz/i },
+    { page: '/regfile.html',   slot: 'slot-decoder',  expectedTitle: /decoder|computer-viz/i },
+    { page: '/regfile.html',   slot: 'slot-reg2',     expectedTitle: /DFF|computer-viz/i },
+    { page: '/regfile.html',   slot: 'slot-mux',      expectedTitle: /MUX|computer-viz/i },
   ];
 
   for (const { page: pagePath, slot, expectedTitle } of VALID_DRILLS) {

@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / register file</title>
+    <style>
+      :root {
+        --on: #EF9F27;
+        --off: #2a2a2a;
+        --bg: #0a0a0a;
+        --panel: #141414;
+      }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; background: var(--bg);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        color: #ccc; min-height: 100vh;
+      }
+      .nav { display: none; }
+      .page-layout {
+        display: flex; flex-direction: column; align-items: center;
+        padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px;
+      }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel {
+        position: relative; width: 100%; max-width: 1480px;
+        background: var(--panel); border: 1px solid #1f1f1f;
+        border-radius: 14px; padding: 14px 24px 14px;
+        height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+        display: flex; flex-direction: column;
+      }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
+      .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .controls-row { display: flex; gap: 10px; align-items: center; }
+      .controls-row .label { color: #666; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; min-width: 46px; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 18px; cursor: pointer; min-width: 64px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      .btn-pulse { background: rgba(239, 159, 39, 0.12); color: var(--on); border-color: var(--on); }
+      .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 58vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #777; font-size: 16px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #555; font-size: 13px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-sub { fill: #555; font-size: 12px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+
+      /* Drillable child blocks: hover swaps the plain box for a scaled-down
+         mini of the child's real scene (decoder / DFF / MUX internals). */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot .simple-body, .child-slot .simple-label { transition: opacity 180ms; }
+      .child-slot:hover .simple-body, .child-slot:focus-within .simple-body,
+      .child-slot:hover .simple-label, .child-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      /* Inside a preview: thinner strokes, no flowing pulse, smaller text. */
+      .detailed .tbody { stroke-width: 0.8; }
+      .detailed .wire { stroke-width: 1.5; }
+      .detailed .pulse { display: none; }
+      .detailed .tlabel-small { font-size: 9px; }
+
+      .mini-bg { fill: rgba(20, 20, 20, 0.96); stroke: var(--on); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+      .wire-mini { fill: none; stroke: var(--off); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: stroke 140ms, filter 140ms; }
+      .wire-mini[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 2.5px rgba(239, 159, 39, 0.7)); }
+      .tbody-mini { fill: #111; stroke: #2a2a2a; stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody-mini[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.45)); }
+      .tlabel-mini { fill: #888; font-size: 26px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-mini-tiny { fill: #777; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody-mini[data-on="1"] + .tlabel-mini, .tbody-mini[data-on="1"] ~ .tlabel-mini-tiny { fill: var(--on); }
+
+      .out-readout {
+        font-family: ui-monospace, monospace; font-size: 15px; color: #888;
+        display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center;
+        padding: 10px 18px; background: var(--panel);
+        border: 1px solid #222; border-radius: 999px;
+      }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.22em; }
+      .out-readout .dec { color: #ddd; }
+      .out-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/regfile.html" aria-current="page">register file</a>
+    </div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <div class="controls-row">
+            <span class="label">write</span>
+            <button class="btn" id="btnWe" data-on="0">we 0</button>
+            <button class="btn" id="btnWaddr1" data-on="0">waddr1 0</button>
+            <button class="btn" id="btnWaddr0" data-on="0">waddr0 0</button>
+            <button class="btn" id="btnWdata" data-on="0">wdata 0</button>
+            <button class="btn btn-pulse" id="btnPulse">↻ clock write</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">read</span>
+            <button class="btn" id="btnRaddr1" data-on="0">raddr1 0</button>
+            <button class="btn" id="btnRaddr0" data-on="0">raddr0 0</button>
+          </div>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">write</span>
+          <span>addr <span class="bits" id="waddrBits">00</span><span class="dec" id="waddrDec">(0)</span></span>
+          <span class="sep">·</span>
+          <span class="label">stored</span>
+          <span class="bits" id="memBits">0 0 0 0</span>
+          <span class="sep">·</span>
+          <span class="label">read</span>
+          <span>addr <span class="bits" id="raddrBits">00</span><span class="dec" id="raddrDec">(0)</span></span>
+          <span class="sep">·</span>
+          <span class="label">rdata</span>
+          <span class="bits" id="rdataBit">0</span>
+        </div>
+
+        <!--
+          Register file (4 entries × 1 bit, 1 write port + 1 read port):
+            - LEFT edge: write address (waddr1/waddr0) + write-enable (we),
+              read address (raddr1/raddr0), shared clk, and the write-data bit.
+            - The 2-to-4 DECODER (upper-left) turns the write address into a
+              one-hot write-enable wen0..wen3.
+            - Each wen line ANDs with clk (the 4 "&" gates) → one register's
+              gated clock. Only the addressed register sees a clock edge.
+            - 4 DFF cells (reg0..reg3, LSB at bottom) each hold one bit; wdata
+              fans into all of them but only the clocked one latches.
+            - The 4-to-1 MUX (right) uses the read address to route one
+              register's Q out to rdata.
+          The decoder, the 4 DFFs, and the MUX are all drillable.
+          Coords are 1:1 with wire_sketches/layer12_regfile.md.
+          Map: SVG_x = 70*(x_world + 10), SVG_y = 70*(7 - y_world).
+        -->
+        <svg id="regfile" viewBox="-110 -30 1620 1040" role="img"
+             aria-label="register file: 4 entries by 1 bit, 1 write port and 1 read port"
+             preserveAspectRatio="xMidYMid meet">
+          <!-- Rails (Vdd world y=7 → SVG 0; GND world y=-7 → SVG 980) -->
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1400,0" />
+          <polyline class="wire" data-net="GND" points="0,980 1400,980" />
+
+          <!-- ── External-terminal pins (ALL inputs LEFT, single output RIGHT) -->
+          <circle class="pin" id="pinWaddr1" cx="0" cy="105" r="7" />
+          <circle class="pin" id="pinWe"     cx="0" cy="175" r="7" />
+          <circle class="pin" id="pinWaddr0" cx="0" cy="245" r="7" />
+          <circle class="pin" id="pinRaddr1" cx="0" cy="385" r="7" />
+          <circle class="pin" id="pinRaddr0" cx="0" cy="455" r="7" />
+          <circle class="pin" id="pinClk"    cx="0" cy="595" r="7" />
+          <circle class="pin" id="pinWdata"  cx="0" cy="735" r="7" />
+          <circle class="pin" id="pinRdata"  cx="1400" cy="595" r="7" />
+          <text class="tlabel-small" x="-16" y="105" text-anchor="end">waddr1</text>
+          <text class="tlabel-small" x="-16" y="175" text-anchor="end">we</text>
+          <text class="tlabel-small" x="-16" y="245" text-anchor="end">waddr0</text>
+          <text class="tlabel-small" x="-16" y="385" text-anchor="end">raddr1</text>
+          <text class="tlabel-small" x="-16" y="455" text-anchor="end">raddr0</text>
+          <text class="tlabel-small" x="-16" y="595" text-anchor="end">clk</text>
+          <text class="tlabel-small" x="-16" y="735" text-anchor="end">wdata</text>
+          <text class="tlabel-small" x="1416" y="595" text-anchor="start">rdata</text>
+
+          <!-- ── Wires (1:1 with layer12 wires table) ───────────────────── -->
+          <!-- write address + enable → decoder (pure horizontals) -->
+          <polyline class="wire" data-net="waddr1" points="0,105 210,105" />
+          <polyline class="wire" data-net="we"     points="0,175 210,175" />
+          <polyline class="wire" data-net="waddr0" points="0,245 210,245" />
+
+          <!-- decoder one-hot wen3..wen0 → the matching "&" gate's wen input -->
+          <polyline class="wire" data-net="wen3" points="490,70 560,70 560,122.5 588,122.5" />
+          <polyline class="wire" data-net="wen2" points="490,140 546,140 546,297.5 588,297.5" />
+          <polyline class="wire" data-net="wen1" points="490,210 532,210 532,472.5 588,472.5" />
+          <polyline class="wire" data-net="wen0" points="490,280 518,280 518,647.5 588,647.5" />
+
+          <!-- clk: pin → junction (574,595) → vertical bus → stub into each "&" gate -->
+          <polyline class="wire" data-net="clk" points="0,595 574,595" />
+          <polyline class="wire" data-net="clk" points="574,595 574,101.5 588,101.5" />
+          <polyline class="wire" data-net="clk" points="574,595 574,276.5 588,276.5" />
+          <polyline class="wire" data-net="clk" points="574,595 574,451.5 588,451.5" />
+          <polyline class="wire" data-net="clk" points="574,595 574,626.5 588,626.5" />
+
+          <!-- gated clock: "&" gate out → register CLK input (pure horizontals) -->
+          <polyline class="wire" data-net="gclk3" points="672,112 735,112" />
+          <polyline class="wire" data-net="gclk2" points="672,287 735,287" />
+          <polyline class="wire" data-net="gclk1" points="672,462 735,462" />
+          <polyline class="wire" data-net="gclk0" points="672,637 735,637" />
+
+          <!-- wdata: pin → junction (700,735) → vertical bus → stub into each register D input -->
+          <polyline class="wire" data-net="wdata" points="0,735 700,735" />
+          <polyline class="wire" data-net="wdata" points="700,735 700,168 735,168" />
+          <polyline class="wire" data-net="wdata" points="700,735 700,343 735,343" />
+          <polyline class="wire" data-net="wdata" points="700,735 700,518 735,518" />
+          <polyline class="wire" data-net="wdata" points="700,735 700,763 735,763" />
+
+          <!-- register outputs q3..q0 → MUX data inputs in3..in0 -->
+          <polyline class="wire" data-net="q3" points="945,140 994,140 994,434 1120,434" />
+          <polyline class="wire" data-net="q2" points="945,315 1008,315 1008,476 1120,476" />
+          <polyline class="wire" data-net="q1" points="945,490 1022,490 1022,518 1120,518" />
+          <polyline class="wire" data-net="q0" points="945,665 1036,665 1036,560 1120,560" />
+
+          <!-- read address → MUX select, routed under the storage column -->
+          <polyline class="wire" data-net="raddr1" points="0,385 35,385 35,770 1050,770 1050,350 1120,350" />
+          <polyline class="wire" data-net="raddr0" points="0,455 21,455 21,791 1064,791 1064,455 1120,455" />
+
+          <!-- MUX out → rdata -->
+          <polyline class="wire" data-net="rdata" points="1330,595 1400,595" />
+
+          <!-- ── Children ───────────────────────────────────────────────── -->
+          <!-- 2-to-4 decoder (write select) -->
+          <g class="child-slot" id="slot-decoder" tabindex="0" role="button"
+             aria-label="decoder">
+            <rect class="tbody simple-body" id="gDecoder" x="210" y="35" width="280" height="280" rx="10" />
+            <text class="tlabel simple-label" x="350" y="175">decoder</text>
+            <g class="detailed" id="decoderDetail"></g>
+          </g>
+
+          <!-- clock-gate AND row (leaf gates: clk AND wen → register clock) -->
+          <path class="tbody" id="gAnd3" d="M 588 80.5 L 640 80.5 A 31.5 31.5 0 0 1 640 143.5 L 588 143.5 Z" />
+          <path class="tbody" id="gAnd2" d="M 588 255.5 L 640 255.5 A 31.5 31.5 0 0 1 640 318.5 L 588 318.5 Z" />
+          <path class="tbody" id="gAnd1" d="M 588 430.5 L 640 430.5 A 31.5 31.5 0 0 1 640 493.5 L 588 493.5 Z" />
+          <path class="tbody" id="gAnd0" d="M 588 605.5 L 640 605.5 A 31.5 31.5 0 0 1 640 668.5 L 588 668.5 Z" />
+          <text class="tlabel-small" x="616" y="112">AND</text>
+          <text class="tlabel-small" x="616" y="287">AND</text>
+          <text class="tlabel-small" x="616" y="462">AND</text>
+          <text class="tlabel-small" x="616" y="637">AND</text>
+
+          <!-- 4 DFF cells (LSB reg0 at bottom) -->
+          <g class="child-slot" id="slot-reg3" tabindex="0" role="button" aria-label="reg3">
+            <rect class="tbody simple-body" id="gReg3" x="735" y="70" width="210" height="140" rx="10" />
+            <text class="tlabel simple-label" x="840" y="140">reg3</text>
+            <g class="detailed" id="reg3Detail"></g>
+          </g>
+          <g class="child-slot" id="slot-reg2" tabindex="0" role="button" aria-label="reg2">
+            <rect class="tbody simple-body" id="gReg2" x="735" y="245" width="210" height="140" rx="10" />
+            <text class="tlabel simple-label" x="840" y="315">reg2</text>
+            <g class="detailed" id="reg2Detail"></g>
+          </g>
+          <g class="child-slot" id="slot-reg1" tabindex="0" role="button" aria-label="reg1">
+            <rect class="tbody simple-body" id="gReg1" x="735" y="420" width="210" height="140" rx="10" />
+            <text class="tlabel simple-label" x="840" y="490">reg1</text>
+            <g class="detailed" id="reg1Detail"></g>
+          </g>
+          <g class="child-slot" id="slot-reg0" tabindex="0" role="button" aria-label="reg0">
+            <rect class="tbody simple-body" id="gReg0" x="735" y="595" width="210" height="140" rx="10" />
+            <text class="tlabel simple-label" x="840" y="665">reg0</text>
+            <g class="detailed" id="reg0Detail"></g>
+          </g>
+
+          <!-- 4-to-1 read MUX -->
+          <g class="child-slot" id="slot-mux" tabindex="0" role="button"
+             aria-label="MUX">
+            <rect class="tbody simple-body" id="gMux" x="1120" y="315" width="210" height="350" rx="10" />
+            <text class="tlabel simple-label" x="1225" y="490">MUX</text>
+            <g class="detailed" id="muxDetail"></g>
+          </g>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta">
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span>
+        </div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: storage you address by number</h3>
+            <p>A <em>register file</em> is a tiny bank of registers the CPU reads and writes <em>by address</em>. This one holds 4 one-bit registers. It's where <kbd>x1</kbd>, <kbd>x2</kbd>, <kbd>x3</kbd> live in the demo program — give an address, get (or set) that register's value.</p>
+            <p>It is the <span class="accent">convergence</span> of three primitives you already built: a <kbd>decoder</kbd> for the write port, <kbd>DFF</kbd> cells for storage, and a <kbd>MUX</kbd> for the read port.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the read port is a MUX</h3>
+            <p>Set <kbd>raddr1, raddr0</kbd> and watch <kbd>rdata</kbd> on the right. The read address drives the 4-to-1 <kbd>MUX</kbd>'s select, so the MUX routes the addressed register's <kbd>Q</kbd> straight out. Reading is <em>combinational</em> — no clock needed; <kbd>rdata</kbd> always shows the current value of the addressed register.</p>
+            <p>Click the MUX to drill into <kbd>/mux.html</kbd> with the four register values and the read address already loaded.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the write port is a decoder</h3>
+            <p>The 2-to-4 <kbd>decoder</kbd> turns the write address into a one-hot line <kbd>wen0..wen3</kbd> — exactly one is high, and only when <kbd>we = 1</kbd>. Set <kbd>we</kbd> and a write address and watch one decoder output light up. Click the decoder to drill into <kbd>/decoder.html</kbd>.</p>
+            <p>This is the decoder's other role: standalone it's "address → one-hot"; here that one-hot becomes "which register may be written".</p>
+          </article>
+          <article class="step" hidden>
+            <h3>writing: the one-hot gates the clock</h3>
+            <p>Each <kbd>wen</kbd> line is ANDed with <kbd>clk</kbd> (the four <kbd>&amp;</kbd> gates), and that gated clock is the register's clock. So when you press <kbd>↻ clock write</kbd>, only the <em>addressed</em> register sees a rising edge and latches <kbd>wdata</kbd>; the other three hold their value.</p>
+            <p>Try it: set <kbd>we=1</kbd>, <kbd>waddr=10</kbd>, <kbd>wdata=1</kbd>, press clock write. Only <kbd>reg2</kbd> updates. Click any register to drill into its <kbd>/dff.html</kbd>.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>Every RISC-V instruction names registers: <kbd>add x3, x1, x2</kbd> reads <kbd>x1</kbd> and <kbd>x2</kbd> and writes <kbd>x3</kbd>. That's two read ports and one write port on a file like this — just 32 entries of 32 bits instead of 4 entries of 1 bit.</p>
+            <p>Widen the cells to 32 DFFs, the addresses to 5 bits (a 5-to-32 decoder, a 32-to-1 MUX per read port), add a second read port, and you have the heart of the CPU's datapath.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/regfile.ts"></script>
+  </body>
+</html>

@@ -123,6 +123,47 @@
         fill: var(--on);
         filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75));
       }
+
+      /* ── Hover-swap: simple gate body → truth table on hover ─────── */
+      .gate-slot { pointer-events: bounding-box; cursor: default; outline: none; }
+      .gate-slot .simple-body,
+      .gate-slot .simple-label { transition: opacity 200ms; }
+      .gate-slot:hover .simple-body,
+      .gate-slot:focus-within .simple-body,
+      .gate-slot:hover .simple-label,
+      .gate-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 200ms; }
+      .gate-slot:hover .detailed,
+      .gate-slot:focus-within .detailed { opacity: 1; }
+      .tt-bg {
+        fill: rgba(20, 20, 20, 0.96);
+        stroke: var(--on); stroke-width: 1.5;
+        vector-effect: non-scaling-stroke;
+      }
+      .tt-title {
+        fill: var(--on); font-size: 14px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+        letter-spacing: 0.15em;
+      }
+      .tt-divider { stroke: #2a2a2a; stroke-width: 1; }
+      .tt-header {
+        fill: #777; font-size: 11px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+      }
+      .tt-cell {
+        fill: #888; font-size: 11px;
+        font-family: ui-monospace, monospace;
+        text-anchor: middle; dominant-baseline: central;
+        pointer-events: none; user-select: none;
+        transition: fill 140ms;
+      }
+      .tt-row { fill: transparent; transition: fill 140ms; }
+      .tt-row[data-on="1"] { fill: rgba(239, 159, 39, 0.22); }
+      .tt-row[data-on="1"] + .tt-cell-group .tt-cell { fill: var(--on); }
       .sel-readout {
         font-family: ui-monospace, monospace; font-size: 15px; color: #888;
         display: flex; align-items: center; gap: 16px;
@@ -165,110 +206,12 @@
           - 4 AND-3 gates on the right combine three buses each
           - One sel{N} output lights up per current (a1, a0, EN) state
         -->
-        <svg id="decoder" viewBox="0 0 1200 600" role="img"
+        <!-- Empty SVG — populated at runtime by `renderDecoderScene` (src/scenes/decoderScene.ts).
+             Coordinates inside derive 1:1 from wire_sketches/layer10_decoder.md so the
+             standalone page and the MUX hover-preview share the same data. -->
+        <svg id="decoder" viewBox="-30 -30 1260 860" role="img"
              aria-label="2-to-4 decoder"
-             preserveAspectRatio="xMidYMid meet">
-          <!-- Vdd / GND rails -->
-          <polyline class="wire" data-net="Vdd" data-on="1" points="40,30 1160,30" />
-          <polyline class="wire" data-net="GND" points="40,570 1160,570" />
-
-          <!-- ── Input pins (LEFT) ─────────────────────────────────────── -->
-          <circle class="pin" id="pinA1" cx="40"  cy="200" r="7" />
-          <circle class="pin" id="pinA0" cx="40"  cy="400" r="7" />
-          <circle class="pin" id="pinEN" cx="600" cy="50"  r="7" />
-          <text class="tlabel-small" x="25"  y="200">a1</text>
-          <text class="tlabel-small" x="25"  y="400">a0</text>
-          <text class="tlabel-small" x="600" y="34">EN</text>
-
-          <!-- ── a1 path: pin → tap → inverter ─────────────────────────── -->
-          <polyline class="wire" data-net="a1"    points="40,200 220,200" />
-          <polyline class="wire" data-net="a1bar" points="350,200 400,200" />
-          <!-- Inverter inv_a1 -->
-          <rect class="tbody" id="gInvA1" x="220" y="170" width="130" height="60" rx="10" />
-          <text class="tlabel" x="285" y="200">~  inv</text>
-
-          <!-- ── a0 path: pin → tap → inverter ─────────────────────────── -->
-          <polyline class="wire" data-net="a0"    points="40,400 220,400" />
-          <polyline class="wire" data-net="a0bar" points="350,400 460,400" />
-          <rect class="tbody" id="gInvA0" x="220" y="370" width="130" height="60" rx="10" />
-          <text class="tlabel" x="285" y="400">~  inv</text>
-
-          <!-- ── EN path: pin drops down ───────────────────────────────── -->
-          <polyline class="wire" data-net="EN"    points="600,50 600,540" />
-
-          <!-- ── Bus drops from a1 tap and a0 tap (vertical lanes) ────── -->
-          <!-- a1 bus: from a1 wire at (160, 200) drop down past ANDs to feed and2/and3.A inputs.
-               Path: tap at (160, 200) → continue right is already drawn (a1 wire). Branch from
-               (160, 200) down to and3.A and and2.A heights, routed at x=160 vertical lane. -->
-          <polyline class="wire" data-net="a1" points="160,200 160,120" />
-          <polyline class="wire" data-net="a1" points="160,200 160,240" />
-          <!-- a1 enters and3.A at y=120, and2.A at y=240 -->
-          <polyline class="wire" data-net="a1" points="160,120 720,120" />
-          <polyline class="wire" data-net="a1" points="160,240 720,240" />
-
-          <!-- a1bar bus: from inv_a1.Y output → vertical lane at x=400, then horizontal to and1.A and and0.A.
-               a1bar feeds and0 (sel0=~a1·~a0·EN) and and1 (sel1=~a1·a0·EN). -->
-          <polyline class="wire" data-net="a1bar" points="400,200 400,360" />
-          <polyline class="wire" data-net="a1bar" points="400,200 400,480" />
-          <polyline class="wire" data-net="a1bar" points="400,360 720,360" />
-          <polyline class="wire" data-net="a1bar" points="400,480 720,480" />
-
-          <!-- a0 bus: from a0 tap (160, 400) → vertical to and1.B and and3.B y values -->
-          <polyline class="wire" data-net="a0" points="200,400 200,140" />
-          <polyline class="wire" data-net="a0" points="200,400 200,380" />
-          <polyline class="wire" data-net="a0" points="200,140 720,140" />
-          <polyline class="wire" data-net="a0" points="200,380 720,380" />
-
-          <!-- a0bar bus: from inv_a0.Y → feeds and0.B and and2.B -->
-          <polyline class="wire" data-net="a0bar" points="460,400 460,260" />
-          <polyline class="wire" data-net="a0bar" points="460,400 460,500" />
-          <polyline class="wire" data-net="a0bar" points="460,260 720,260" />
-          <polyline class="wire" data-net="a0bar" points="460,500 720,500" />
-
-          <!-- EN bus drops: from EN_pin (600, 50) → split to all 4 ANDs' C input.
-               EN main vertical wire already at x=600 from y=50 to y=540. Take horizontal taps. -->
-          <polyline class="wire" data-net="EN" points="600,160 720,160" />
-          <polyline class="wire" data-net="EN" points="600,280 720,280" />
-          <polyline class="wire" data-net="EN" points="600,400 720,400" />
-          <polyline class="wire" data-net="EN" points="600,520 720,520" />
-
-          <!-- ── AND-3 gate boxes ──────────────────────────────────────── -->
-          <!-- and3: y range [100, 180]; inputs at y=120 (A=a1), y=140 (B=a0), y=160 (C=EN); output at y=140 -->
-          <rect class="tbody" id="gAnd3" x="720" y="100" width="130" height="80" rx="10" />
-          <text class="tlabel" x="785" y="140">AND</text>
-          <text class="tlabel-small" x="785" y="160">sel3</text>
-
-          <rect class="tbody" id="gAnd2" x="720" y="220" width="130" height="80" rx="10" />
-          <text class="tlabel" x="785" y="260">AND</text>
-          <text class="tlabel-small" x="785" y="280">sel2</text>
-
-          <rect class="tbody" id="gAnd1" x="720" y="340" width="130" height="80" rx="10" />
-          <text class="tlabel" x="785" y="380">AND</text>
-          <text class="tlabel-small" x="785" y="400">sel1</text>
-
-          <rect class="tbody" id="gAnd0" x="720" y="460" width="130" height="80" rx="10" />
-          <text class="tlabel" x="785" y="500">AND</text>
-          <text class="tlabel-small" x="785" y="520">sel0</text>
-
-          <!-- ── AND output wires → sel pins ───────────────────────────── -->
-          <polyline class="wire" data-net="sel3" points="850,140 1160,140" />
-          <polyline class="wire" data-net="sel2" points="850,260 1160,260" />
-          <polyline class="wire" data-net="sel1" points="850,380 1160,380" />
-          <polyline class="wire" data-net="sel0" points="850,500 1160,500" />
-
-          <!-- Output pins -->
-          <circle class="pin" id="pinSel3" cx="1160" cy="140" r="7" />
-          <circle class="pin" id="pinSel2" cx="1160" cy="260" r="7" />
-          <circle class="pin" id="pinSel1" cx="1160" cy="380" r="7" />
-          <circle class="pin" id="pinSel0" cx="1160" cy="500" r="7" />
-          <text class="tlabel-small" x="1175" y="124">sel3</text>
-          <text class="tlabel-small" x="1175" y="244">sel2</text>
-          <text class="tlabel-small" x="1175" y="364">sel1</text>
-          <text class="tlabel-small" x="1175" y="484">sel0</text>
-
-          <!-- Tag in the gap -->
-          <text class="tlabel-tag" x="585" y="100">2-to-4 decoder</text>
-        </svg>
+             preserveAspectRatio="xMidYMid meet"></svg>
       </div>
       <aside class="step-panel">
         <div class="step-meta">

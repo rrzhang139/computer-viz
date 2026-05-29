@@ -16,6 +16,8 @@ export default defineConfig({
         adder4:     resolve(__dirname, 'adder4.html'),
         counter:    resolve(__dirname, 'counter.html'),
         decoder:    resolve(__dirname, 'decoder.html'),
+        mux:        resolve(__dirname, 'mux.html'),
+        regfile:    resolve(__dirname, 'regfile.html'),
       },
     },
   },
