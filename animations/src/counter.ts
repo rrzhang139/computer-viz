@@ -110,11 +110,18 @@ function buildRegisterOverlay(): SVGGElement {
   g.setAttribute('transform', `translate(${REG_OVERLAY_X}, ${REG_OVERLAY_Y})`);
   makeOverlayBg(g);
 
-  // "CLK (shared)" header across the top.
+  // Shared CLK enters at the top-center (where the parent CLK wire lands) and
+  // is labeled; the stub's top endpoint is the register's CLK terminal.
+  const clkStub = document.createElementNS(SVG_NS, 'polyline');
+  clkStub.setAttribute('class', 'wire-mini');
+  clkStub.setAttribute('data-net', 'CLK');
+  clkStub.setAttribute('points', `${OVERLAY_W / 2},0 ${OVERLAY_W / 2},34`);
+  g.appendChild(clkStub);
   const clkHeader = document.createElementNS(SVG_NS, 'text');
   clkHeader.setAttribute('class', 'tlabel-mini-tiny');
-  clkHeader.setAttribute('x', String(OVERLAY_W / 2));
-  clkHeader.setAttribute('y', '10');
+  clkHeader.setAttribute('x', String(OVERLAY_W / 2 + 8));
+  clkHeader.setAttribute('y', '20');
+  clkHeader.setAttribute('text-anchor', 'start');
   clkHeader.textContent = 'CLK (shared)';
   g.appendChild(clkHeader);
 

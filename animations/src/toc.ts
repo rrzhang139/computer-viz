@@ -24,6 +24,8 @@ const DATAPATH: Entry[] = [
   { href: "/decoder.html",  label: "2-to-4 decoder",  tag: "2" },
   { href: "/mux.html",      label: "4-to-1 MUX",      tag: "3" },
   { href: "/regfile.html",  label: "register file",   tag: "4" },
+  { href: "/alu.html",      label: "ALU (4-bit)",     tag: "5" },
+  { href: "/alu1.html",     label: "ALU (1-bit slice)", tag: "6" },
 ];
 
 const CSS = `

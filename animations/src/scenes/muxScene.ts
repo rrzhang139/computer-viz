@@ -17,6 +17,21 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 export const MUX_SCENE_W = 520;
 export const MUX_SCENE_H = 420;
 
+// Local-frame anchor points of the scene's external terminals — the left
+// ends of the input stubs and the right end of the output. A parent that
+// drops this scene into a preview box can project these through the same
+// placement transform to land its wires exactly on the stubs (instead of
+// hardcoding y's). Keys match the `data-net` names the parent uses.
+export const MUX_SCENE_ANCHORS = {
+  s1:  { x: 0,   y: 70 },
+  s0:  { x: 0,   y: 110 },
+  in3: { x: 0,   y: 180 },
+  in2: { x: 0,   y: 250 },
+  in1: { x: 0,   y: 320 },
+  in0: { x: 0,   y: 390 },
+  out: { x: 520, y: 285 },
+} as const;
+
 // AND D-shape (flat left edge, semicircular right) centred at (cx, cy).
 function andPath(cx: number, cy: number, w: number, h: number): string {
   const left = cx - w / 2;

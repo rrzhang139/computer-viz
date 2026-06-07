@@ -365,7 +365,17 @@ try {
   console.log('\n── 16) Register file write/read + drill-downs ─────');
   await page.goto(`${HOST}/regfile.html`);
   await clearSession();
-  // we=1, waddr=10 (waddr1=1, waddr0=0), wdata=1
+  const readout = (id) => page.$eval(`#${id}`, (e) => e.textContent.trim());
+  // Registers preloaded with reg0=1,reg1=0,reg2=0,reg3=1 — a pattern where
+  // flipping EITHER read-address bit flips the bit read out, so toggling
+  // raddr must change rdata (the bug report: an all-zero file read 0 always).
+  expect('regfile: rdata reads reg0=1 at addr 00', await wireOn('rdata'), '1');
+  await page.click('#btnRaddr0'); await page.waitForTimeout(40);
+  expect('regfile: rdata=0 at addr 01 (reg1)', await wireOn('rdata'), '0');
+  await page.click('#btnRaddr1'); await page.waitForTimeout(40);
+  expect('regfile: rdata=1 at addr 11 (reg3)', await wireOn('rdata'), '1');
+  await page.click('#btnRaddr0'); await page.click('#btnRaddr1'); await page.waitForTimeout(40); // back to 00
+  // Write 1 into reg2 (seeded 0): waddr=10 (waddr1 on), wdata=1.
   await page.click('#btnWe');
   await page.click('#btnWaddr1');
   await page.click('#btnWdata');
@@ -380,20 +390,13 @@ try {
   // Clock the write; wait for the pulse (200ms→commit, 1000ms→fall) to finish.
   await page.click('#btnPulse');
   await page.waitForTimeout(1300);
-  expect('regfile: reg2 stored bit lit after write', await wireOn('q2'), '1');
-  expect('regfile: reg0/1/3 still 0',
-    [await wireOn('q0'), await wireOn('q1'), await wireOn('q3')].join(''), '000');
+  // Only reg2 changed (0→1); the other three keep their preloaded bits.
+  expect('regfile: write hit only reg2', await readout('memBits'), 'r0=1 r1=0 r2=1 r3=1');
   // Read it back: raddr=10 → rdata=1
   await page.click('#btnRaddr1');
   await page.waitForTimeout(40);
-  expect('regfile: rdata=1 reading addr 10', await wireOn('rdata'), '1');
-  // Read an empty register: raddr=00 → rdata=0
-  await page.click('#btnRaddr1');
-  await page.waitForTimeout(40);
-  expect('regfile: rdata=0 reading addr 00', await wireOn('rdata'), '0');
-  // Restore raddr=10 so the MUX drill below carries s1=1.
-  await page.click('#btnRaddr1');
-  await page.waitForTimeout(40);
+  expect('regfile: rdata=1 reading addr 10 (reg2)', await wireOn('rdata'), '1');
+  // (raddr1 on → MUX drill below carries s1=1.)
 
   // Drill into the write decoder — carries waddr + we
   await drill('#slot-decoder');
@@ -406,7 +409,7 @@ try {
   await page.screenshot({ path: path.join(OUT_DIR, '09_regfile_to_decoder.png') });
   await backAndExpectAlive('#slot-decoder');
 
-  // Drill into reg2 (a DFF) — carries Q=1 (stored)
+  // Drill into reg2 (a single-bit register = a DFF) — carries Q=1 (stored)
   await drill('#slot-reg2');
   expect('regfile→dff which=reg2', new URL(page.url()).searchParams.get('which'), 'reg2');
   expect('regfile→dff Q=1 (reg2 stored)', new URL(page.url()).searchParams.get('Q'), '1');
@@ -423,6 +426,83 @@ try {
   await page.screenshot({ path: path.join(OUT_DIR, '10_regfile_to_mux.png') });
   await backAndExpectAlive('#slot-mux');
   expect('regfile back: reg2 still stored (snapshot)', await wireOn('q2'), '1');
+
+  // ════════════════════════════════════════════════════════════════
+  // 17) ALU: parallel compute, op-select, drill into adder + op-MUX
+  // ════════════════════════════════════════════════════════════════
+  console.log('\n── 17) ALU compute + op-select + drill-downs ──────');
+  await page.goto(`${HOST}/alu.html`);
+  await clearSession();
+  // A=0011 (3), B=0001 (1), op=00 (ADD) → Y = 4 (0100)
+  await page.click('#btnA0'); await page.click('#btnA1'); await page.click('#btnB0');
+  await page.waitForTimeout(40);
+  // Buses are 4-conductor bundles (one net per bit). A+B = 4 = 0100 → bit2 lit.
+  expect('alu: adder result bit2 lit (0100)', await wireOn('add2'), '1');
+  expect('alu: adder result bit0 dark (0100)', await wireOn('add0'), '0');
+  expect('alu: Y bit2 lit (A+B=0100)', await wireOn('Y2'), '1');
+  expect('alu: op name ADD', await page.$eval('#opName', (e) => e.textContent), 'ADD');
+  expect('alu: Y readout 0100 (3+1)', await page.$eval('#yBits', (e) => e.textContent), '0100');
+  // Switch to AND (op=01): Y = 3 AND 1 = 1 (0001) — operands unchanged
+  await page.click('#btnOp0');
+  await page.waitForTimeout(40);
+  expect('alu: op name AND', await page.$eval('#opName', (e) => e.textContent), 'AND');
+  expect('alu: Y readout 0001 (AND)', await page.$eval('#yBits', (e) => e.textContent), '0001');
+
+  // Drill into the adder — carries the operand bits
+  await drill('#slot-adder');
+  expect('alu→adder from=alu', new URL(page.url()).searchParams.get('from'), 'alu');
+  expect('alu→adder which=adder', new URL(page.url()).searchParams.get('which'), 'adder');
+  expect('alu→adder A0=1', new URL(page.url()).searchParams.get('A0'), '1');
+  expect('alu→adder A1=1', new URL(page.url()).searchParams.get('A1'), '1');
+  expect('alu→adder B0=1', new URL(page.url()).searchParams.get('B0'), '1');
+  await checkBreadcrumb('← back to alu · adder');
+  await page.screenshot({ path: path.join(OUT_DIR, '11_alu_to_adder.png') });
+  await backAndExpectAlive('#slot-adder');
+
+  // Drill into the op-MUX — carries the op select
+  await drill('#slot-mux');
+  expect('alu→mux which=opmux', new URL(page.url()).searchParams.get('which'), 'opmux');
+  expect('alu→mux s0=1 (op0)', new URL(page.url()).searchParams.get('s0'), '1');
+  await checkBreadcrumb('← back to alu · opmux');
+  await backAndExpectAlive('#slot-mux');
+  expect('alu back op0=1 (snapshot)', await btnOn('#btnOp0'), '1');
+
+  // ════════════════════════════════════════════════════════════════
+  // 17b) 1-bit ALU slice: compute + op-select, drill into FA + op-MUX
+  // ════════════════════════════════════════════════════════════════
+  console.log('\n── 17b) 1-bit ALU slice + drill-downs ─────────────');
+  await page.goto(`${HOST}/alu1.html`);
+  await clearSession();
+  // A=1, B=1, op=00 (ADD) → Y = 0, Cout = 1 (1+1 = 10)
+  await page.click('#btnA'); await page.click('#btnB');
+  await page.waitForTimeout(40);
+  expect('alu1: op name ADD', await page.$eval('#opName', (e) => e.textContent), 'ADD');
+  expect('alu1: adder sum wire dark (1^1^0=0)', await wireOn('add'), '0');
+  expect('alu1: Y readout 0 (1+1 sum bit)', await page.$eval('#yBit', (e) => e.textContent), '0');
+  expect('alu1: Cout readout 1 (1+1 carry)', await page.$eval('#coutBit', (e) => e.textContent), '1');
+  expect('alu1: cout wire lit', await wireOn('cout'), '1');
+  // Switch to AND (op=01): Y = 1 AND 1 = 1
+  await page.click('#btnOp0');
+  await page.waitForTimeout(40);
+  expect('alu1: op name AND', await page.$eval('#opName', (e) => e.textContent), 'AND');
+  expect('alu1: Y readout 1 (AND)', await page.$eval('#yBit', (e) => e.textContent), '1');
+
+  // Drill into the full adder — carries A, B, Cin
+  await drill('#slot-fa');
+  expect('alu1→fa from=alu1', new URL(page.url()).searchParams.get('from'), 'alu1');
+  expect('alu1→fa which=fa', new URL(page.url()).searchParams.get('which'), 'fa');
+  expect('alu1→fa A=1', new URL(page.url()).searchParams.get('A'), '1');
+  expect('alu1→fa B=1', new URL(page.url()).searchParams.get('B'), '1');
+  await checkBreadcrumb('← back to alu1 · fa');
+  await backAndExpectAlive('#slot-fa');
+
+  // Drill into the op-MUX — carries the op select
+  await drill('#slot-mux');
+  expect('alu1→mux which=opmux', new URL(page.url()).searchParams.get('which'), 'opmux');
+  expect('alu1→mux s0=1 (op0)', new URL(page.url()).searchParams.get('s0'), '1');
+  await checkBreadcrumb('← back to alu1 · opmux');
+  await backAndExpectAlive('#slot-mux');
+  expect('alu1 back op0=1 (snapshot)', await btnOn('#btnOp0'), '1');
 
   // ════════════════════════════════════════════════════════════════
   // 14) Decoder gate symbols: rendered as logic-gate shapes (no hover)
@@ -590,6 +670,8 @@ try {
     { page: '/regfile.html',   slot: 'slot-decoder',  expectedTitle: /decoder|computer-viz/i },
     { page: '/regfile.html',   slot: 'slot-reg2',     expectedTitle: /DFF|computer-viz/i },
     { page: '/regfile.html',   slot: 'slot-mux',      expectedTitle: /MUX|computer-viz/i },
+    { page: '/alu.html',       slot: 'slot-adder',    expectedTitle: /adder|computer-viz/i },
+    { page: '/alu.html',       slot: 'slot-mux',      expectedTitle: /MUX|computer-viz/i },
   ];
 
   for (const { page: pagePath, slot, expectedTitle } of VALID_DRILLS) {

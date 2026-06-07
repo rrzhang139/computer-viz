@@ -13,13 +13,15 @@
     "test:decoder-1to1": "node tests/decoder-1to1.test.mjs",
     "test:spatial-conventions": "node tests/spatial-conventions.test.mjs",
     "test:hover-preview": "node tests/hover-preview.test.mjs",
-    "test:all": "npm run test:spatial-conventions && npm run test:wireframe-gate && npm run test:decoder-1to1 && npm run test:hover-preview && npm run test:drilldown",
+    "test:wire-alignment": "node tests/wire-alignment.test.mjs",
+    "test:all": "npm run test:spatial-conventions && npm run test:wireframe-gate && npm run test:decoder-1to1 && npm run test:hover-preview && npm run test:wire-alignment && npm run test:drilldown",
     "prewireframes": "npm run test:spatial-conventions",
     "pretest": "npm run wireframes && npm run build",
     "test": "npm run test:all"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "playwright": "^1.59.1",
     "typescript": "^5.6.0",
     "vite": "^7.0.0"
   }

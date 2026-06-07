@@ -57,8 +57,9 @@ const DLATCH_MINI_WIRES: { net: string; points: string }[] = [
   { net: 'D',    points: '0,280 20,280 20,145 145,145' },
   // D̄ from inverter to G_R
   { net: 'Dbar', points: '105,280 125,280 125,355 145,355' },
-  // EN trunk down the inner-left corridor + branches into G_S and G_R B-inputs
-  { net: 'EN',   points: '315,35 315,75 125,75 125,415' },
+  // EN enters from the TOP edge (y=0, where the parent CLK wire lands) and
+  // runs down the inner-left corridor into G_S and G_R B-inputs.
+  { net: 'EN',   points: '315,0 315,75 125,75 125,415' },
   { net: 'EN',   points: '125,205 145,205' },
   { net: 'EN',   points: '125,415 145,415' },
   // S̄ / R̄ into the SR latch
@@ -81,13 +82,16 @@ const DLATCH_BOXES: Record<string, SlotBox> = {
   slave:  { x: 620, y: 160, w: 360, h: 240 },
 };
 
-function buildDlatchMini(slot: string, box: SlotBox): SVGGElement {
+function buildDlatchMini(slot: string, box: SlotBox, omitQB = false): SVGGElement {
   const g = document.createElementNS(SVG_NS, 'g');
   g.setAttribute('class', 'detailed');
   g.setAttribute('data-slot', slot);
   g.setAttribute('transform',
     `translate(${box.x}, ${box.y}) scale(${box.w / 840}, ${box.h / 560})`);
   for (const w of DLATCH_MINI_WIRES) {
+    // The master's Q̄ is unused in a DFF (only Q feeds the slave), so don't
+    // draw a dangling Q̄ output for it.
+    if (omitQB && w.net === 'QB') continue;
     const wire = document.createElementNS(SVG_NS, 'polyline');
     wire.setAttribute('class', 'wire-mini');
     wire.setAttribute('data-net', w.net);
@@ -118,7 +122,7 @@ function buildDlatchMini(slot: string, box: SlotBox): SVGGElement {
 
 for (const slot of Object.keys(DLATCH_BOXES)) {
   document.getElementById(`slot-${slot}`)
-    ?.appendChild(buildDlatchMini(slot, DLATCH_BOXES[slot]));
+    ?.appendChild(buildDlatchMini(slot, DLATCH_BOXES[slot], slot === 'master'));
 }
 
 function setDlatchMiniState(

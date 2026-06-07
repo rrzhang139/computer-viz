@@ -24,6 +24,17 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 export const DFF_SCENE_W = 500;
 export const DFF_SCENE_H = 200;
 
+// Local-frame anchor points of the DFF's external terminals: D enters
+// left-center, Q exits right-center, CLK enters top-center. A parent that
+// drops this scene into a register box can project these through the same
+// placement transform to land its wdata / gated-clock / output wires
+// exactly on the cell's real terminals (instead of hardcoding y's).
+export const DFF_SCENE_ANCHORS = {
+  D:   { x: 0,   y: 100 },
+  CLK: { x: 250, y: 0 },
+  Q:   { x: 500, y: 100 },
+} as const;
+
 const WIRES = [
   { net: 'D',      points: '0,100 60,100' },
   { net: 'CLK',    points: '250,0 250,25' },

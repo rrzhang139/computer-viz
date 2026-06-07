@@ -53,6 +53,8 @@ const LAYER_TO_PAGE = {
   decoder:    'decoder.html',
   mux:        'mux.html',
   regfile:    'regfile.html',
+  alu:        'alu.html',
+  alu1:       'alu1.html',
 };
 
 // Terminals that don't appear as data-net wires because they're

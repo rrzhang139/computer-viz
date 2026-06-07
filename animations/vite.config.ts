@@ -18,6 +18,8 @@ export default defineConfig({
         decoder:    resolve(__dirname, 'decoder.html'),
         mux:        resolve(__dirname, 'mux.html'),
         regfile:    resolve(__dirname, 'regfile.html'),
+        alu:        resolve(__dirname, 'alu.html'),
+        alu1:       resolve(__dirname, 'alu1.html'),
       },
     },
   },

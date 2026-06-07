@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / 1-bit ALU</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
+      .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .controls-row { display: flex; gap: 10px; align-items: center; }
+      .controls-row .label { color: #666; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; min-width: 30px; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 18px; cursor: pointer; min-width: 56px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 58vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #777; font-size: 16px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #555; font-size: 13px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+
+      /* Drillable child blocks: hover swaps the box for the child's real internals. */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot .simple-body, .child-slot .simple-label { transition: opacity 180ms; }
+      .child-slot:hover .simple-body, .child-slot:focus-within .simple-body,
+      .child-slot:hover .simple-label, .child-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      .detailed .tbody { stroke-width: 0.8; }
+      .detailed .wire { stroke-width: 1.5; }
+      .detailed .pulse { display: none; }
+      .detailed .tlabel-small { font-size: 9px; }
+
+      .mini-bg { fill: rgba(20, 20, 20, 0.96); stroke: var(--on); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+      .wire-mini { fill: none; stroke: var(--off); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; transition: stroke 140ms, filter 140ms; }
+      .wire-mini[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 2.5px rgba(239, 159, 39, 0.7)); }
+      .tbody-mini { fill: #111; stroke: #2a2a2a; stroke-width: 1.5; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody-mini[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 3px rgba(239, 159, 39, 0.45)); }
+      .tlabel-mini { fill: #888; font-size: 26px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-mini-tiny { fill: #777; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody-mini[data-on="1"] + .tlabel-mini, .tbody-mini[data-on="1"] ~ .tlabel-mini-tiny { fill: var(--on); }
+
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.22em; }
+      .out-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/alu1.html" aria-current="page">1-bit ALU</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <div class="controls-row">
+            <span class="label">op</span>
+            <button class="btn" id="btnOp1" data-on="0">op1 0</button>
+            <button class="btn" id="btnOp0" data-on="0">op0 0</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">in</span>
+            <button class="btn" id="btnA" data-on="0">A 0</button>
+            <button class="btn" id="btnB" data-on="0">B 0</button>
+            <button class="btn" id="btnCin" data-on="0">Cin 0</button>
+          </div>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">A</span><span class="bits" id="aBit">0</span>
+          <span class="sep">·</span>
+          <span class="label">B</span><span class="bits" id="bBit">0</span>
+          <span class="sep">·</span>
+          <span class="label">Cin</span><span class="bits" id="cinBit">0</span>
+          <span class="sep">·</span>
+          <span class="label">op</span><span class="bits" id="opName">ADD</span>
+          <span class="sep">·</span>
+          <span class="label">Y</span><span class="bits" id="yBit">0</span>
+          <span class="sep">·</span>
+          <span class="label">Cout</span><span class="bits" id="coutBit">0</span>
+        </div>
+
+        <!--
+          1-bit ALU slice (4 operations):
+            - LEFT: op select (op1/op0), carry-in Cin, operands A and B.
+            - 4 compute blocks fed by A and B: a FULL ADDER (also takes Cin,
+              emits Cout), and single bitwise AND / OR / XOR gates.
+            - A 4-to-1 op-MUX picks one result by op → Y on the RIGHT;
+              the full adder's Cout exits top-right.
+          The full adder and the op-MUX are drillable; the bitwise gates are
+          leaves. Coords are 1:1 with wire_sketches/layer14_alu1.md.
+          Map: SVG_x = 70*(x_world + 10), SVG_y = 70*(7 - y_world).
+        -->
+        <svg id="alu1" viewBox="-110 -30 1620 1040" role="img"
+             aria-label="1-bit ALU slice with add, and, or, xor operations"
+             preserveAspectRatio="xMidYMid meet">
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1400,0" />
+          <polyline class="wire" data-net="GND" points="0,980 1400,980" />
+
+          <!-- pins (ALL inputs LEFT, results RIGHT) -->
+          <circle class="pin" id="pinOp1" cx="0" cy="105" r="7" />
+          <circle class="pin" id="pinOp0" cx="0" cy="175" r="7" />
+          <circle class="pin" id="pinCin" cx="0" cy="200" r="7" />
+          <circle class="pin" id="pinA"   cx="0" cy="385" r="7" />
+          <circle class="pin" id="pinB"   cx="0" cy="595" r="7" />
+          <circle class="pin" id="pinY"    cx="1400" cy="565" r="7" />
+          <circle class="pin" id="pinCout" cx="1400" cy="140" r="7" />
+          <text class="tlabel-small" x="-16" y="105" text-anchor="end">op1</text>
+          <text class="tlabel-small" x="-16" y="175" text-anchor="end">op0</text>
+          <text class="tlabel-small" x="-16" y="200" text-anchor="end">Cin</text>
+          <text class="tlabel-small" x="-16" y="385" text-anchor="end">A</text>
+          <text class="tlabel-small" x="-16" y="595" text-anchor="end">B</text>
+          <text class="tlabel-small" x="1416" y="565" text-anchor="start" data-pin="y">Y</text>
+          <text class="tlabel-small" x="1416" y="140" text-anchor="start">Cout</text>
+
+          <!-- operand A: pin → junction (70,385) → vertical fan-out → block A inputs -->
+          <polyline class="wire" data-net="A" points="0,385 70,385" />
+          <polyline class="wire" data-net="A" id="aFa" points="70,385 70,130 385,130" />
+          <polyline class="wire" data-net="A" points="70,385 70,357 385,357" />
+          <polyline class="wire" data-net="A" points="70,385 70,567 385,567" />
+          <polyline class="wire" data-net="A" points="70,385 70,777 385,777" />
+          <!-- operand B -->
+          <polyline class="wire" data-net="B" points="0,595 105,595" />
+          <polyline class="wire" data-net="B" id="bFa" points="105,595 105,150 385,150" />
+          <polyline class="wire" data-net="B" points="105,595 105,413 385,413" />
+          <polyline class="wire" data-net="B" points="105,595 105,623 385,623" />
+          <polyline class="wire" data-net="B" points="105,595 105,833 385,833" />
+          <!-- carry-in → full adder -->
+          <polyline class="wire" data-net="Cin" id="cinWire" points="0,200 385,200" />
+
+          <!-- compute-block results → op-MUX inputs (add=in0 … xor=in3; the
+               preview orders in3 top … in0 bottom, so add/xor cross — routed
+               onto the projected MUX inputs in alu1.ts) -->
+          <polyline class="wire" data-net="add" id="addWire" points="595,130 700,130 700,670 945,670" />
+          <polyline class="wire" data-net="and" id="andWire" points="595,385 728,385 728,600 945,600" />
+          <polyline class="wire" data-net="or"  id="orWire"  points="595,595 756,595 756,530 945,530" />
+          <polyline class="wire" data-net="xor" id="xorWire" points="595,805 784,805 784,460 945,460" />
+
+          <!-- full adder carry-out: exits lower-right (from the OR gate), routes
+               up to the top-right Cout terminal (carry leaves at the top) -->
+          <polyline class="wire" data-net="cout" id="coutWire" points="595,195 660,195 660,140 1400,140" />
+
+          <!-- op selects route over the top edge into the MUX -->
+          <polyline class="wire" data-net="op1" id="op1Wire" points="0,105 35,105 35,35 896,35 896,350 945,350" />
+          <polyline class="wire" data-net="op0" id="op0Wire" points="0,175 56,175 56,14 910,14 910,390 945,390" />
+
+          <!-- MUX result → Y -->
+          <polyline class="wire" data-net="Y" id="yWire" points="1155,565 1400,565" />
+
+          <!-- ── Children ───────────────────────────────────────────────── -->
+          <!-- full adder (drillable) -->
+          <g class="child-slot" id="slot-fa" tabindex="0" role="button" aria-label="full adder">
+            <rect class="tbody simple-body" id="gFa" x="385" y="105" width="210" height="140" rx="10" />
+            <text class="tlabel simple-label" x="490" y="175">full adder</text>
+            <g class="detailed" id="faDetail"></g>
+          </g>
+
+          <!-- bitwise gates (leaf, not drillable) -->
+          <rect class="tbody" id="gAnd" x="385" y="315" width="210" height="140" rx="10" />
+          <text class="tlabel" x="490" y="385">AND</text>
+          <rect class="tbody" id="gOr" x="385" y="525" width="210" height="140" rx="10" />
+          <text class="tlabel" x="490" y="595">OR</text>
+          <rect class="tbody" id="gXor" x="385" y="735" width="210" height="140" rx="10" />
+          <text class="tlabel" x="490" y="805">XOR</text>
+
+          <!-- 4-to-1 op-MUX (drillable) -->
+          <g class="child-slot" id="slot-mux" tabindex="0" role="button" aria-label="MUX">
+            <rect class="tbody simple-body" id="gMux" x="945" y="280" width="210" height="420" rx="10" />
+            <text class="tlabel simple-label" x="1050" y="490">MUX</text>
+            <g class="detailed" id="muxDetail"></g>
+          </g>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: one bit of the ALU</h3>
+            <p>The previous page showed the <em>4-bit</em> ALU — wide buses, four answers in parallel. This page zooms into <span class="accent">one bit-slice of it</span>. Everything the wide ALU does, it does by stacking four copies of <em>this</em>.</p>
+            <p>A slice takes one bit of each operand (<kbd>A</kbd>, <kbd>B</kbd>), a carry-in <kbd>Cin</kbd>, and the 2-bit <kbd>op</kbd>, and produces one result bit <kbd>Y</kbd> plus a carry-out <kbd>Cout</kbd>. Inputs on the LEFT, results on the RIGHT. This is the same "build the 1-bit cell, then replicate" move you saw with the full adder → 4-bit adder.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>four tiny machines, computed at once</h3>
+            <p>Just like the wide ALU, all four blocks run together on the same <kbd>A</kbd> and <kbd>B</kbd>: the <kbd>full adder</kbd> computes <kbd>A + B + Cin</kbd>, and the single <kbd>AND</kbd>, <kbd>OR</kbd>, <kbd>XOR</kbd> gates each compute their one-bit result. Four answers, ready before <kbd>op</kbd> has chosen anything.</p>
+            <p>Click the <kbd>full adder</kbd> to drill into <kbd>/fulladder.html</kbd> — it's literally the full adder you built earlier, now doing the ADD inside the ALU.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>op picks one answer</h3>
+            <p>The 2-bit <kbd>op</kbd> drives a 4-to-1 <kbd>MUX</kbd>: <kbd>00 → A+B</kbd>, <kbd>01 → AND</kbd>, <kbd>10 → OR</kbd>, <kbd>11 → XOR</kbd>. Whichever it points at flows to <kbd>Y</kbd>; the other three are dropped. Click the <kbd>MUX</kbd> to drill into <kbd>/mux.html</kbd> — the exact primitive doing the selecting.</p>
+            <p>Set <kbd>A = 1</kbd>, <kbd>B = 1</kbd>. With <kbd>op = 00</kbd> the adder wins: <kbd>Y = 0</kbd> and <em>Cout = 1</em> (1+1 = 10). Flip <kbd>op0</kbd> to <kbd>01</kbd> — now <kbd>Y = 1</kbd> (1 AND 1), and the carry is ignored.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the carry is the one wire between slices</h3>
+            <p>Only the <em>ADD</em> path uses <kbd>Cin</kbd> and <kbd>Cout</kbd>. The bitwise ops compute a carry too, but the MUX never selects it, so it's harmless. Toggle <kbd>Cin</kbd> with <kbd>op = 00</kbd>: <kbd>Y</kbd> flips, because the slice is now adding three 1-bit numbers.</p>
+            <p>This <kbd>Cout</kbd> is what feeds the <em>next</em> slice's <kbd>Cin</kbd> when you stack four of these into the 4-bit ALU. Control (<kbd>op</kbd>) is broadcast to every slice; data (<kbd>A</kbd>, <kbd>B</kbd>) is per-slice; the carry is the <span class="accent">only wire that runs between slices</span>.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This one slice is the true design unit of an ALU. Stack 4 of them (broadcasting <kbd>op</kbd>, chaining <kbd>Cout → Cin</kbd>) and you have the 4-bit ALU on the previous page; stack 32 and you have the RV32I ALU that runs <kbd>add x3, x1, x2</kbd>.</p>
+            <p>Widening a datapath is never "redesign the logic" — it's "replicate the bit-slice and broadcast the control." The same idea widened the adder and the register file. The slice is the atom; the width is just how many you place side by side.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/alu1.ts"></script>
+  </body>
+</html>

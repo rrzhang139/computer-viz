@@ -66,6 +66,28 @@ export const DECODER_POINTS: Record<string, Point> = {
   EN_lane_top: { x:  0,   y:  0.2 },
 };
 
+// External terminal keys (LEFT inputs, RIGHT outputs), in DECODER_POINTS.
+export const DECODER_TERMINAL_KEYS = [
+  'a1_in', 'a0_in', 'EN_in', 'sel3_out', 'sel2_out', 'sel1_out', 'sel0_out',
+] as const;
+
+// Project the decoder's external terminals into a target box — the same
+// world→box mapping renderDecoderScene uses — so a parent can route its wires
+// onto the exact points where the preview's terminal stubs land.
+export function decoderTerminals(target: Box): Record<string, Point> {
+  const W = DECODER_SCENE.xMax - DECODER_SCENE.xMin;
+  const H = DECODER_SCENE.yMax - DECODER_SCENE.yMin;
+  const out: Record<string, Point> = {};
+  for (const k of DECODER_TERMINAL_KEYS) {
+    const p = DECODER_POINTS[k];
+    out[k] = {
+      x: target.x + (p.x - DECODER_SCENE.xMin) * (target.w / W),
+      y: target.y + (DECODER_SCENE.yMax - p.y) * (target.h / H),
+    };
+  }
+  return out;
+}
+
 type WireSpec = { net: string; path: (string | Point)[] };
 export const DECODER_WIRES: WireSpec[] = [
   { net: 'Vdd',   path: [{ x: -6, y:  4 }, { x: 6, y:  4 }] },
@@ -209,6 +231,20 @@ export function renderDecoderScene(target: Box, opts: RenderOptions = {}): SVGGE
     addLabel(DECODER_CHILDREN.and2.cx,   DECODER_CHILDREN.and2.cy,   'AND', -0.2);
     addLabel(DECODER_CHILDREN.and1.cx,   DECODER_CHILDREN.and1.cy,   'AND', -0.2);
     addLabel(DECODER_CHILDREN.and0.cx,   DECODER_CHILDREN.and0.cy,   'AND', -0.2);
+    // Label the inverter-output buses so the prose's "a1, ~a1, EN, a0, ~a0"
+    // are all findable on the canvas (a1/a0/EN are already pin-labelled).
+    const addBus = (cx: number, cy: number, text: string) => {
+      const p = toSvg({ x: cx, y: cy });
+      const t = document.createElementNS(SVG_NS, 'text');
+      t.setAttribute('class', 'tlabel-small');
+      t.setAttribute('x', String(p.x));
+      t.setAttribute('y', String(p.y));
+      t.setAttribute('style', `font-size: ${fontPx * 0.82}px`);
+      t.textContent = text;
+      root.appendChild(t);
+    };
+    addBus(-3.4, 2.55, '~a1');
+    addBus(-3.2, -1.45, '~a0');
   }
 
   if (showPins) {
