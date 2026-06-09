@@ -182,7 +182,9 @@ buildFaMini();
   const in2 = muxAt(MUX_SCENE_ANCHORS.in2), in3 = muxAt(MUX_SCENE_ANCHORS.in3);
   const mout = muxAt(MUX_SCENE_ANCHORS.out);
   set('addWire', `${S.x},${S.y} 700,${S.y} 700,${in0.y} ${in0.x},${in0.y}`);   // full-adder sum
-  set('andWire', `595,385 728,385 728,${in1.y} ${in1.x},${in1.y}`);
+  // route AND past the OR gate's output (x>756) before dropping to in1, so the
+  // two don't run side-by-side near y≈600 (keeps them distinguishable).
+  set('andWire', `595,385 820,385 820,${in1.y} ${in1.x},${in1.y}`);
   set('orWire',  `595,595 756,595 756,${in2.y} ${in2.x},${in2.y}`);
   set('xorWire', `595,805 784,805 784,${in3.y} ${in3.x},${in3.y}`);
   set('op1Wire', `0,105 35,105 35,35 896,35 896,${s1.y} ${s1.x},${s1.y}`);

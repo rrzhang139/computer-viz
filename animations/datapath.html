@@ -43,9 +43,9 @@
       @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
       .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
       .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
-      .tlabel { fill: #777; font-size: 18px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel { fill: #777; font-size: 30px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
       .tbody[data-on="1"] + .tlabel { fill: var(--on); }
-      .tlabel-small { fill: #555; font-size: 13px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-small { fill: #888; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
       .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
       .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
 
@@ -115,60 +115,66 @@
         <!--
           Datapath: register file (2 read ports + 1 write) + 1-bit ALU, wired as
           the read→operate→write-back loop of `add x3, x1, x2`.
-            - read x1 (raddrA) → rdataA → ALU A;  read x2 (raddrB) → rdataB → ALU B.
-            - op selects the ALU operation; Y = the result.
-            - Y fans out: shown as `result` AND looped back to the file's wdata,
-              so `run cycle` writes Y into x3 (waddr) on the clock edge.
-          regfile and ALU are both drillable. Coords are 1:1 with
-          wire_sketches/layer15_datapath.md (SVG_x=70*(x+10), SVG_y=70*(7-y)).
-          Every child-touching wire is routed in src/datapath.ts onto the child
-          preview's terminal stubs (so they meet on hover); points below are a
-          static fallback.
+          Hovering either block swaps in an EXACT copy of that page's own
+          diagram (embedded from regfile.html / alu1.html via ?raw in
+          src/datapath.ts) — what you see on hover is what you get on click.
+          The big landscape boxes keep those embedded diagrams readable.
         -->
-        <svg id="datapath" viewBox="-130 -30 1660 1060" role="img"
+        <svg id="datapath" viewBox="-110 -30 2300 820" role="img"
              aria-label="datapath: register file feeding a 1-bit ALU, result written back"
              preserveAspectRatio="xMidYMid meet">
-          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1400,0" />
-          <polyline class="wire" data-net="GND" points="0,980 1400,980" />
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 2090,0" />
+          <polyline class="wire" data-net="GND" points="0,760 2090,760" />
 
-          <!-- pins (inputs LEFT, result RIGHT) -->
-          <circle class="pin" id="pinOp"     cx="0" cy="105" r="7" />
-          <circle class="pin" id="pinRaddrA" cx="0" cy="245" r="7" />
-          <circle class="pin" id="pinRaddrB" cx="0" cy="315" r="7" />
-          <circle class="pin" id="pinWaddr"  cx="0" cy="385" r="7" />
-          <circle class="pin" id="pinWe"     cx="0" cy="455" r="7" />
-          <circle class="pin" id="pinClk"    cx="0" cy="735" r="7" />
-          <circle class="pin" id="pinResult" cx="1400" cy="385" r="7" />
-          <text class="tlabel-small" x="-16" y="105" text-anchor="end">op</text>
-          <text class="tlabel-small" x="-16" y="245" text-anchor="end">raddrA</text>
-          <text class="tlabel-small" x="-16" y="315" text-anchor="end">raddrB</text>
-          <text class="tlabel-small" x="-16" y="385" text-anchor="end">waddr</text>
-          <text class="tlabel-small" x="-16" y="455" text-anchor="end">we</text>
-          <text class="tlabel-small" x="-16" y="735" text-anchor="end">clk</text>
-          <text class="tlabel-small" x="1416" y="385" text-anchor="start" data-pin="result">result</text>
+          <!-- Pins + wires are POSITIONED in src/datapath.ts so every wire lands
+               exactly on the embedded child's projected pin (the core invariant:
+               the datapath's lines connect to the real component's terminals). -->
+          <circle class="pin" id="pinRaddr1"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddr1"  text-anchor="end">raddr1</text>
+          <circle class="pin" id="pinRaddr0"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddr0"  text-anchor="end">raddr0</text>
+          <circle class="pin" id="pinRaddrB1" cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddrB1" text-anchor="end">raddrB1</text>
+          <circle class="pin" id="pinRaddrB0" cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddrB0" text-anchor="end">raddrB0</text>
+          <circle class="pin" id="pinWaddr1"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinWaddr1"  text-anchor="end">waddr1</text>
+          <circle class="pin" id="pinWaddr0"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinWaddr0"  text-anchor="end">waddr0</text>
+          <circle class="pin" id="pinWe"      cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinWe"      text-anchor="end">we</text>
+          <circle class="pin" id="pinClk"     cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinClk"     text-anchor="end">clk</text>
+          <circle class="pin" id="pinOp1"     cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinOp1"     text-anchor="end">op1</text>
+          <circle class="pin" id="pinOp0"     cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinOp0"     text-anchor="end">op0</text>
+          <circle class="pin" id="pinResult"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinResult"  text-anchor="start">result</text>
+          <circle class="pin" id="pinCout"    cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinCout"    text-anchor="start">Cout</text>
 
-          <!-- ── Wires (child-touching points set in src/datapath.ts) ─────── -->
-          <polyline class="wire" data-net="raddrA" id="wRaddrA" points="0,245 210,245" />
-          <polyline class="wire" data-net="raddrB" id="wRaddrB" points="0,315 210,315" />
-          <polyline class="wire" data-net="waddr"  id="wWaddr"  points="0,385 210,385" />
-          <polyline class="wire" data-net="we"     id="wWe"     points="0,455 210,455" />
-          <polyline class="wire" data-net="clk"    id="wClk"    points="0,735 210,735" />
-          <polyline class="wire" data-net="op"     id="wOp"     points="0,105 105,105 105,35 840,35 840,245 910,245" />
-          <polyline class="wire" data-net="rdataA" id="wRdataA" points="560,350 735,350 735,315 910,315" />
-          <polyline class="wire" data-net="rdataB" id="wRdataB" points="560,490 770,490 770,420 910,420" />
-          <polyline class="wire" data-net="Y"      id="wY"      points="1190,385 1295,385" />
-          <polyline class="wire" data-net="result" id="wResult" points="1295,385 1400,385" />
-          <polyline class="wire" data-net="Y"      id="wWdata"  points="1295,385 1295,875 105,875 105,630 210,630" />
+          <!-- input wires: external pin → the embedded child's pin -->
+          <polyline class="wire" data-net="raddrA1" id="wRaddr1"  points="0,0 0,0" />
+          <polyline class="wire" data-net="raddrA0" id="wRaddr0"  points="0,0 0,0" />
+          <polyline class="wire" data-net="raddrB1" id="wRaddrB1" points="0,0 0,0" />
+          <polyline class="wire" data-net="raddrB0" id="wRaddrB0" points="0,0 0,0" />
+          <polyline class="wire" data-net="waddr1"  id="wWaddr1"  points="0,0 0,0" />
+          <polyline class="wire" data-net="waddr0"  id="wWaddr0"  points="0,0 0,0" />
+          <polyline class="wire" data-net="we"      id="wWe"      points="0,0 0,0" />
+          <polyline class="wire" data-net="clk"     id="wClk"     points="0,0 0,0" />
+          <polyline class="wire" data-net="op1"     id="wOp1"     points="0,0 0,0" />
+          <polyline class="wire" data-net="op0"     id="wOp0"     points="0,0 0,0" />
+          <!-- internal: regfile reads → ALU operands; ALU result → write-back + out -->
+          <polyline class="wire" data-net="rdata"   id="wRdata"   points="0,0 0,0" />
+          <polyline class="wire" data-net="rdataB"  id="wRdataB"  points="0,0 0,0" />
+          <polyline class="wire" data-net="Cin"     id="wCin"     points="0,0 0,0" />
+          <polyline class="wire" data-net="Y"       id="wY"       points="0,0 0,0" />
+          <polyline class="wire" data-net="result"  id="wResult"  points="0,0 0,0" />
+          <polyline class="wire" data-net="Y"       id="wWdata"   points="0,0 0,0" />
+          <polyline class="wire" data-net="Cout"    id="wCout"    points="0,0 0,0" />
 
-          <!-- ── Children ───────────────────────────────────────────────── -->
-          <g class="child-slot" id="slot-regfile" tabindex="0" role="button" aria-label="register file">
-            <rect class="tbody simple-body" id="gRegfile" x="210" y="175" width="350" height="630" rx="12" />
-            <text class="tlabel simple-label" x="385" y="490">register file</text>
+          <!-- ── Children. `data-embed-page` auto-fills .detailed with an EXACT
+               copy of that page's own diagram (src/embedPreview.ts), and the
+               wires above are routed onto its real pins. ─────────────────── -->
+          <g class="child-slot" id="slot-regfile" tabindex="0" role="button" aria-label="register file"
+             data-embed-page="/regfile.html" data-embed-svg="regfile">
+            <rect class="tbody simple-body" id="gRegfile" x="140" y="120" width="1120" height="566" rx="12" />
+            <text class="tlabel simple-label" x="700" y="403">register file</text>
             <g class="detailed" id="regfileDetail"></g>
           </g>
-          <g class="child-slot" id="slot-alu" tabindex="0" role="button" aria-label="ALU">
-            <rect class="tbody simple-body" id="gAlu" x="910" y="210" width="280" height="350" rx="12" />
-            <text class="tlabel simple-label" x="1050" y="385">ALU</text>
+          <g class="child-slot" id="slot-alu" tabindex="0" role="button" aria-label="ALU"
+             data-embed-page="/alu1.html" data-embed-svg="alu1">
+            <rect class="tbody simple-body" id="gAlu" x="1420" y="160" width="620" height="398" rx="12" />
+            <text class="tlabel simple-label" x="1730" y="359">ALU</text>
             <g class="detailed" id="aluDetail"></g>
           </g>
         </svg>

@@ -126,6 +126,10 @@ const MEASURE = (EDGE_TOL) => {
   const slots = Array.from(document.querySelectorAll('[id^="slot-"]'));
   for (const slot of slots) {
     if (getComputedStyle(slot).cursor !== 'pointer') continue;  // leaf, not drillable
+    // Embed-preview slots (full child page embedded) are checked by
+    // preview-fidelity instead — their terminals are the embedded child's
+    // pins, not perimeter stubs.
+    if (slot.hasAttribute('data-embed-page')) continue;
     const rect = slot.querySelector('rect.simple-body');
     const detailed = slot.querySelector('.detailed');
     if (!rect || !detailed) continue;

@@ -1,0 +1,103 @@
+// Automatic, exact-copy hover previews.
+//
+// A drillable slot can declare `data-embed-page="/foo.html"` (+ optional
+// `data-embed-svg="<svgId>"`). `autoFillEmbeds` then fills that slot's
+// `.detailed` group with an INERT, scaled copy of /foo.html's own <svg> — so
+// the preview you see on hover is LITERALLY the page you land on when you
+// click. Single source: the copy is taken from the page's raw HTML at build
+// time, so it can never drift from the real layout.
+//
+// This is enforced by tests/preview-fidelity.test.mjs (strict, like
+// wire-alignment): every [data-embed-page] preview must contain the target
+// page's exact net set, and must render large enough that its wires stay
+// distinguishable.
+
+import regfileRaw from '../regfile.html?raw';
+import alu1Raw from '../alu1.html?raw';
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Registry: page path → its raw HTML. Add a child page here to make it
+// embeddable (static imports keep the embed synchronous — ready before any
+// test or first paint).
+export const PAGE_RAW: Record<string, string> = {
+  '/regfile.html': regfileRaw,
+  '/alu1.html': alu1Raw,
+};
+
+type Box = { x: number; y: number; w: number; h: number };
+export type Pt = { x: number; y: number };
+// Projected positions of the embedded child's external pins, keyed by the
+// child's original pin id (e.g. "pinRaddr1", "pinA"), in the host svg's coords.
+export type PinMap = Record<string, Pt>;
+
+function embedSvg(host: Element, raw: string, svgId: string, box: Box): PinMap | null {
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const src = svgId ? doc.getElementById(svgId) : doc.querySelector('svg');
+  if (!src) return null;
+  const [vx, vy, vw, vh] = (src.getAttribute('viewBox') || '0 0 100 100').split(/\s+/).map(Number);
+  const sc = Math.min(box.w / vw, box.h / vh);
+  const tx = box.x + (box.w - vw * sc) / 2 - vx * sc;
+  const ty = box.y + (box.h - vh * sc) / 2 - vy * sc;
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('transform', `translate(${tx}, ${ty}) scale(${sc})`);
+  g.setAttribute('pointer-events', 'none');
+  g.setAttribute('class', 'embed');
+  g.setAttribute('data-embed', svgId);
+  const pins: PinMap = {};
+  // Clone the page's diagram. Record each external pin's projected position
+  // (by its original id) BEFORE stripping ids; strip ids (avoid collisions /
+  // slot-discovery tests) and the interactive `child-slot` class.
+  for (const child of Array.from(src.children)) {
+    const c = child.cloneNode(true) as Element;
+    for (const e of [c, ...Array.from(c.querySelectorAll('*'))]) {
+      const id = e.getAttribute('id');
+      if (id && e.classList?.contains('pin')) {
+        const cx = parseFloat(e.getAttribute('cx') || '0');
+        const cy = parseFloat(e.getAttribute('cy') || '0');
+        pins[id] = { x: tx + cx * sc, y: ty + cy * sc };
+        e.setAttribute('data-pin-id', id);  // keep findable without an id
+      }
+      // Component bodies light by id on the real page; preserve the id as
+      // data-body so the embed can be lit to match state (else they'd stay dark).
+      if (id && (e.classList?.contains('tbody') || e.classList?.contains('tbody-mini'))) {
+        e.setAttribute('data-body', id);
+      }
+      e.removeAttribute('id');
+      e.classList?.remove('child-slot');
+    }
+    g.appendChild(c);
+  }
+  host.appendChild(g);
+  return pins;
+}
+
+// Fill every [data-embed-page] slot under `root`. Returns slotId → projected
+// child pin positions (so the parent can route its wires ONTO the embedded
+// replica's real pins). Logs loudly any slot it cannot satisfy.
+export function autoFillEmbeds(root: ParentNode): Map<string, PinMap> {
+  const out = new Map<string, PinMap>();
+  for (const slot of Array.from(root.querySelectorAll('[data-embed-page]'))) {
+    const id = (slot as Element).id;
+    const page = slot.getAttribute('data-embed-page') || '';
+    const svgId = slot.getAttribute('data-embed-svg') || '';
+    const raw = PAGE_RAW[page];
+    const host = slot.querySelector('.detailed');
+    const bodyRect = slot.querySelector('rect.simple-body');
+    if (!raw || !host || !bodyRect) {
+      console.error(`[embedPreview] #${id}: cannot embed "${page}" ` +
+        `(raw=${!!raw}, host=${!!host}, box=${!!bodyRect}). Add it to PAGE_RAW / fix the slot.`);
+      continue;
+    }
+    const box: Box = {
+      x: parseFloat(bodyRect.getAttribute('x') || '0'),
+      y: parseFloat(bodyRect.getAttribute('y') || '0'),
+      w: parseFloat(bodyRect.getAttribute('width') || '0'),
+      h: parseFloat(bodyRect.getAttribute('height') || '0'),
+    };
+    const pins = embedSvg(host, raw, svgId, box);
+    if (pins) out.set(id, pins);
+    else console.error(`[embedPreview] #${id}: no <svg#${svgId}> in "${page}".`);
+  }
+  return out;
+}

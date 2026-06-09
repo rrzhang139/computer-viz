@@ -223,13 +223,15 @@
           <polyline class="wire" data-net="wen1" id="wen1" points="490,290 544,290 544,398 600,398" />
           <polyline class="wire" data-net="wen0" id="wen0" points="490,350 532,350 532,553 600,553" />
 
-          <!-- clk: pin → junction (560,470) → vertical bus → stub into each AND gate -->
-          <polyline class="wire" data-net="clk" points="0,470 560,470" />
-          <polyline class="wire" data-net="clk" points="560,79 560,527" />
-          <polyline class="wire" data-net="clk" points="560,79  600,79" />
-          <polyline class="wire" data-net="clk" points="560,217 600,217" />
-          <polyline class="wire" data-net="clk" points="560,372 600,372" />
-          <polyline class="wire" data-net="clk" points="560,527 600,527" />
+          <!-- clk: pin → junction (515,470) → vertical bus → stub into each AND
+               gate. Bus sits LEFT of the wen lanes (532-568) so the two don't
+               run side-by-side (keeps them distinguishable, here and in previews). -->
+          <polyline class="wire" data-net="clk" points="0,470 515,470" />
+          <polyline class="wire" data-net="clk" points="515,79 515,527" />
+          <polyline class="wire" data-net="clk" points="515,79  600,79" />
+          <polyline class="wire" data-net="clk" points="515,217 600,217" />
+          <polyline class="wire" data-net="clk" points="515,372 600,372" />
+          <polyline class="wire" data-net="clk" points="515,527 600,527" />
 
           <!-- gated clock: AND gate out → across → drop into each register's
                CLK on the TOP edge (where a flip-flop takes its clock) -->
