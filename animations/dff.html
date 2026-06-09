@@ -383,41 +383,48 @@
         <!-- GND rail -->
         <polyline class="wire" data-net="GND" points="0,540 1000,540" />
 
+        <!-- All geometry below is REWRITTEN in dff.ts to land on the embedded
+             D-latches' projected pins (master / slave). -->
         <!-- D net: D_in → master.D_in (LEFT) -->
-        <polyline class="wire" data-net="D" points="0,280 180,280" />
+        <polyline class="wire" id="wD" data-net="D" points="0,280 180,280" />
 
-        <!-- CLK net branches:
-             • CLK_in (315,35) drops to inv.in (315,75)
-             • CLK_in also goes RIGHT then DOWN to slave.EN_in (755,160) -->
-        <polyline class="wire" data-net="CLK" points="315,35 315,75" />
-        <polyline class="wire" data-net="CLK" points="315,35 755,35 755,160" />
+        <!-- CLK net: drops to the inverter, and also feeds slave.EN -->
+        <polyline class="wire" id="wCLK_inv"   data-net="CLK" points="315,35 315,75" />
+        <polyline class="wire" id="wCLK_slave" data-net="CLK" points="315,35 755,35 755,160" />
 
-        <!-- not_CLK net: inv.out (315,105) → master.EN_in (315,160) -->
-        <polyline class="wire" data-net="notCLK" points="315,105 315,160" />
+        <!-- not_CLK net: inv.out → master.EN_in -->
+        <polyline class="wire" id="wNotCLK" data-net="notCLK" points="315,105 315,160" />
 
-        <!-- M net (intermediate Qm): master.Q_out (540,235) → slave.D_in (620,280) -->
-        <polyline class="wire" data-net="M" points="540,235 580,235 580,280 620,280" />
+        <!-- M net (intermediate Qm): master.Q_out → slave.D_in -->
+        <polyline class="wire" id="wM" data-net="M" points="540,235 580,235 580,280 620,280" />
 
-        <!-- Q out: slave.Q_out (980,235) → Q_pin (1020,235) -->
-        <polyline class="wire" data-net="Q" points="980,235 1020,235" />
+        <!-- master Q̄ is unused in a DFF — a short honest stub off the pin -->
+        <polyline class="wire" id="wMasterQB" data-net="Mbar" points="540,325 560,325" />
 
-        <!-- QB out: slave.QB_out (980,325) → QB_pin (1020,325) -->
-        <polyline class="wire" data-net="QB" points="980,325 1020,325" />
+        <!-- Q out: slave.Q_out → Q_pin -->
+        <polyline class="wire" id="wQ" data-net="Q" points="980,235 1020,235" />
+
+        <!-- QB out: slave.QB_out → QB_pin -->
+        <polyline class="wire" id="wQB" data-net="QB" points="980,325 1020,325" />
 
         <!-- Inverter body (small rect with TOP input, BOTTOM output) -->
         <rect class="tbody" id="iInv" x="290" y="75" width="50" height="30" rx="5" />
         <text class="tlabel-small" x="315" y="90">inv</text>
 
-        <!-- Master D latch box (hover swaps to mini D latch interior) -->
-        <g class="dff-slot" id="slot-master" tabindex="0" role="button">
+        <!-- Master D latch box: hover embeds an exact copy of /dlatch.html -->
+        <g class="dff-slot" id="slot-master" tabindex="0" role="button"
+           data-embed-page="/dlatch.html" data-embed-svg="dlatch">
           <rect class="tbody simple-body" id="gMaster" x="180" y="160" width="360" height="240" rx="12" />
           <text class="tlabel simple-label" x="360" y="270">master</text>
+          <g class="detailed" id="masterDetail"></g>
         </g>
 
-        <!-- Slave D latch box (hover swaps to mini D latch interior) -->
-        <g class="dff-slot" id="slot-slave" tabindex="0" role="button">
+        <!-- Slave D latch box: hover embeds an exact copy of /dlatch.html -->
+        <g class="dff-slot" id="slot-slave" tabindex="0" role="button"
+           data-embed-page="/dlatch.html" data-embed-svg="dlatch">
           <rect class="tbody simple-body" id="gSlave" x="620" y="160" width="360" height="240" rx="12" />
           <text class="tlabel simple-label" x="800" y="270">slave</text>
+          <g class="detailed" id="slaveDetail"></g>
         </g>
 
         <!-- Pin nodes -->

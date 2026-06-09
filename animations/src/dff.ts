@@ -4,6 +4,7 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
+import { autoFillEmbeds } from "./embedPreview";
 // DFF (master-slave D flip-flop):
 //   - master D latch is transparent when CLK = 0 (its EN = !CLK)
 //   - slave  D latch is transparent when CLK = 1 (its EN =  CLK)
@@ -49,106 +50,50 @@ function settleDLatch(input: Bit, EN: Bit, state: { Q: Bit; QB: Bit }) {
   state.Q = q; state.QB = qb;
 }
 
-// ── D-latch mini geometry (for master/slave hover overlays) ─────────────
-// Local coords match the standalone D-latch page content (840 × 560).
-const DLATCH_MINI_WIRES: { net: string; points: string }[] = [
-  // D input branches
-  { net: 'D',    points: '0,280 35,280' },
-  { net: 'D',    points: '0,280 20,280 20,145 145,145' },
-  // D̄ from inverter to G_R
-  { net: 'Dbar', points: '105,280 125,280 125,355 145,355' },
-  // EN enters from the TOP edge (y=0, where the parent CLK wire lands) and
-  // runs down the inner-left corridor into G_S and G_R B-inputs.
-  { net: 'EN',   points: '315,0 315,75 125,75 125,415' },
-  { net: 'EN',   points: '125,205 145,205' },
-  { net: 'EN',   points: '125,415 145,415' },
-  // S̄ / R̄ into the SR latch
-  { net: 'Sbar', points: '345,165 435,165 435,224 525,224' },
-  { net: 'Rbar', points: '345,375 435,375 435,308 525,308' },
-  // Q / Q̄ out
-  { net: 'Q',   points: '805,233 820,233 820,175 840,175' },
-  { net: 'QB',  points: '805,317 820,317 820,385 840,385' },
-];
-const DLATCH_MINI_BOXES = [
-  { tid: 'inv',   x: 35,  y: 259, w: 70,  h: 42,  lx: 70,  ly: 280 },
-  { tid: 'G_S',   x: 145, y: 105, w: 200, h: 140, lx: 245, ly: 175 },
-  { tid: 'G_R',   x: 145, y: 315, w: 200, h: 140, lx: 245, ly: 385 },
-  { tid: 'latch', x: 525, y: 187, w: 280, h: 186, lx: 665, ly: 280 },
-];
-
-interface SlotBox { x: number; y: number; w: number; h: number; }
-const DLATCH_BOXES: Record<string, SlotBox> = {
-  master: { x: 180, y: 160, w: 360, h: 240 },
-  slave:  { x: 620, y: 160, w: 360, h: 240 },
+// ── Embed exact copies of /dlatch.html in the master/slave slots and route
+// the DFF's wires onto the embedded D-latches' projected pins. ────────────
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
+const M_: Record<string, Pt> = embeds.get('slot-master') || {};
+const S_: Record<string, Pt> = embeds.get('slot-slave')  || {};
+const setW = (id: string, pts: string) => document.getElementById(id)?.setAttribute('points', pts);
+const placePin = (id: string, x: number, y: number) => {
+  const c = document.getElementById(id);
+  if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
 };
-
-function buildDlatchMini(slot: string, box: SlotBox, omitQB = false): SVGGElement {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'detailed');
-  g.setAttribute('data-slot', slot);
-  g.setAttribute('transform',
-    `translate(${box.x}, ${box.y}) scale(${box.w / 840}, ${box.h / 560})`);
-  for (const w of DLATCH_MINI_WIRES) {
-    // The master's Q̄ is unused in a DFF (only Q feeds the slave), so don't
-    // draw a dangling Q̄ output for it.
-    if (omitQB && w.net === 'QB') continue;
-    const wire = document.createElementNS(SVG_NS, 'polyline');
-    wire.setAttribute('class', 'wire-mini');
-    wire.setAttribute('data-net', w.net);
-    wire.setAttribute('data-on', '0');
-    wire.setAttribute('points', w.points);
-    g.appendChild(wire);
-  }
-  for (const b of DLATCH_MINI_BOXES) {
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('class', 'tbody-mini');
-    r.setAttribute('data-tid', b.tid);
-    r.setAttribute('x', String(b.x));
-    r.setAttribute('y', String(b.y));
-    r.setAttribute('width', String(b.w));
-    r.setAttribute('height', String(b.h));
-    r.setAttribute('rx', b.tid === 'inv' ? '6' : '10');
-    g.appendChild(r);
-    const txt = document.createElementNS(SVG_NS, 'text');
-    txt.setAttribute('class', 'tlabel-mini');
-    txt.setAttribute('data-tid', b.tid);
-    txt.setAttribute('x', String(b.lx));
-    txt.setAttribute('y', String(b.ly));
-    txt.textContent = b.tid;
-    g.appendChild(txt);
-  }
-  return g;
+if (M_.pinD && M_.pinEN && M_.pinQ && M_.pinQB &&
+    S_.pinD && S_.pinEN && S_.pinQ && S_.pinQB) {
+  // D → master.D
+  placePin('pinD', 0, M_.pinD.y); setW('wD', `0,${M_.pinD.y} ${M_.pinD.x},${M_.pinD.y}`);
+  // CLK → inverter (kept short), and CLK → slave.EN (from the top)
+  placePin('pinCLK', 315, 35);
+  setW('wCLK_inv', `315,35 315,75`);
+  setW('wCLK_slave', `315,35 ${S_.pinEN.x},35 ${S_.pinEN.x},${S_.pinEN.y}`);
+  // notCLK (inverter out) → master.EN
+  setW('wNotCLK', `315,105 ${M_.pinEN.x},105 ${M_.pinEN.x},${M_.pinEN.y}`);
+  // M (master Q) → slave.D
+  setW('wM', `${M_.pinQ.x},${M_.pinQ.y} 580,${M_.pinQ.y} 580,${S_.pinD.y} ${S_.pinD.x},${S_.pinD.y}`);
+  // master Q̄ unused → short stub off the pin (far end outside the box)
+  setW('wMasterQB', `${M_.pinQB.x},${M_.pinQB.y} 560,${M_.pinQB.y}`);
+  // slave Q / Q̄ → output pins
+  setW('wQ', `${S_.pinQ.x},${S_.pinQ.y} 1020,${S_.pinQ.y}`);   placePin('pinQ', 1020, S_.pinQ.y);
+  setW('wQB', `${S_.pinQB.x},${S_.pinQB.y} 1020,${S_.pinQB.y}`); placePin('pinQB', 1020, S_.pinQB.y);
 }
 
-for (const slot of Object.keys(DLATCH_BOXES)) {
-  document.getElementById(`slot-${slot}`)
-    ?.appendChild(buildDlatchMini(slot, DLATCH_BOXES[slot], slot === 'master'));
+// Light an embedded D latch to its logical state.
+function lightDlatch(hostId: string, d: Bit, en: Bit, q: Bit, qb: Bit) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const dbar: Bit = (d === 0 ? 1 : 0) as Bit;
+  const sbar: Bit = ((d & en) === 1 ? 0 : 1) as Bit;
+  const rbar: Bit = ((dbar & en) === 1 ? 0 : 1) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('D', d); w('Dbar', dbar); w('EN', en); w('Sbar', sbar); w('Rbar', rbar); w('Q', q); w('QB', qb);
+  body('iInv', dbar); body('gGS', sbar); body('gGR', rbar); body('gLatch', q);
 }
 
-function setDlatchMiniState(
-  slot: string, D: Bit, EN: Bit, Q: Bit, QB: Bit,
-) {
-  const root = svg.querySelector(`g.detailed[data-slot="${slot}"]`);
-  if (!root) return;
-  const Dbar: Bit = D === 0 ? 1 : 0;
-  const Sbar: Bit = (D & EN) === 1 ? 0 : 1;
-  const Rbar: Bit = (Dbar & EN) === 1 ? 0 : 1;
-  const set = (sel: string, on: Bit) =>
-    root.querySelectorAll(sel).forEach((el) => el.setAttribute('data-on', String(on)));
-  set('.wire-mini[data-net="D"]',    D);
-  set('.wire-mini[data-net="Dbar"]', Dbar);
-  set('.wire-mini[data-net="EN"]',   EN);
-  set('.wire-mini[data-net="Sbar"]', Sbar);
-  set('.wire-mini[data-net="Rbar"]', Rbar);
-  set('.wire-mini[data-net="Q"]',    Q);
-  set('.wire-mini[data-net="QB"]',   QB);
-  root.querySelector(`.tbody-mini[data-tid="inv"]`)?.setAttribute('data-on', String(Dbar));
-  root.querySelector(`.tbody-mini[data-tid="G_S"]`)?.setAttribute('data-on', String(Sbar));
-  root.querySelector(`.tbody-mini[data-tid="G_R"]`)?.setAttribute('data-on', String(Rbar));
-  root.querySelector(`.tbody-mini[data-tid="latch"]`)?.setAttribute('data-on', String(Q));
-}
-
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS(SVG_NS, 'polyline');
@@ -195,9 +140,9 @@ function render() {
   // The master glows when its INTERNAL Qm is high; same for slave with Q.
   document.getElementById('gMaster')!.setAttribute('data-on', String(Qm));
   document.getElementById('gSlave')!.setAttribute('data-on', String(Q));
-  // Propagate state into the hover overlay minis.
-  setDlatchMiniState('master', D, notCLK, Qm, QBm);
-  setDlatchMiniState('slave',  Qm, CLK,    Q,  QB);
+  // Propagate state into the embedded D-latch copies.
+  lightDlatch('masterDetail', D,  notCLK, Qm, QBm);
+  lightDlatch('slaveDetail',  Qm, CLK,    Q,  QB);
 
   document.getElementById('pinD')!.setAttribute('data-on',   String(D));
   document.getElementById('pinCLK')!.setAttribute('data-on', String(CLK));
