@@ -437,36 +437,27 @@
         <!-- GND rail (always off) -->
         <polyline class="wire" data-net="GND" points="0,400 600,400" />
 
-        <!-- S̄ input → N1.A_in (straight horizontal at y=80) -->
-        <polyline class="wire" data-net="S" points="0,80 230,80" />
+        <!-- Wires are routed in src/latch.ts onto each embedded NAND's real pins. -->
+        <polyline class="wire" data-net="S"  id="wS"     points="0,80 230,80" />
+        <polyline class="wire" data-net="R"  id="wR"     points="0,260 230,260" />
+        <polyline class="wire" data-net="Q"  id="wQout"  points="430,100 600,100" />
+        <polyline class="wire" data-net="QB" id="wQBout" points="430,280 600,280" />
+        <polyline class="wire" data-net="Q"  id="wQfb"   points="430,100 470,100 470,190 180,190 180,320 230,320" />
+        <polyline class="wire" data-net="QB" id="wQBfb"  points="430,280 490,280 490,210 190,210 190,140 230,140" />
 
-        <!-- R̄ input → N2.A_in (straight horizontal at y=260) -->
-        <polyline class="wire" data-net="R" points="0,260 230,260" />
-
-        <!-- Q out: N1.Y_out (430, 100) → Q pin (600, 100) -->
-        <polyline class="wire" data-net="Q" points="430,100 600,100" />
-
-        <!-- Q̄ out: N2.Y_out (430, 280) → QB pin (600, 280) -->
-        <polyline class="wire" data-net="QB" points="430,280 600,280" />
-
-        <!-- Q feedback: N1.Y_out → N2.B_in via the corridor at y=190.
-             Right past the boxes (x=470), down to y=190, left past the LEFT edge of
-             the boxes (x=180), down to N2.B's y=320, right into N2.B at x=230. -->
-        <polyline class="wire" data-net="Q" points="430,100 470,100 470,190 180,190 180,320 230,320" />
-
-        <!-- Q̄ feedback: N2.Y_out → N1.B_in via the corridor at y=210. Mirror of Q feedback. -->
-        <polyline class="wire" data-net="QB" points="430,280 490,280 490,210 190,210 190,140 230,140" />
-
-        <!-- NAND bodies (drawn AFTER wires so the dashed outline overlays wire stubs).
-             Each NAND lives in a .nand-slot group: the simple block fades out and
-             a detailed mini-gate fades in on hover. The mini is injected by JS. -->
-        <g class="nand-slot" id="slot-n1" tabindex="0" role="button">
+        <!-- Each NAND embeds an EXACT copy of /index.html (the NAND page) on hover
+             (src/latch.ts via autoFillEmbeds); the wires above land on its pins. -->
+        <g class="nand-slot child-slot" id="slot-n1" tabindex="0" role="button"
+           data-embed-page="/index.html" data-embed-svg="gate">
           <rect class="tbody simple-body" id="nN1" x="230" y="40" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="330" y="110">N1</text>
+          <g class="detailed" id="n1Detail"></g>
         </g>
-        <g class="nand-slot" id="slot-n2" tabindex="0" role="button">
+        <g class="nand-slot child-slot" id="slot-n2" tabindex="0" role="button"
+           data-embed-page="/index.html" data-embed-svg="gate">
           <rect class="tbody simple-body" id="nN2" x="230" y="220" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="330" y="290">N2</text>
+          <g class="detailed" id="n2Detail"></g>
         </g>
 
         <!-- Pin nodes -->

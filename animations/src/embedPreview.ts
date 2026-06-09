@@ -12,6 +12,16 @@
 // page's exact net set, and must render large enough that its wires stay
 // distinguishable.
 
+import indexRaw from '../index.html?raw';
+import latchRaw from '../latch.html?raw';
+import dlatchRaw from '../dlatch.html?raw';
+import dffRaw from '../dff.html?raw';
+import registerRaw from '../register.html?raw';
+import halfadderRaw from '../halfadder.html?raw';
+import fulladderRaw from '../fulladder.html?raw';
+import adder4Raw from '../adder4.html?raw';
+import decoderRaw from '../decoder.html?raw';
+import muxRaw from '../mux.html?raw';
 import regfileRaw from '../regfile.html?raw';
 import alu1Raw from '../alu1.html?raw';
 
@@ -19,8 +29,18 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Registry: page path → its raw HTML. Add a child page here to make it
 // embeddable (static imports keep the embed synchronous — ready before any
-// test or first paint).
+// test or first paint). Every drillable preview embeds its child's real page.
 export const PAGE_RAW: Record<string, string> = {
+  '/index.html': indexRaw,
+  '/latch.html': latchRaw,
+  '/dlatch.html': dlatchRaw,
+  '/dff.html': dffRaw,
+  '/register.html': registerRaw,
+  '/halfadder.html': halfadderRaw,
+  '/fulladder.html': fulladderRaw,
+  '/adder4.html': adder4Raw,
+  '/decoder.html': decoderRaw,
+  '/mux.html': muxRaw,
   '/regfile.html': regfileRaw,
   '/alu1.html': alu1Raw,
 };

@@ -4,117 +4,47 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
+import { autoFillEmbeds } from "./embedPreview";
 // Same logic as src/latch.ts — only the SVG topology differs (v2 NAND with
 // both A and B on the LEFT edge, so the cross-coupled feedback forms an X
 // in the corridor between N1 and N2 rather than wrapping around the right).
 
 type Bit = 0 | 1;
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
 const btnS = document.getElementById('btnS') as HTMLButtonElement;
 const btnR = document.getElementById('btnR') as HTMLButtonElement;
 const svg = document.getElementById('latch') as unknown as SVGSVGElement;
 
-// ─── NAND v2 mini geometry ─────────────────────────────────────────────
-// World coords match gate_v2.html (viewBox 0 0 500 350). When scaled into
-// a 142.85 × 100 NAND box at parent SVG (228.575, 50), the mini's external
-// terminals A_in (0,100), B_in (0,250), Y_out (500,150) project to exactly
-// the parent's wire endpoints — N1_A_in (228.575, 78.57), N1_B_in (228.575,
-// 121.43), N1_Y_out (371.43, 92.86). Verifies CLAUDE.md rule 21 data flow.
-
-const NAND_MINI_WIRES: { net: string; points: string; alwaysOn?: boolean }[] = [
-  { net: 'Vdd', alwaysOn: true, points: '0,0 500,0' },
-  { net: 'Vdd', alwaysOn: true, points: '175,0 175,25' },
-  { net: 'Vdd', alwaysOn: true, points: '325,0 325,25' },
-  { net: 'GND', points: '0,350 500,350' },
-  { net: 'GND', points: '250,350 250,300' },
-  { net: 'A', points: '0,100 125,100 125,50 150,50' },
-  { net: 'A', points: '0,100 200,100 200,175 225,175' },
-  { net: 'B', points: '0,250 200,250 200,275 225,275' },
-  { net: 'B', points: '0,250 225,250 225,240 285,240 285,50 300,50' },
-  { net: 'Y', points: '175,75 175,125 250,125' },
-  { net: 'Y', points: '325,75 325,125 250,125' },
-  { net: 'Y', points: '250,125 250,150' },
-  { net: 'Y', points: '250,125 425,125 425,150 500,150' },
-  { net: 'mid', points: '250,200 250,250' },
-];
-const NAND_MINI_TRANSISTORS = [
-  { tid: 'P_A', x: 150, y: 25, lx: 175, ly: 50 },
-  { tid: 'P_B', x: 300, y: 25, lx: 325, ly: 50 },
-  { tid: 'N_A', x: 225, y: 150, lx: 250, ly: 175 },
-  { tid: 'N_B', x: 225, y: 250, lx: 250, ly: 275 },
-];
-
-interface SlotBox { x: number; y: number; w: number; h: number; }
-const SLOT_BOXES: Record<string, SlotBox> = {
-  n1: { x: 230, y: 40, w: 200, h: 140 },
-  n2: { x: 230, y: 220, w: 200, h: 140 },
+// ─── Embed an EXACT copy of /index.html (the NAND page) in each NAND slot,
+// and route the latch's wires onto the embedded NANDs' real pins. ──────────
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
+const N1: Record<string, Pt> = embeds.get('slot-n1') || {};
+const N2: Record<string, Pt> = embeds.get('slot-n2') || {};
+const setW = (id: string, pts: string) => document.getElementById(id)?.setAttribute('points', pts);
+const placePin = (id: string, x: number, y: number) => {
+  const c = document.getElementById(id);
+  if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
 };
-
-function buildNandMini(slot: string, box: SlotBox): SVGGElement {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'detailed');
-  g.setAttribute('data-slot', slot);
-  const sx = box.w / 500;
-  const sy = box.h / 350;
-  g.setAttribute('transform', `translate(${box.x}, ${box.y}) scale(${sx}, ${sy})`);
-
-  for (const w of NAND_MINI_WIRES) {
-    const wire = document.createElementNS(SVG_NS, 'polyline');
-    wire.setAttribute('class', 'wire-mini');
-    wire.setAttribute('data-net', w.net);
-    wire.setAttribute('data-on', w.alwaysOn ? '1' : '0');
-    wire.setAttribute('points', w.points);
-    g.appendChild(wire);
-  }
-  for (const t of NAND_MINI_TRANSISTORS) {
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('class', 'tbody-mini');
-    r.setAttribute('data-tid', t.tid);
-    r.setAttribute('x', String(t.x));
-    r.setAttribute('y', String(t.y));
-    r.setAttribute('width', '50');
-    r.setAttribute('height', '50');
-    r.setAttribute('rx', '4');
-    g.appendChild(r);
-    const txt = document.createElementNS(SVG_NS, 'text');
-    txt.setAttribute('class', 'tlabel-mini');
-    txt.setAttribute('data-tid', t.tid);
-    txt.setAttribute('x', String(t.lx));
-    txt.setAttribute('y', String(t.ly));
-    txt.textContent = t.tid;
-    g.appendChild(txt);
-  }
-  return g;
+if (N1.pinA && N1.pinB && N1.pinY && N2.pinA && N2.pinB && N2.pinY) {
+  // N1: A←S̄, B←Q̄(feedback), Y→Q.   N2: A←R̄, B←Q(feedback), Y→Q̄.
+  placePin('pinS', 0, N1.pinA.y); setW('wS', `0,${N1.pinA.y} ${N1.pinA.x},${N1.pinA.y}`);
+  placePin('pinR', 0, N2.pinA.y); setW('wR', `0,${N2.pinA.y} ${N2.pinA.x},${N2.pinA.y}`);
+  placePin('pinQ', 600, N1.pinY.y); setW('wQout', `${N1.pinY.x},${N1.pinY.y} 600,${N1.pinY.y}`);
+  placePin('pinQB', 600, N2.pinY.y); setW('wQBout', `${N2.pinY.x},${N2.pinY.y} 600,${N2.pinY.y}`);
+  setW('wQfb', `${N1.pinY.x},${N1.pinY.y} 470,${N1.pinY.y} 470,190 180,190 180,${N2.pinB.y} ${N2.pinB.x},${N2.pinB.y}`);
+  setW('wQBfb', `${N2.pinY.x},${N2.pinY.y} 490,${N2.pinY.y} 490,210 190,210 190,${N1.pinB.y} ${N1.pinB.x},${N1.pinB.y}`);
 }
-
-// Inject minis into each slot
-for (const slot of Object.keys(SLOT_BOXES)) {
-  const slotGroup = document.getElementById(`slot-${slot}`);
-  if (slotGroup) slotGroup.appendChild(buildNandMini(slot, SLOT_BOXES[slot]));
-}
-
-function setMiniState(slot: 'n1' | 'n2', A: Bit, B: Bit, Y: Bit) {
-  const root = svg.querySelector(`g.detailed[data-slot="${slot}"]`);
-  if (!root) return;
-  const mid: Bit = A && B ? 1 : 0;
-  const set = (sel: string, on: Bit) =>
-    root.querySelectorAll(sel).forEach((el) => el.setAttribute('data-on', String(on)));
-  set('.wire-mini[data-net="A"]', A);
-  set('.wire-mini[data-net="B"]', B);
-  set('.wire-mini[data-net="Y"]', Y);
-  set('.wire-mini[data-net="mid"]', mid);
-  const tOn: Record<string, Bit> = {
-    P_A: A === 0 ? 1 : 0,
-    P_B: B === 0 ? 1 : 0,
-    N_A: A,
-    N_B: B,
-  };
-  for (const [tid, on] of Object.entries(tOn)) {
-    root.querySelector(`.tbody-mini[data-tid="${tid}"]`)
-      ?.setAttribute('data-on', String(on));
-  }
+// Light an embedded NAND to its logical state (PMOS conduct on input 0, NMOS on 1).
+function lightNand(hostId: string, A: Bit, B: Bit, Y: Bit) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const mid: Bit = (A && B) ? 1 : 0;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('A', A); w('B', B); w('Y', Y); w('mid', mid);
+  body('tP_A', (A === 0 ? 1 : 0) as Bit); body('tP_B', (B === 0 ? 1 : 0) as Bit);
+  body('tN_A', A); body('tN_B', B);
 }
 
 // Per-page snapshot keeps the latch's inputs across navigation. Q/QB are
@@ -129,7 +59,7 @@ let Rbar: Bit = readBitParam('Rbar', snap?.Rbar ?? 1);
 let Q: Bit = 0;
 let QB: Bit = 1;
 
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
@@ -176,11 +106,9 @@ function render() {
   document.getElementById('nN1')!.setAttribute('data-on', String(Q));
   document.getElementById('nN2')!.setAttribute('data-on', String(QB));
 
-  // Mini state reflects each NAND's logical inputs/output:
-  //   N1: A = S̄, B = Q̄ (feedback), Y = Q
-  //   N2: A = R̄, B = Q  (feedback), Y = Q̄
-  setMiniState('n1', Sbar, QB, Q);
-  setMiniState('n2', Rbar, Q, QB);
+  // Embedded NAND state: N1: A=S̄, B=Q̄, Y=Q.  N2: A=R̄, B=Q, Y=Q̄.
+  lightNand('n1Detail', Sbar, QB, Q);
+  lightNand('n2Detail', Rbar, Q, QB);
 
   document.getElementById('pinS')!.setAttribute('data-on', String(Sbar));
   document.getElementById('pinR')!.setAttribute('data-on', String(Rbar));
