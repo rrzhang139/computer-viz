@@ -4,7 +4,7 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
-import { renderDecoderScene } from "./scenes/decoderScene";
+import { autoFillEmbeds } from "./embedPreview";
 
 // 4-to-1 MUX: 4 data inputs + 2-bit select → 1 output.
 //   out = in[s1*2 + s0]
@@ -50,17 +50,15 @@ let s0: Bit = readBitParam('s0', _snap?.s0 ?? 0);
 // same function `/decoder.html` uses for its full-size view), just
 // scaled to the embedded box. Single source of truth = layer-10
 // wireframe → `src/scenes/decoderScene.ts` → both views.
+// Embed an EXACT copy of the decoder (the same renderDecoderScene that
+// /decoder.html draws, via PAGE_RENDERERS) into the slot. Its projected pins
+// (pinA1/pinA0/pinEN/pinSel0..3) land exactly on the s1/s0/EN/sel wire
+// endpoints already (both use the same world→box projection at this box).
 const decoderDetail = document.getElementById('decoderDetail');
-if (decoderDetail) {
-  // The decoder box in the MUX SVG: x∈[560, 880], y∈[40, 280] (= 4×3 wu world).
-  decoderDetail.appendChild(renderDecoderScene(
-    { x: 560, y: 40, w: 320, h: 240 },
-    { idPrefix: 'dp', showPins: false, pinRadius: 3 },
-  ));
-}
+autoFillEmbeds(svg);
 
-// Wire pulse overlays
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+// Wire pulse overlays (exclude the embedded decoder's own wires)
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS(SVG_NS, 'polyline');
@@ -135,13 +133,15 @@ function render() {
   const na1: Bit = (s1 === 0 ? 1 : 0) as Bit;
   const na0: Bit = (s0 === 0 ? 1 : 0) as Bit;
   if (decoderDetail) {
-    // Gate bodies (renderer prefixed IDs with 'dp')
-    decoderDetail.querySelector('#dpInvA1')?.setAttribute('data-on', String(na1));
-    decoderDetail.querySelector('#dpInvA0')?.setAttribute('data-on', String(na0));
-    decoderDetail.querySelector('#dpAnd3')?.setAttribute('data-on', String(sel[3]));
-    decoderDetail.querySelector('#dpAnd2')?.setAttribute('data-on', String(sel[2]));
-    decoderDetail.querySelector('#dpAnd1')?.setAttribute('data-on', String(sel[1]));
-    decoderDetail.querySelector('#dpAnd0')?.setAttribute('data-on', String(sel[0]));
+    // Gate bodies: the embed preserves the renderer's ids as data-body.
+    const body = (id: string, on: Bit) =>
+      decoderDetail.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+    body('gInvA1', na1);
+    body('gInvA0', na0);
+    body('gAnd3', sel[3]);
+    body('gAnd2', sel[2]);
+    body('gAnd1', sel[1]);
+    body('gAnd0', sel[0]);
     // Wires by net — every polyline rendered by the scene has the same data-net
     // values as the real decoder, so the lighting rules are identical.
     const setPreviewNet = (net: string, on: Bit) => {

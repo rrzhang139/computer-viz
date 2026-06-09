@@ -230,8 +230,12 @@ const previewInventory = await page.evaluate(() => {
 expect('preview gate-body count matches decoder', previewInventory.gateBodies, decoderInventory.gateBodies);
 expect('preview wire count matches decoder',     previewInventory.wires,      decoderInventory.wires);
 expect('preview wire nets match decoder',        previewInventory.nets,       decoderInventory.nets);
-expect('preview has no external pins',           previewInventory.pins,       0);
+// The preview is now an EXACT embed of the decoder (same renderDecoderScene
+// via PAGE_RENDERERS), so it carries the same 7 external pins — the parent's
+// wires land on them (verified by preview-fidelity's pin-bijection ALIGNMENT).
+expect('preview has the same 7 external pins',   previewInventory.pins,       7);
 expect('decoder has 7 external pins',            decoderInventory.pins,       7);
+expect('preview pin count matches decoder',      previewInventory.pins,       decoderInventory.pins);
 
 await browser.close();
 server.kill();

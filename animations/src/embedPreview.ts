@@ -12,6 +12,7 @@
 // page's exact net set, and must render large enough that its wires stay
 // distinguishable.
 
+import { renderDecoderScene } from './scenes/decoderScene';
 import indexRaw from '../index.html?raw';
 import latchRaw from '../latch.html?raw';
 import dlatchRaw from '../dlatch.html?raw';
@@ -43,6 +44,18 @@ export const PAGE_RAW: Record<string, string> = {
   '/mux.html': muxRaw,
   '/regfile.html': regfileRaw,
   '/alu1.html': alu1Raw,
+};
+
+// Some pages build their diagram at runtime from a shared scene module rather
+// than ship it as static HTML (e.g. /decoder.html is an empty <svg> that
+// decoder.ts fills via renderDecoderScene). For those, reading raw HTML would
+// embed a blank svg, so we register a RENDERER that produces the exact same
+// scene the page itself draws — the embed and the page share one source of
+// truth (stronger than an HTML-text match: they literally call one function).
+// A renderer takes the slot box and returns the scene <g> already in box
+// (world→box-projected) coordinates, with `.pin` / `.wire` / `.tbody` markup.
+export const PAGE_RENDERERS: Record<string, (box: Box) => SVGGElement> = {
+  '/decoder.html': (box) => renderDecoderScene(box, { showPins: true }),
 };
 
 type Box = { x: number; y: number; w: number; h: number };
@@ -97,6 +110,33 @@ function embedSvg(host: Element, raw: string, svgId: string, box: Box): PinMap |
   return pins;
 }
 
+// Embed a renderer-built scene (already in box coordinates). Records each
+// pin's position by id, marks bodies, and strips ids/embed attrs (inert clone).
+function embedRendered(host: Element, render: (box: Box) => SVGGElement, box: Box): PinMap {
+  const scene = render(box);
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('pointer-events', 'none');
+  g.setAttribute('class', 'embed');
+  g.appendChild(scene);
+  const pins: PinMap = {};
+  for (const e of Array.from(g.querySelectorAll('*'))) {
+    const id = e.getAttribute('id');
+    if (id && e.classList?.contains('pin')) {
+      pins[id] = { x: parseFloat(e.getAttribute('cx') || '0'), y: parseFloat(e.getAttribute('cy') || '0') };
+      e.setAttribute('data-pin-id', id);
+    }
+    if (id && (e.classList?.contains('tbody') || e.classList?.contains('tbody-mini'))) {
+      e.setAttribute('data-body', id);
+    }
+    e.removeAttribute('id');
+    e.classList?.remove('child-slot');
+    e.removeAttribute('data-embed-page');
+    e.removeAttribute('data-embed-svg');
+  }
+  host.appendChild(g);
+  return pins;
+}
+
 // Fill every [data-embed-page] slot under `root`. Returns slotId → projected
 // child pin positions (so the parent can route its wires ONTO the embedded
 // replica's real pins). Logs loudly any slot it cannot satisfy.
@@ -107,11 +147,12 @@ export function autoFillEmbeds(root: ParentNode): Map<string, PinMap> {
     const page = slot.getAttribute('data-embed-page') || '';
     const svgId = slot.getAttribute('data-embed-svg') || '';
     const raw = PAGE_RAW[page];
+    const renderer = PAGE_RENDERERS[page];
     const host = slot.querySelector('.detailed');
     const bodyRect = slot.querySelector('rect.simple-body');
-    if (!raw || !host || !bodyRect) {
+    if ((!raw && !renderer) || !host || !bodyRect) {
       console.error(`[embedPreview] #${id}: cannot embed "${page}" ` +
-        `(raw=${!!raw}, host=${!!host}, box=${!!bodyRect}). Add it to PAGE_RAW / fix the slot.`);
+        `(raw=${!!raw}, renderer=${!!renderer}, host=${!!host}, box=${!!bodyRect}). Add it to PAGE_RAW/PAGE_RENDERERS / fix the slot.`);
       continue;
     }
     const box: Box = {
@@ -120,6 +161,7 @@ export function autoFillEmbeds(root: ParentNode): Map<string, PinMap> {
       w: parseFloat(bodyRect.getAttribute('width') || '0'),
       h: parseFloat(bodyRect.getAttribute('height') || '0'),
     };
+    if (renderer) { out.set(id, embedRendered(host, renderer, box)); continue; }
     const pins = embedSvg(host, raw, svgId, box);
     if (pins) out.set(id, pins);
     else console.error(`[embedPreview] #${id}: no <svg#${svgId}> in "${page}".`);
