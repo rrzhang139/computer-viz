@@ -4,6 +4,7 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
+import { autoFillEmbeds } from "./embedPreview";
 // 4-bit ripple-carry adder: four full adders chained left-to-right.
 //   FA0 is the LSB (leftmost) so the carry chain flows naturally LSB → MSB,
 //   i.e. each FA's right-edge Cout feeds the next FA's left-edge Cin.
@@ -41,134 +42,56 @@ const B: Bit[] = [
 ];
 let Cin: Bit = readBitParam('Cin', _snap?.Cin ?? 0);
 
-// ── FA mini geometry (copied verbatim from fulladder.html) ───────────
-// Local coords use the standalone FA's scene: 0..1020 wide × 0..560 tall.
-// Each piece is exactly what the standalone page draws. When this group is
-// translated+scaled into a 255×140 parent box, the external terminals land
-// on the parent's wire endpoints to the pixel.
-const FA_LOCAL_W = 1020;
-const FA_LOCAL_H = 560;
-
-const FA_MINI_WIRES: { net: string; points: string; alwaysOn?: boolean }[] = [
-  { net: 'Vdd', alwaysOn: true, points: '0,0 1020,0' },
-  { net: 'GND', points: '0,560 1020,560' },
-  { net: 'A',     points: '0,100 180,100' },
-  { net: 'B',     points: '0,180 180,180' },
-  { net: 'Cin',   points: '0,380 60,380 60,40 505,40 505,180 530,180' },
-  { net: 'sum1',  points: '420,100 530,100' },
-  { net: 'c1',    points: '420,180 460,180 460,320 530,320' },
-  { net: 'c2',    points: '770,180 810,180 810,460 490,460 490,400 530,400' },
-  { net: 'S',     points: '770,100 1020,100' },
-  { net: 'Cout',  points: '730,360 1020,360' },
-];
-const FA_MINI_SUBBOXES = [
-  { tid: 'HA1', x: 180, y: 60,  w: 240, h: 160, lx: 300, ly: 125 },
-  { tid: 'HA2', x: 530, y: 60,  w: 240, h: 160, lx: 650, ly: 125 },
-  { tid: 'OR',  x: 530, y: 280, w: 200, h: 160, lx: 630, ly: 345 },
-];
-const FA_MINI_WIRELABELS = [
-  { text: 'sum1', x: 475, y: 88 },
-  { text: 'c1',   x: 478, y: 250 },
-  { text: 'c2',   x: 828, y: 320 },
-];
-
-interface SlotBox { x: number; y: number; w: number; h: number; }
-// Vertical layout: FA3 top, FA0 bottom. Each box is 400×224 (sx=0.392, sy=0.40
-// against the 1020×560 FA-mini local frame).
-const FA_BOXES: Record<string, SlotBox> = {
-  fa3: { x: 200, y: 20,  w: 400, h: 224 },
-  fa2: { x: 200, y: 300, w: 400, h: 224 },
-  fa1: { x: 200, y: 580, w: 400, h: 224 },
-  fa0: { x: 200, y: 860, w: 400, h: 224 },
+// ── Embed an exact copy of /fulladder.html per FA cell and route every wire
+// onto the embedded full-adders' projected pins (ripple carry FA0→FA3). ───
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
+const FA: Record<string, Pt>[] = [0, 1, 2, 3].map((i) => embeds.get(`slot-fa${i}`) || {});
+const setW = (id: string, pts: string) => document.getElementById(id)?.setAttribute('points', pts);
+const placePin = (id: string, x: number, y: number) => {
+  const c = document.getElementById(id);
+  if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
 };
-
-function buildFaMini(slot: string, box: SlotBox): SVGGElement {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'detailed');
-  g.setAttribute('data-slot', slot);
-  const sx = box.w / FA_LOCAL_W;
-  const sy = box.h / FA_LOCAL_H;
-  g.setAttribute('transform', `translate(${box.x}, ${box.y}) scale(${sx}, ${sy})`);
-
-  // Backing panel so the mini reads as one unit
-  const bg = document.createElementNS(SVG_NS, 'rect');
-  bg.setAttribute('class', 'mini-bg');
-  bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
-  bg.setAttribute('width',  String(FA_LOCAL_W));
-  bg.setAttribute('height', String(FA_LOCAL_H));
-  bg.setAttribute('rx', '36');
-  g.appendChild(bg);
-
-  for (const w of FA_MINI_WIRES) {
-    const wire = document.createElementNS(SVG_NS, 'polyline');
-    wire.setAttribute('class', 'wire-mini');
-    wire.setAttribute('data-net', w.net);
-    wire.setAttribute('data-on', w.alwaysOn ? '1' : '0');
-    wire.setAttribute('points', w.points);
-    g.appendChild(wire);
+if (FA.every((f) => f.pinA && f.pinB && f.pinCin && f.pinS && f.pinCout)) {
+  for (let i = 0; i < 4; i++) {
+    const f = FA[i];
+    setW(`wA${i}`, `-30,${f.pinA.y} ${f.pinA.x},${f.pinA.y}`); placePin(`pinA${i}`, -30, f.pinA.y);
+    setW(`wB${i}`, `-30,${f.pinB.y} ${f.pinB.x},${f.pinB.y}`); placePin(`pinB${i}`, -30, f.pinB.y);
+    setW(`wS${i}`, `${f.pinS.x},${f.pinS.y} 900,${f.pinS.y}`); placePin(`pinS${i}`, 900, f.pinS.y);
   }
-  for (const b of FA_MINI_SUBBOXES) {
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('class', 'tbody-mini');
-    r.setAttribute('data-tid', b.tid);
-    r.setAttribute('x', String(b.x));
-    r.setAttribute('y', String(b.y));
-    r.setAttribute('width',  String(b.w));
-    r.setAttribute('height', String(b.h));
-    r.setAttribute('rx', '12');
-    g.appendChild(r);
-    const t = document.createElementNS(SVG_NS, 'text');
-    t.setAttribute('class', 'tlabel-mini');
-    t.setAttribute('data-tid', b.tid);
-    t.setAttribute('x', String(b.lx));
-    t.setAttribute('y', String(b.ly));
-    t.textContent = b.tid;
-    g.appendChild(t);
+  // External Cin → FA0.Cin
+  setW('wCin', `-30,${FA[0].pinCin.y} ${FA[0].pinCin.x},${FA[0].pinCin.y}`);
+  placePin('pinCin', -30, FA[0].pinCin.y);
+  // Ripple carry: FA_n.Cout → FA_{n+1}.Cin, up the right rail (x=970) and back
+  // in on the left (x=180), through the gap between the two boxes.
+  const gapY = [832, 552, 272];  // gaps between FA0/1, FA1/2, FA2/3
+  for (let i = 0; i < 3; i++) {
+    const src = FA[i].pinCout, dst = FA[i + 1].pinCin;
+    setW(`wC${i}${i + 1}`,
+      `${src.x},${src.y} 970,${src.y} 970,${gapY[i]} 180,${gapY[i]} 180,${dst.y} ${dst.x},${dst.y}`);
   }
-  for (const l of FA_MINI_WIRELABELS) {
-    const t = document.createElementNS(SVG_NS, 'text');
-    t.setAttribute('class', 'tlabel-mini-tiny');
-    t.setAttribute('x', String(l.x));
-    t.setAttribute('y', String(l.y));
-    t.textContent = l.text;
-    g.appendChild(t);
-  }
-  return g;
+  // FA3.Cout → external Cout
+  setW('wCout', `${FA[3].pinCout.x},${FA[3].pinCout.y} 1000,${FA[3].pinCout.y}`);
+  placePin('pinCout', 1000, FA[3].pinCout.y);
 }
 
-for (const slot of Object.keys(FA_BOXES)) {
-  document.getElementById(`slot-${slot}`)
-    ?.appendChild(buildFaMini(slot, FA_BOXES[slot]));
-}
-
-function setFaMiniState(slot: string, a: Bit, b: Bit, cin: Bit) {
-  const root = svg.querySelector(`g.detailed[data-slot="${slot}"]`);
-  if (!root) return;
+// Light an embedded full adder to its logical state.
+function lightFa(hostId: string, a: Bit, b: Bit, cin: Bit) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
   const sum1: Bit = (a ^ b) as Bit;
-  const c1:   Bit = (a & b) as Bit;
-  const S:    Bit = (sum1 ^ cin) as Bit;
-  const c2:   Bit = (sum1 & cin) as Bit;
-  const Cout: Bit = (c1 | c2) as Bit;
-  const set = (sel: string, on: Bit) =>
-    root.querySelectorAll(sel).forEach((el) => el.setAttribute('data-on', String(on)));
-  set('.wire-mini[data-net="A"]',    a);
-  set('.wire-mini[data-net="B"]',    b);
-  set('.wire-mini[data-net="Cin"]',  cin);
-  set('.wire-mini[data-net="sum1"]', sum1);
-  set('.wire-mini[data-net="c1"]',   c1);
-  set('.wire-mini[data-net="c2"]',   c2);
-  set('.wire-mini[data-net="S"]',    S);
-  set('.wire-mini[data-net="Cout"]', Cout);
-  root.querySelector(`.tbody-mini[data-tid="HA1"]`)
-    ?.setAttribute('data-on', String((sum1 || c1) ? 1 : 0));
-  root.querySelector(`.tbody-mini[data-tid="HA2"]`)
-    ?.setAttribute('data-on', String((S || c2) ? 1 : 0));
-  root.querySelector(`.tbody-mini[data-tid="OR"]`)
-    ?.setAttribute('data-on', String(Cout));
+  const carry1: Bit = (a & b) as Bit;
+  const S: Bit = (sum1 ^ cin) as Bit;
+  const carry2: Bit = (sum1 & cin) as Bit;
+  const Cout: Bit = (carry1 | carry2) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('A', a); w('B', b); w('Cin', cin); w('sum1', sum1); w('carry1', carry1); w('carry2', carry2); w('S', S); w('Cout', Cout);
+  body('gHa1', (sum1 || carry1) ? 1 : 0); body('gHa2', (S || carry2) ? 1 : 0); body('gOr', Cout);
 }
 
-// ── Pulse overlay for wires ──────────────────────────────────────────
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+// ── Pulse overlay for wires (exclude embedded children) ──────────────
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS(SVG_NS, 'polyline');
@@ -220,7 +143,7 @@ function render() {
     const outCarry: Bit = i === 3 ? Cout : (carryIn[i + 1] as Bit);
     const on: Bit = (S[i] || outCarry) ? 1 : 0;
     document.getElementById(`gFa${i}`)!.setAttribute('data-on', String(on));
-    setFaMiniState(`fa${i}`, A[i], B[i], carryIn[i]);
+    lightFa(`fa${i}Detail`, A[i], B[i], carryIn[i]);
   }
 
   for (let i = 0; i < 4; i++) {

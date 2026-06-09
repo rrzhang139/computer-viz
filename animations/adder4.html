@@ -420,61 +420,55 @@
              aria-label="4-bit ripple-carry adder, vertical layout"
              preserveAspectRatio="xMidYMid meet">
 
+          <!-- All wire geometry below is REWRITTEN in adder4.ts to land on the
+               embedded full-adders' projected pins (carry chain FA0→FA3). -->
           <!-- ── A and B input wires (entering LEFT into each FA) ─────────── -->
-          <!-- FA3 (top, MSB): y_top = 20 → A at y=60, B at y=92 -->
-          <polyline class="wire" data-net="A3" points="-30,60  200,60"  />
-          <polyline class="wire" data-net="B3" points="-30,92  200,92"  />
-          <!-- FA2: y_top = 300 → A at y=340, B at y=372 -->
-          <polyline class="wire" data-net="A2" points="-30,340 200,340" />
-          <polyline class="wire" data-net="B2" points="-30,372 200,372" />
-          <!-- FA1: y_top = 580 → A at y=620, B at y=652 -->
-          <polyline class="wire" data-net="A1" points="-30,620 200,620" />
-          <polyline class="wire" data-net="B1" points="-30,652 200,652" />
-          <!-- FA0 (bottom, LSB): y_top = 860 → A at y=900, B at y=932 -->
-          <polyline class="wire" data-net="A0" points="-30,900 200,900" />
-          <polyline class="wire" data-net="B0" points="-30,932 200,932" />
+          <polyline class="wire" id="wA3" data-net="A3" points="-30,60  200,60"  />
+          <polyline class="wire" id="wB3" data-net="B3" points="-30,92  200,92"  />
+          <polyline class="wire" id="wA2" data-net="A2" points="-30,340 200,340" />
+          <polyline class="wire" id="wB2" data-net="B2" points="-30,372 200,372" />
+          <polyline class="wire" id="wA1" data-net="A1" points="-30,620 200,620" />
+          <polyline class="wire" id="wB1" data-net="B1" points="-30,652 200,652" />
+          <polyline class="wire" id="wA0" data-net="A0" points="-30,900 200,900" />
+          <polyline class="wire" id="wB0" data-net="B0" points="-30,932 200,932" />
 
           <!-- ── S output wires (exiting RIGHT from each FA) ──────────────── -->
-          <polyline class="wire" data-net="S3" points="600,60  900,60"  />
-          <polyline class="wire" data-net="S2" points="600,340 900,340" />
-          <polyline class="wire" data-net="S1" points="600,620 900,620" />
-          <polyline class="wire" data-net="S0" points="600,900 900,900" />
+          <polyline class="wire" id="wS3" data-net="S3" points="600,60  900,60"  />
+          <polyline class="wire" id="wS2" data-net="S2" points="600,340 900,340" />
+          <polyline class="wire" id="wS1" data-net="S1" points="600,620 900,620" />
+          <polyline class="wire" id="wS0" data-net="S0" points="600,900 900,900" />
 
-          <!-- ── Carry chain (rising LSB → MSB on the right) ──────────────── -->
-          <!-- External Cin → FA0.Cin (enters FA0 from the LEFT at y=1012) -->
-          <polyline class="wire" data-net="Cin"  points="-30,1012 200,1012" />
-          <!--
-            Carry rail lives at x=970 — past the S exits at x=900, so S wires
-            and the rising carry never visually collide.
-              FA_n.Cout (600, y_top_n + 144)
-                → right to rail at x=970, same y
-                → climb UP to crossing-y in the gap between FA_n and FA_(n+1)
-                → cross LEFT across the canvas to x=180 (just outside FA_(n+1) left edge)
-                → climb to FA_(n+1).Cin level (y_top_(n+1) + 152)
-                → short stub right into FA_(n+1)
-          -->
-          <polyline class="wire" data-net="C01"  points="600,1004 970,1004 970,832 180,832 180,732 200,732" />
-          <polyline class="wire" data-net="C12"  points="600,724  970,724  970,552 180,552 180,452 200,452" />
-          <polyline class="wire" data-net="C23"  points="600,444  970,444  970,272 180,272 180,172 200,172" />
-          <!-- FA3.Cout → external Cout (direct RIGHT exit, doesn't need the rail) -->
-          <polyline class="wire" data-net="Cout" points="600,164  1000,164" />
+          <!-- ── Carry chain (rising LSB → MSB on the right rail at x=970) ─── -->
+          <polyline class="wire" id="wCin" data-net="Cin"  points="-30,1012 200,1012" />
+          <polyline class="wire" id="wC01" data-net="C01"  points="600,1004 970,1004 970,832 180,832 180,732 200,732" />
+          <polyline class="wire" id="wC12" data-net="C12"  points="600,724  970,724  970,552 180,552 180,452 200,452" />
+          <polyline class="wire" id="wC23" data-net="C23"  points="600,444  970,444  970,272 180,272 180,172 200,172" />
+          <polyline class="wire" id="wCout" data-net="Cout" points="600,164  1000,164" />
 
           <!-- ── FA boxes — FA3 top, FA0 bottom (LSB at bottom) ───────────── -->
-          <g class="fa-slot" id="slot-fa3" tabindex="0" role="button">
+          <g class="fa-slot" id="slot-fa3" tabindex="0" role="button"
+             data-embed-page="/fulladder.html" data-embed-svg="fulladder">
             <rect class="tbody simple-body" id="gFa3" x="200" y="20"  width="400" height="224" rx="12" />
             <text class="tlabel simple-label" x="400" y="118">FA3</text>
+            <g class="detailed" id="fa3Detail"></g>
           </g>
-          <g class="fa-slot" id="slot-fa2" tabindex="0" role="button">
+          <g class="fa-slot" id="slot-fa2" tabindex="0" role="button"
+             data-embed-page="/fulladder.html" data-embed-svg="fulladder">
             <rect class="tbody simple-body" id="gFa2" x="200" y="300" width="400" height="224" rx="12" />
             <text class="tlabel simple-label" x="400" y="398">FA2</text>
+            <g class="detailed" id="fa2Detail"></g>
           </g>
-          <g class="fa-slot" id="slot-fa1" tabindex="0" role="button">
+          <g class="fa-slot" id="slot-fa1" tabindex="0" role="button"
+             data-embed-page="/fulladder.html" data-embed-svg="fulladder">
             <rect class="tbody simple-body" id="gFa1" x="200" y="580" width="400" height="224" rx="12" />
             <text class="tlabel simple-label" x="400" y="678">FA1</text>
+            <g class="detailed" id="fa1Detail"></g>
           </g>
-          <g class="fa-slot" id="slot-fa0" tabindex="0" role="button">
+          <g class="fa-slot" id="slot-fa0" tabindex="0" role="button"
+             data-embed-page="/fulladder.html" data-embed-svg="fulladder">
             <rect class="tbody simple-body" id="gFa0" x="200" y="860" width="400" height="224" rx="12" />
             <text class="tlabel simple-label" x="400" y="958">FA0</text>
+            <g class="detailed" id="fa0Detail"></g>
           </g>
 
           <!-- Carry wire labels (visible markers for the prose) -->
