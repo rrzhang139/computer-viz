@@ -123,13 +123,14 @@ const MEASURE = (EDGE_TOL) => {
     return n === 'Vdd' || n === 'GND';
   };
   const out = [];
+  let embedCount = 0;  // drillable slots covered by preview-fidelity instead
   const slots = Array.from(document.querySelectorAll('[id^="slot-"]'));
   for (const slot of slots) {
     if (getComputedStyle(slot).cursor !== 'pointer') continue;  // leaf, not drillable
     // Embed-preview slots (full child page embedded) are checked by
     // preview-fidelity instead — their terminals are the embedded child's
     // pins, not perimeter stubs.
-    if (slot.hasAttribute('data-embed-page')) continue;
+    if (slot.hasAttribute('data-embed-page')) { embedCount++; continue; }
     const rect = slot.querySelector('rect.simple-body');
     const detailed = slot.querySelector('.detailed');
     if (!rect || !detailed) continue;
@@ -150,7 +151,7 @@ const MEASURE = (EDGE_TOL) => {
     }
     out.push({ id: slot.id, box: b, parentTerms, previewTerms });
   }
-  return out;
+  return { slots: out, embeds: embedCount };
 };
 
 // Dedupe near-identical points, then require a 1-way nearest match within tol.
@@ -168,12 +169,15 @@ function unmatched(from, to, tol) {
 console.log('\n── Wire alignment: parent wires meet child preview terminals ──');
 
 let checked = 0;
+let embedTotal = 0;  // drillable slots covered by preview-fidelity, not here
 for (const file of pages) {
   await page.goto(`${HOST}/${file}`);
   await page.waitForTimeout(220);
   let slots;
   try {
-    slots = await page.evaluate(MEASURE, EDGE_TOL);
+    const res = await page.evaluate(MEASURE, EDGE_TOL);
+    slots = res.slots;
+    embedTotal += res.embeds;
   } catch (e) {
     expect(`${file}: measure`, false, String(e && e.message || e));
     continue;
@@ -211,8 +215,13 @@ for (const file of pages) {
 await browser.close();
 killServer();
 
-expect(`exercised drillable slots across ${pages.length} pages`, checked >= 10,
-  checked < 10 ? `only ${checked} — did the slot id convention change?` : '');
+// Slot-discovery sanity: most drillable slots are now exact-copy EMBEDS,
+// alignment-checked by preview-fidelity (pin bijection) rather than here.
+// This guard just confirms the discovery convention still finds plenty of
+// drillable slots overall (hand-drawn ones checked here + embed ones).
+expect(`discovered drillable slots across ${pages.length} pages (${checked} hand-drawn here + ${embedTotal} embeds in preview-fidelity)`,
+  checked + embedTotal >= 10,
+  (checked + embedTotal) < 10 ? `only ${checked + embedTotal} — did the slot id convention change?` : '');
 
 const pad = (s, n) => s + ' '.repeat(Math.max(0, n - s.length));
 for (const r of results) {

@@ -259,6 +259,11 @@
           <polyline class="wire" data-net="q2" id="q2B" points="930,315 964,315 964,549 1010,549" />
           <polyline class="wire" data-net="q1" id="q1B" points="930,470 964,470 964,574 1010,574" />
           <polyline class="wire" data-net="q0" id="q0B" points="930,625 946,625 946,599 1010,599" />
+          <!-- each cell's Q̄ is unused in the register — short honest stubs -->
+          <polyline class="wire" data-net="qb3" id="qbStub3" points="930,180 952,180" />
+          <polyline class="wire" data-net="qb2" id="qbStub2" points="930,335 952,335" />
+          <polyline class="wire" data-net="qb1" id="qbStub1" points="930,490 952,490" />
+          <polyline class="wire" data-net="qb0" id="qbStub0" points="930,645 952,645" />
 
           <!-- MUX outputs → rdata (port A) and rdataB (port B) -->
           <polyline class="wire" data-net="rdata"  id="rdata"  points="1195,222 1400,222" />
@@ -267,7 +272,8 @@
           <!-- ── Children ───────────────────────────────────────────────── -->
           <!-- 2-to-4 decoder (write select) -->
           <g class="child-slot" id="slot-decoder" tabindex="0" role="button"
-             aria-label="decoder">
+             aria-label="decoder"
+             data-embed-page="/decoder.html" data-embed-svg="decoder">
             <rect class="tbody simple-body" id="gDecoder" x="210" y="140" width="280" height="240" rx="10" />
             <text class="tlabel simple-label" x="350" y="260">decoder</text>
             <g class="detailed" id="decoderDetail"></g>
@@ -286,22 +292,26 @@
           <text class="tlabel-small" x="626" y="540">AND</text>
 
           <!-- 4 registers (each a one-bit DFF; reg0 at bottom) -->
-          <g class="child-slot" id="slot-reg3" tabindex="0" role="button" aria-label="register 3">
+          <g class="child-slot" id="slot-reg3" tabindex="0" role="button" aria-label="register 3"
+             data-embed-page="/dff.html" data-embed-svg="dff">
             <rect class="tbody simple-body" id="gReg3" x="720" y="110" width="210" height="100" rx="10" />
             <text class="tlabel simple-label" x="825" y="160">reg3</text>
             <g class="detailed" id="reg3Detail"></g>
           </g>
-          <g class="child-slot" id="slot-reg2" tabindex="0" role="button" aria-label="register 2">
+          <g class="child-slot" id="slot-reg2" tabindex="0" role="button" aria-label="register 2"
+             data-embed-page="/dff.html" data-embed-svg="dff">
             <rect class="tbody simple-body" id="gReg2" x="720" y="265" width="210" height="100" rx="10" />
             <text class="tlabel simple-label" x="825" y="315">reg2</text>
             <g class="detailed" id="reg2Detail"></g>
           </g>
-          <g class="child-slot" id="slot-reg1" tabindex="0" role="button" aria-label="register 1">
+          <g class="child-slot" id="slot-reg1" tabindex="0" role="button" aria-label="register 1"
+             data-embed-page="/dff.html" data-embed-svg="dff">
             <rect class="tbody simple-body" id="gReg1" x="720" y="420" width="210" height="100" rx="10" />
             <text class="tlabel simple-label" x="825" y="470">reg1</text>
             <g class="detailed" id="reg1Detail"></g>
           </g>
-          <g class="child-slot" id="slot-reg0" tabindex="0" role="button" aria-label="register 0">
+          <g class="child-slot" id="slot-reg0" tabindex="0" role="button" aria-label="register 0"
+             data-embed-page="/dff.html" data-embed-svg="dff">
             <rect class="tbody simple-body" id="gReg0" x="720" y="575" width="210" height="100" rx="10" />
             <text class="tlabel simple-label" x="825" y="625">reg0</text>
             <g class="detailed" id="reg0Detail"></g>
@@ -311,15 +321,17 @@
                read the same 4 register bits; each picks one via its own read
                address. (A real file has 2 read ports for instrs like add.) -->
           <g class="child-slot" id="slot-mux" tabindex="0" role="button"
-             aria-label="read MUX A">
-            <rect class="tbody simple-body" id="gMux" x="1010" y="110" width="185" height="220" rx="10" />
-            <text class="tlabel simple-label" x="1102" y="214">MUX A</text>
+             aria-label="read MUX A"
+             data-embed-page="/mux.html" data-embed-svg="mux">
+            <rect class="tbody simple-body" id="gMux" x="1010" y="70" width="470" height="330" rx="10" />
+            <text class="tlabel simple-label" x="1245" y="235">MUX A</text>
             <g class="detailed" id="muxDetail"></g>
           </g>
           <g class="child-slot" id="slot-muxB" tabindex="0" role="button"
-             aria-label="read MUX B">
-            <rect class="tbody simple-body" id="gMuxB" x="1010" y="410" width="185" height="220" rx="10" />
-            <text class="tlabel simple-label" x="1102" y="514">MUX B</text>
+             aria-label="read MUX B"
+             data-embed-page="/mux.html" data-embed-svg="mux">
+            <rect class="tbody simple-body" id="gMuxB" x="1010" y="430" width="470" height="330" rx="10" />
+            <text class="tlabel simple-label" x="1245" y="595">MUX B</text>
             <g class="detailed" id="muxDetailB"></g>
           </g>
         </svg>

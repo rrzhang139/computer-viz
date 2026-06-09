@@ -4,14 +4,7 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
-import { renderDecoderScene, decoderTerminals } from "./scenes/decoderScene";
-import {
-  buildDffScene, bindDffSceneState, placeDffScene,
-  DFF_SCENE_W, DFF_SCENE_H, DFF_SCENE_ANCHORS,
-} from "./scenes/dffScene";
-import {
-  buildMuxScene, bindMuxSceneState, MUX_SCENE_W, MUX_SCENE_H, MUX_SCENE_ANCHORS,
-} from "./scenes/muxScene";
+import { autoFillEmbeds } from "./embedPreview";
 
 // Register file — 4 entries × 1 bit, 1 write port + 1 read port.
 //
@@ -76,137 +69,108 @@ let raddrB0: Bit = readBitParam('raddrB0', (_snap?.raddrB0 ?? 1) as Bit);  // de
 let wdata: Bit  = readBitParam('wdata', _snap?.wdata ?? 0);
 let clk: Bit    = 0;  // transient — only high during a clock-write pulse
 
-// ── Hover previews (CLAUDE.md rule 21): decoder → decoderScene, each register
-// (a single-bit DFF) → dffScene, read MUX → muxScene.
-const DEC_BOX = { x: 210, y: 140, w: 280, h: 240 };  // matches the gDecoder rect
+// ── Embed EXACT copies of each child page (the canonical exact-replica
+// standard): decoder → /decoder.html (renderer), each register (a 1-bit DFF)
+// → /dff.html, each read port → /mux.html. autoFillEmbeds returns each embed's
+// projected pins; every wire below lands on a real pin — nothing hardcoded.
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
 const decoderDetail = document.getElementById('decoderDetail');
-if (decoderDetail) {
-  decoderDetail.appendChild(renderDecoderScene(
-    DEC_BOX,
-    { idPrefix: 'dp', showPins: false, pinRadius: 3 },
-  ));
-}
-// ── Register column geometry ─────────────────────────────────────────
-// One source of truth for the register boxes. Every wire that touches a
-// register (wdata→D, gated clock→CLK, Q→read MUX) is routed onto the DFF
-// preview's PROJECTED terminals, so it lands on the cell's real D (left-
-// center) / CLK (top-center) / Q (right-center) — the same cell you see on
-// hover. Nothing here is hardcoded to a terminal y.
-const REG_X = 720, REG_W = 210, REG_H = 100;
-// reg3 at top, reg0 at bottom (LSB-at-bottom). Gaps above each box leave
-// room for the gated clock to drop into the top edge.
-const REG_TOP: Record<number, number> = { 3: 110, 2: 265, 1: 420, 0: 575 };
-// Each clock-gate AND sits in the gap ABOVE its register; its output runs
-// across at this y, then drops straight down into the register's CLK.
+const DEC: Record<string, Pt>   = embeds.get('slot-decoder') || {};
+const REG: Record<string, Pt>[] = [0, 1, 2, 3].map((i) => embeds.get(`slot-reg${i}`) || {});
+const MUXA: Record<string, Pt>  = embeds.get('slot-mux')  || {};
+const MUXB: Record<string, Pt>  = embeds.get('slot-muxB') || {};
 const AND_CY: Record<number, number> = { 3: 92, 2: 230, 1: 385, 0: 540 };
-const AND_TIP_X = 683.5;  // right tip of the AND D-shape (gate body is x∈[600,683.5])
-
-function regTerminals(i: number) {
-  const place = { x: REG_X, y: REG_TOP[i], w: REG_W, h: REG_H };
-  const sx = place.w / DFF_SCENE_W, sy = place.h / DFF_SCENE_H;
-  const proj = (a: { x: number; y: number }) => ({ x: place.x + a.x * sx, y: place.y + a.y * sy });
-  return { place, D: proj(DFF_SCENE_ANCHORS.D), CLK: proj(DFF_SCENE_ANCHORS.CLK), Q: proj(DFF_SCENE_ANCHORS.Q) };
-}
-
-const dffScenes: (SVGGElement | null)[] = [null, null, null, null];
-for (let i = 0; i < 4; i++) {
-  const host = document.getElementById(`reg${i}Detail`);
-  if (!host) continue;
-  const scene = buildDffScene();
-  dffScenes[i] = scene;
-  // Preview fills the box exactly so its D/CLK/Q stubs sit on the box edges
-  // (where the parent wires meet them).
-  host.appendChild(placeDffScene(scene, regTerminals(i).place));
-}
-
-// Two read-MUX boxes (port A top, port B bottom). Each preview (buildMuxScene)
-// is dropped in at a uniform scale; the SAME transform projects its input/
-// output anchors into page coordinates so the parent wires meet the MUX's real
-// terminals (nothing hardcoded to a y). `mountMux` returns the scene (for state
-// binding) + an `at()` projector.
-function mountMux(hostId: string, box: { x: number; y: number; w: number; h: number }) {
-  const sc = Math.min(box.w / MUX_SCENE_W, box.h / MUX_SCENE_H);
-  const ox = box.x + (box.w - MUX_SCENE_W * sc) / 2;
-  const oy = box.y + (box.h - MUX_SCENE_H * sc) / 2;
-  const at = (a: { x: number; y: number }) => ({ x: ox + a.x * sc, y: oy + a.y * sc });
-  const host = document.getElementById(hostId);
-  let scene: SVGGElement | null = null;
-  if (host) {
-    scene = buildMuxScene();
-    const wrap = document.createElementNS(SVG_NS, 'g');
-    wrap.setAttribute('transform', `translate(${ox}, ${oy}) scale(${sc})`);
-    wrap.appendChild(scene);
-    host.appendChild(wrap);
-  }
-  return { scene, at };
-}
-const MUX_A_BOX = { x: 1010, y: 110, w: 185, h: 220 };   // matches gMux rect
-const MUX_B_BOX = { x: 1010, y: 410, w: 185, h: 220 };   // matches gMuxB rect
-const muxA = mountMux('muxDetail', MUX_A_BOX);
-const muxB = mountMux('muxDetailB', MUX_B_BOX);
-
-// Route the projected wires. Only the route shape (lane x's, the over-the-top
-// read-address path, the wdata bus x) lives here; every endpoint is a
-// projected terminal.
+const AND_TIP_X = 683.5;
 function setWirePoints(id: string, points: string) {
   document.getElementById(id)?.setAttribute('points', points);
 }
-{
-  const reg = [0, 1, 2, 3].map(regTerminals);
-  // wdata: ONE wire. trunk up the bus, stub into each register's D (left-center)
+const placePin = (id: string, x: number, y: number) => {
+  const c = document.getElementById(id);
+  if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
+};
+
+const rfReady = DEC.pinA1 && REG.every((r) => r.pinD && r.pinCLK && r.pinQ && r.pinQB)
+  && MUXA.pinIn0 && MUXA.pinOut && MUXB.pinIn0;
+if (rfReady) {
+  // wdata: ONE wire — trunk up the bus, stub into each register's D pin.
   const WDATA_BUS_X = 700;
-  const topD = reg[3].D.y;  // reg3 D is the highest stub
-  setWirePoints('wdataTrunk', `0,710 ${WDATA_BUS_X},710 ${WDATA_BUS_X},${topD}`);
-  for (let i = 0; i < 4; i++) setWirePoints(`wdataD${i}`, `${WDATA_BUS_X},${reg[i].D.y} ${reg[i].D.x},${reg[i].D.y}`);
-  // gated clock: AND output → across → drop into each register's CLK (top-center)
+  setWirePoints('wdataTrunk', `0,710 ${WDATA_BUS_X},710 ${WDATA_BUS_X},${REG[3].pinD.y}`);
+  for (let i = 0; i < 4; i++) setWirePoints(`wdataD${i}`, `${WDATA_BUS_X},${REG[i].pinD.y} ${REG[i].pinD.x},${REG[i].pinD.y}`);
+  // gated clock: AND output → across → drop into each register's CLK pin (top).
   for (let i = 0; i < 4; i++) {
-    const { CLK } = reg[i];
-    setWirePoints(`gclk${i}`, `${AND_TIP_X},${AND_CY[i]} ${CLK.x},${AND_CY[i]} ${CLK.x},${CLK.y}`);
+    const clkP = REG[i].pinCLK;
+    setWirePoints(`gclk${i}`, `${AND_TIP_X},${AND_CY[i]} ${clkP.x},${AND_CY[i]} ${clkP.x},${clkP.y}`);
   }
-  // read addresses: port A across the top into MUX-A selects, port B into
-  // MUX-B selects (both projected onto the preview's s1/s0 stubs).
-  const aS1 = muxA.at(MUX_SCENE_ANCHORS.s1), aS0 = muxA.at(MUX_SCENE_ANCHORS.s0);
-  setWirePoints('raddr1', `0,28 990,28 990,${aS1.y} ${aS1.x},${aS1.y}`);
-  setWirePoints('raddr0', `0,48 1000,48 1000,${aS0.y} ${aS0.x},${aS0.y}`);
-  const bS1 = muxB.at(MUX_SCENE_ANCHORS.s1), bS0 = muxB.at(MUX_SCENE_ANCHORS.s0);
-  setWirePoints('raddrB1', `0,92 974,92 974,${bS1.y} ${bS1.x},${bS1.y}`);
-  setWirePoints('raddrB0', `0,112 984,112 984,${bS0.y} ${bS0.x},${bS0.y}`);
-  // register outputs (Q, right-center) fan to BOTH read MUXes' data inputs.
-  const inKey = ['in0', 'in1', 'in2', 'in3'] as const;
-  const laneA = { 3: 952, 2: 958, 1: 958, 0: 952 } as Record<number, number>;
-  const laneB = { 3: 946, 2: 964, 1: 964, 0: 946 } as Record<number, number>;
+  // each register's Q̄ is unused → short honest stub off the pin.
+  for (let i = 0; i < 4; i++) setWirePoints(`qbStub${i}`, `${REG[i].pinQB.x},${REG[i].pinQB.y} 952,${REG[i].pinQB.y}`);
+  // read addresses → each MUX's s1/s0 select pins.
+  setWirePoints('raddr1',  `0,28 990,28 990,${MUXA.pinS1.y} ${MUXA.pinS1.x},${MUXA.pinS1.y}`);
+  setWirePoints('raddr0',  `0,48 1000,48 1000,${MUXA.pinS0.y} ${MUXA.pinS0.x},${MUXA.pinS0.y}`);
+  setWirePoints('raddrB1', `0,92 974,92 974,${MUXB.pinS1.y} ${MUXB.pinS1.x},${MUXB.pinS1.y}`);
+  setWirePoints('raddrB0', `0,112 984,112 984,${MUXB.pinS0.y} ${MUXB.pinS0.x},${MUXB.pinS0.y}`);
+  // register outputs (Q pin) fan to BOTH read MUXes' data input pins.
+  const inKey = ['pinIn0', 'pinIn1', 'pinIn2', 'pinIn3'] as const;
+  const laneA: Record<number, number> = { 3: 952, 2: 958, 1: 958, 0: 952 };
+  const laneB: Record<number, number> = { 3: 946, 2: 964, 1: 964, 0: 946 };
   for (let i = 0; i < 4; i++) {
-    const q = reg[i].Q;
-    const a = muxA.at(MUX_SCENE_ANCHORS[inKey[i]]);
-    const b = muxB.at(MUX_SCENE_ANCHORS[inKey[i]]);
+    const q = REG[i].pinQ, a = MUXA[inKey[i]], b = MUXB[inKey[i]];
     setWirePoints(`q${i}`,  `${q.x},${q.y} ${laneA[i]},${q.y} ${laneA[i]},${a.y} ${a.x},${a.y}`);
     setWirePoints(`q${i}B`, `${q.x},${q.y} ${laneB[i]},${q.y} ${laneB[i]},${b.y} ${b.x},${b.y}`);
   }
-  // MUX outputs → rdata / rdataB pins + labels.
-  const outA = muxA.at(MUX_SCENE_ANCHORS.out), outB = muxB.at(MUX_SCENE_ANCHORS.out);
-  setWirePoints('rdata', `${outA.x},${outA.y} 1400,${outA.y}`);
-  setWirePoints('rdataB', `${outB.x},${outB.y} 1400,${outB.y}`);
-  document.getElementById('pinRdata')?.setAttribute('cy', String(outA.y));
+  // MUX output pins → rdata / rdataB pins + labels.
+  const outA = MUXA.pinOut, outB = MUXB.pinOut;
+  setWirePoints('rdata',  `${outA.x},${outA.y} 1500,${outA.y}`);
+  setWirePoints('rdataB', `${outB.x},${outB.y} 1500,${outB.y}`);
+  placePin('pinRdata', 1500, outA.y);
   document.querySelector('text[data-pin="rdata"]')?.setAttribute('y', String(outA.y));
-  document.getElementById('pinRdataB')?.setAttribute('cy', String(outB.y));
+  placePin('pinRdataB', 1500, outB.y);
   document.querySelector('text[data-pin="rdataB"]')?.setAttribute('y', String(outB.y));
-
-  // Decoder: write address/enable → its projected a1/EN/a0 inputs; one-hot
-  // wen3..0 leave its projected sel outputs and run into each AND's wen input.
-  const dec = decoderTerminals(DEC_BOX);
-  setWirePoints('waddr1Wire', `0,${dec.a1_in.y} ${dec.a1_in.x},${dec.a1_in.y}`);
-  setWirePoints('weWire', `0,${dec.EN_in.y} ${dec.EN_in.x},${dec.EN_in.y}`);
-  setWirePoints('waddr0Wire', `0,${dec.a0_in.y} ${dec.a0_in.x},${dec.a0_in.y}`);
+  // Decoder: write address/enable → projected a1/EN/a0 pins; one-hot wen3..0
+  // leave the sel pins and run into each AND's wen input.
+  setWirePoints('waddr1Wire', `0,${DEC.pinA1.y} ${DEC.pinA1.x},${DEC.pinA1.y}`);
+  setWirePoints('weWire',     `0,${DEC.pinEN.y} ${DEC.pinEN.x},${DEC.pinEN.y}`);
+  setWirePoints('waddr0Wire', `0,${DEC.pinA0.y} ${DEC.pinA0.x},${DEC.pinA0.y}`);
   const wenLaneX: Record<number, number> = { 3: 568, 2: 556, 1: 544, 0: 532 };
   for (const i of [3, 2, 1, 0]) {
-    const sel = dec[`sel${i}_out`];
-    const wenInY = AND_CY[i] + 13;  // AND wen input (lower of the two left inputs)
+    const sel = DEC[`pinSel${i}`];
+    const wenInY = AND_CY[i] + 13;
     setWirePoints(`wen${i}`, `${sel.x},${sel.y} ${wenLaneX[i]},${sel.y} ${wenLaneX[i]},${wenInY} 600,${wenInY}`);
   }
 }
 
-// Per-wire pulse overlays so lit wires animate flow.
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+// ── Lighting for the embedded children (data-net wires + data-body bodies) ──
+function lightDecoder(a1: Bit, a0: Bit, en: Bit, sel: Bit[]) {
+  if (!decoderDetail) return;
+  const na1: Bit = (a1 === 0 ? 1 : 0) as Bit, na0: Bit = (a0 === 0 ? 1 : 0) as Bit;
+  const w = (net: string, on: Bit) => decoderDetail.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => decoderDetail.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('a1', a1); w('a0', a0); w('a1bar', na1); w('a0bar', na0); w('EN', en);
+  body('gInvA1', na1); body('gInvA0', na0);
+  for (let i = 0; i < 4; i++) { w(`sel${i}`, sel[i]); body(`gAnd${i}`, sel[i]); }
+}
+function lightDff(hostId: string, d: Bit, gclk: Bit, q: Bit) {
+  const host = document.getElementById(hostId); if (!host) return;
+  const notClk: Bit = (gclk === 0 ? 1 : 0) as Bit; const qb: Bit = (q === 0 ? 1 : 0) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('D', d); w('CLK', gclk); w('notCLK', notClk); w('M', q); w('Q', q); w('QB', qb); w('Mbar', qb);
+  body('iInv', notClk); body('gMaster', q); body('gSlave', q);
+}
+function lightMux(hostId: string, ins: Bit[], s1: Bit, s0: Bit) {
+  const host = document.getElementById(hostId); if (!host) return;
+  const sel: Bit[] = [0, 0, 0, 0] as Bit[]; sel[s1 * 2 + s0] = 1;
+  const andOut: Bit[] = ins.map((v, i) => (v & sel[i]) as Bit);
+  const out: Bit = (andOut[0] | andOut[1] | andOut[2] | andOut[3]) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('s1', s1); w('s0', s0); w('EN', 1);
+  for (let i = 0; i < 4; i++) { w(`in${i}`, ins[i]); w(`sel${i}`, sel[i]); w(`andOut${i}`, andOut[i]); body(`gAnd${i}`, andOut[i]); }
+  w('out', out); body('gOr', out); body('gDecoder', 1);
+}
+
+// Per-wire pulse overlays so lit wires animate flow (skip embedded children).
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS(SVG_NS, 'polyline');
@@ -221,6 +185,7 @@ for (const w of wires) {
 
 function setNet(net: string, on: Bit) {
   svg.querySelectorAll<SVGPolylineElement>(`.wire[data-net="${net}"]`).forEach((el) => {
+    if (el.closest('.detailed')) return;  // embedded children light via their own helpers
     el.setAttribute('data-on', String(on));
     pulseFor.get(el)?.setAttribute('data-on', String(on));
   });
@@ -277,30 +242,11 @@ function render() {
   setBody('gMux', rdata);
   setBody('gMuxB', rdataB);
 
-  // Hover-preview state.
-  if (decoderDetail) {
-    const na1: Bit = (waddr1 === 0 ? 1 : 0) as Bit;
-    const na0: Bit = (waddr0 === 0 ? 1 : 0) as Bit;
-    decoderDetail.querySelector('#dpInvA1')?.setAttribute('data-on', String(na1));
-    decoderDetail.querySelector('#dpInvA0')?.setAttribute('data-on', String(na0));
-    const setPrev = (net: string, on: Bit) =>
-      decoderDetail.querySelectorAll<SVGPolylineElement>(`.wire[data-net="${net}"]`)
-        .forEach((w) => w.setAttribute('data-on', String(on)));
-    setPrev('a1', waddr1); setPrev('a0', waddr0);
-    setPrev('a1bar', na1); setPrev('a0bar', na0);
-    setPrev('EN', we);
-    for (let i = 0; i < 4; i++) {
-      decoderDetail.querySelector(`#dpAnd${i}`)?.setAttribute('data-on', String(wen[i]));
-      setPrev(`sel${i}`, wen[i]);
-    }
-  }
-  // Each register's DFF preview: D=wdata (pending), its gated clock, the held bit.
-  for (let i = 0; i < 4; i++) {
-    if (dffScenes[i]) bindDffSceneState(dffScenes[i]!, { D: wdata, CLK: gclk[i], Qm: mem[i], Q: mem[i] });
-  }
-  // Read-MUX previews: the four stored bits, each port's read address as select.
-  if (muxA.scene) bindMuxSceneState(muxA.scene, { ins: [...mem] as Bit[], s1: raddr1, s0: raddr0 });
-  if (muxB.scene) bindMuxSceneState(muxB.scene, { ins: [...mem] as Bit[], s1: raddrB1, s0: raddrB0 });
+  // Embedded-preview state — each is an exact copy of the child page.
+  lightDecoder(waddr1, waddr0, we, wen);
+  for (let i = 0; i < 4; i++) lightDff(`reg${i}Detail`, wdata, gclk[i], mem[i]);
+  lightMux('muxDetail',  [...mem] as Bit[], raddr1, raddr0);
+  lightMux('muxDetailB', [...mem] as Bit[], raddrB1, raddrB0);
 
   // Buttons
   setBtn(btnWe, 'we', we);
