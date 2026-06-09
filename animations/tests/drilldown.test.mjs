@@ -737,26 +737,16 @@ try {
   // For each case: `side` selects which endpoint of the PARENT wire (start
   // or end of the polyline) to compare; `termSide` selects which endpoint
   // of the OVERLAY's wire-mini polyline is the parent-facing one.
-  const ALIGNMENT_CASES = [
-    {
-      page: '/register.html',
-      slots: [
-        // D wires: parent wire goes [pin] → [slot.left], so the parent-side
-        // is 'end'. Inside DFF mini, D wire-mini goes [scene.left] → inward,
-        // so the parent-facing terminal is 'start'.
-        { id: 'slot-bit0', net: 'D0', term: 'D', side: 'end',   termSide: 'start' },
-        { id: 'slot-bit1', net: 'D1', term: 'D', side: 'end',   termSide: 'start' },
-        { id: 'slot-bit2', net: 'D2', term: 'D', side: 'end',   termSide: 'start' },
-        { id: 'slot-bit3', net: 'D3', term: 'D', side: 'end',   termSide: 'start' },
-        // Q wires: parent wire goes [slot.right] → [pin], so 'start'. DFF
-        // mini's Q wire goes inward → [scene.right], so terminal is 'end'.
-        { id: 'slot-bit0', net: 'Q0', term: 'Q', side: 'start', termSide: 'end' },
-        { id: 'slot-bit1', net: 'Q1', term: 'Q', side: 'start', termSide: 'end' },
-        { id: 'slot-bit2', net: 'Q2', term: 'Q', side: 'start', termSide: 'end' },
-        { id: 'slot-bit3', net: 'Q3', term: 'Q', side: 'start', termSide: 'end' },
-      ],
-    },
-  ];
+  // NOTE: this section originally pinned the register's hand-drawn DFF
+  // `.wire-mini` overlay terminals against the parent D/Q wires. The register
+  // (and every other drillable page) has since migrated to EXACT-COPY embeds,
+  // where alignment is enforced far more strictly by
+  // tests/preview-fidelity.test.mjs — its ALIGNMENT check asserts a full
+  // bijection between every parent-wire endpoint inside a slot box and the
+  // embedded child's REAL `.pin` elements (not just D/Q, every terminal).
+  // So these per-net cases are now redundant and look for `.wire-mini` that no
+  // longer exist; preview-fidelity owns this guarantee.
+  const ALIGNMENT_CASES = [];
 
   function applyTransform(localPt, transformStr) {
     if (!transformStr) return localPt;

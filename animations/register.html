@@ -413,46 +413,57 @@
         <!-- GND rail -->
         <polyline class="wire" data-net="GND" points="0,680 1000,680" />
 
-        <!-- D inputs: straight horizontal wires from pins to each DFF's left edge -->
-        <polyline class="wire" data-net="D0" points="0,600 350,600" />
-        <polyline class="wire" data-net="D1" points="0,440 350,440" />
-        <polyline class="wire" data-net="D2" points="0,280 350,280" />
-        <polyline class="wire" data-net="D3" points="0,120 350,120" />
+        <!-- All wire geometry below is REWRITTEN in register.ts to land on the
+             embedded DFFs' projected pins (4 cells share one CLK). -->
+        <!-- D inputs → each cell's D pin -->
+        <polyline class="wire" id="wD0" data-net="D0" points="0,600 350,600" />
+        <polyline class="wire" id="wD1" data-net="D1" points="0,440 350,440" />
+        <polyline class="wire" id="wD2" data-net="D2" points="0,280 350,280" />
+        <polyline class="wire" id="wD3" data-net="D3" points="0,120 350,120" />
 
-        <!-- Q outputs: straight horizontal wires from each DFF's right edge to Q pins -->
-        <polyline class="wire" data-net="Q0" points="650,600 1000,600" />
-        <polyline class="wire" data-net="Q1" points="650,440 1000,440" />
-        <polyline class="wire" data-net="Q2" points="650,280 1000,280" />
-        <polyline class="wire" data-net="Q3" points="650,120 1000,120" />
+        <!-- Q outputs ← each cell's Q pin -->
+        <polyline class="wire" id="wQ0" data-net="Q0" points="650,600 1000,600" />
+        <polyline class="wire" id="wQ1" data-net="Q1" points="650,440 1000,440" />
+        <polyline class="wire" id="wQ2" data-net="Q2" points="650,280 1000,280" />
+        <polyline class="wire" id="wQ3" data-net="Q3" points="650,120 1000,120" />
 
-        <!-- CLK fan-out tree:
-             • direct drop to bit0 top
-             • bus to the right (x=700), down past each DFF, with horizontal taps
-               in the gaps that drop perpendicular into each DFF's TOP edge. -->
-        <polyline class="wire" data-net="CLK" points="500,35 500,60" />
-        <polyline class="wire" data-net="CLK" points="500,35 700,35 700,200" />
-        <polyline class="wire" data-net="CLK" points="700,200 500,200 500,220" />
-        <polyline class="wire" data-net="CLK" points="700,200 700,360" />
-        <polyline class="wire" data-net="CLK" points="700,360 500,360 500,380" />
-        <polyline class="wire" data-net="CLK" points="700,360 700,520" />
-        <polyline class="wire" data-net="CLK" points="700,520 500,520 500,540" />
+        <!-- each cell's Q̄ is unused in the register — short honest stubs -->
+        <polyline class="wire" id="wQB0" data-net="QB0" points="650,620 680,620" />
+        <polyline class="wire" id="wQB1" data-net="QB1" points="650,460 680,460" />
+        <polyline class="wire" id="wQB2" data-net="QB2" points="650,300 680,300" />
+        <polyline class="wire" id="wQB3" data-net="QB3" points="650,140 680,140" />
 
-        <!-- DFF bodies (no hover overlays for now — each cell is just a labeled box) -->
-        <g class="dff-slot" id="slot-bit0" tabindex="0" role="button">
+        <!-- CLK bus (right side) + one tap per cell's TOP CLK pin -->
+        <polyline class="wire" id="wCLK_bus" data-net="CLK" points="500,35 700,35 700,520" />
+        <polyline class="wire" id="wCLK_t0" data-net="CLK" points="700,540 500,540" />
+        <polyline class="wire" id="wCLK_t1" data-net="CLK" points="700,380 500,380" />
+        <polyline class="wire" id="wCLK_t2" data-net="CLK" points="700,220 500,220" />
+        <polyline class="wire" id="wCLK_t3" data-net="CLK" points="700,60 500,60" />
+
+        <!-- DFF cells: hover embeds an exact copy of /dff.html -->
+        <g class="dff-slot" id="slot-bit0" tabindex="0" role="button"
+           data-embed-page="/dff.html" data-embed-svg="dff">
           <rect class="tbody simple-body" id="gBit0" x="350" y="540" width="300" height="120" rx="12" />
           <text class="tlabel simple-label" x="500" y="593">bit 0</text>
+          <g class="detailed" id="bit0Detail"></g>
         </g>
-        <g class="dff-slot" id="slot-bit1" tabindex="0" role="button">
+        <g class="dff-slot" id="slot-bit1" tabindex="0" role="button"
+           data-embed-page="/dff.html" data-embed-svg="dff">
           <rect class="tbody simple-body" id="gBit1" x="350" y="380" width="300" height="120" rx="12" />
           <text class="tlabel simple-label" x="500" y="433">bit 1</text>
+          <g class="detailed" id="bit1Detail"></g>
         </g>
-        <g class="dff-slot" id="slot-bit2" tabindex="0" role="button">
+        <g class="dff-slot" id="slot-bit2" tabindex="0" role="button"
+           data-embed-page="/dff.html" data-embed-svg="dff">
           <rect class="tbody simple-body" id="gBit2" x="350" y="220" width="300" height="120" rx="12" />
           <text class="tlabel simple-label" x="500" y="273">bit 2</text>
+          <g class="detailed" id="bit2Detail"></g>
         </g>
-        <g class="dff-slot" id="slot-bit3" tabindex="0" role="button">
+        <g class="dff-slot" id="slot-bit3" tabindex="0" role="button"
+           data-embed-page="/dff.html" data-embed-svg="dff">
           <rect class="tbody simple-body" id="gBit3" x="350" y="60"  width="300" height="120" rx="12" />
           <text class="tlabel simple-label" x="500" y="113">bit 3</text>
+          <g class="detailed" id="bit3Detail"></g>
         </g>
 
         <!-- Pin nodes -->

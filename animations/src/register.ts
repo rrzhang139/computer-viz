@@ -4,10 +4,7 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
-import {
-  buildDffScene, bindDffSceneState,
-  DFF_SCENE_W, DFF_SCENE_H,
-} from "./scenes/dffScene";
+import { autoFillEmbeds } from "./embedPreview";
 // 4-bit register: four DFFs sharing one CLK. Each cell is independent; the
 // shared clock is what gives the bundle its atomic-update property.
 
@@ -75,41 +72,46 @@ function settleDLatch(input: Bit, EN: Bit, state: { Q: Bit; QB: Bit }) {
   state.Q = q; state.QB = qb;
 }
 
-// ── DFF mini geometry: imported from src/scenes/dffScene.ts ───────────
-// The DFF visualization lives in ONE module, shared by /dff.html, this
-// register's per-bit overlay, and /counter.html's register-overlay
-// sub-component. To change how a DFF looks anywhere, edit dffScene.ts.
-
-const DFF_BOX = { w: 300, h: 120 };
-// LSB-at-BOTTOM: bit 0 lives in the bottom slot, bit 3 in the top.
-const DFF_SLOT_POS = [
-  { x: 350, y: 540 },  // bit 0 — bottom
-  { x: 350, y: 380 },  // bit 1
-  { x: 350, y: 220 },  // bit 2
-  { x: 350, y: 60  },  // bit 3 — top
-];
-
-// Mount one DFF scene per bit slot. Each <g class="detailed" data-slot>
-// wraps the scene with the translate+scale needed to fit the slot.
-for (let i = 0; i < 4; i++) {
-  const slot = `bit${i}`;
-  const pos = DFF_SLOT_POS[i];
-  const wrap = document.createElementNS(SVG_NS, 'g');
-  wrap.setAttribute('class', 'detailed');
-  wrap.setAttribute('data-slot', slot);
-  wrap.setAttribute('transform',
-    `translate(${pos.x}, ${pos.y}) scale(${DFF_BOX.w / DFF_SCENE_W}, ${DFF_BOX.h / DFF_SCENE_H})`);
-  wrap.appendChild(buildDffScene());
-  document.getElementById(`slot-${slot}`)?.appendChild(wrap);
+// ── Embed an exact copy of /dff.html per bit cell and route every wire onto
+// the embedded DFFs' projected pins. The 4 cells share one CLK bus. ───────
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
+const BIT: Record<string, Pt>[] = [0, 1, 2, 3].map((i) => embeds.get(`slot-bit${i}`) || {});
+const setW = (id: string, pts: string) => document.getElementById(id)?.setAttribute('points', pts);
+const placePin = (id: string, x: number, y: number) => {
+  const c = document.getElementById(id);
+  if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
+};
+if (BIT.every((b) => b.pinD && b.pinCLK && b.pinQ && b.pinQB)) {
+  for (let i = 0; i < 4; i++) {
+    const b = BIT[i];
+    setW(`wD${i}`, `0,${b.pinD.y} ${b.pinD.x},${b.pinD.y}`);
+    placePin(`pinD${i}`, 0, b.pinD.y);
+    setW(`wQ${i}`, `${b.pinQ.x},${b.pinQ.y} 1000,${b.pinQ.y}`);
+    placePin(`pinQ${i}`, 1000, b.pinQ.y);
+    // Q̄ unused → short stub clear of the box (box right edge = 650)
+    setW(`wQB${i}`, `${b.pinQB.x},${b.pinQB.y} 660,${b.pinQB.y}`);
+    // CLK tap from the right-side bus into this cell's top CLK pin
+    setW(`wCLK_t${i}`, `700,${b.pinCLK.y} ${b.pinCLK.x},${b.pinCLK.y}`);
+  }
+  // CLK bus down the right side, past every cell's CLK-tap height
+  placePin('pinCLK', 500, 35);
+  setW('wCLK_bus', `500,35 700,35 700,${BIT[0].pinCLK.y}`);
 }
 
-function setMiniState(i: number, D: Bit, CLK: Bit, Qm: Bit, Q: Bit) {
-  const root = svg.querySelector<SVGGElement>(`g.detailed[data-slot="bit${i}"]`);
-  if (!root) return;
-  bindDffSceneState(root, { D, CLK, Qm, Q });
+// Light an embedded DFF to its logical state.
+function lightDff(hostId: string, d: Bit, clk: Bit, qm: Bit, q: Bit) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const notClk: Bit = (clk === 0 ? 1 : 0) as Bit;
+  const qb: Bit = (q === 0 ? 1 : 0) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('D', d); w('CLK', clk); w('notCLK', notClk); w('M', qm); w('Q', q); w('QB', qb); w('Mbar', (qm === 0 ? 1 : 0) as Bit);
+  body('iInv', notClk); body('gMaster', qm); body('gSlave', q);
 }
 
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS(SVG_NS, 'polyline');
@@ -160,7 +162,7 @@ function render() {
   for (let i = 0; i < 4; i++) {
     document.getElementById(`gBit${i}`)!
       .setAttribute('data-on', String(cells[i].Q));
-    setMiniState(i, D[i], CLK, cells[i].Qm, cells[i].Q);
+    lightDff(`bit${i}Detail`, D[i], CLK, cells[i].Qm, cells[i].Q);
   }
 
   // Pins
