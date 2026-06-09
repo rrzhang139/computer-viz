@@ -85,6 +85,11 @@ function embedSvg(host: Element, raw: string, svgId: string, box: Box): PinMap |
       }
       e.removeAttribute('id');
       e.classList?.remove('child-slot');
+      // If the embedded page is itself a migrated composite, its own slots
+      // carry data-embed-page. Strip those so the clone is fully inert and is
+      // never re-discovered as a (now id-less) embed slot by the fidelity test.
+      e.removeAttribute('data-embed-page');
+      e.removeAttribute('data-embed-svg');
     }
     g.appendChild(c);
   }

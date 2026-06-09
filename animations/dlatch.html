@@ -373,50 +373,57 @@
         <!-- GND rail -->
         <polyline class="wire" data-net="GND" points="0,560 840,560" />
 
-        <!-- D net: D_in → inv_in, and D_in → GS_A_in (long path up-and-right) -->
-        <polyline class="wire" data-net="D" points="0,280 35,280" />
-        <polyline class="wire" data-net="D" points="0,280 20,280 20,145 145,145" />
+        <!-- All wire geometry below is REWRITTEN in dlatch.ts to land on the
+             embedded children's projected pins (NAND G_S / G_R, SR latch). -->
+        <!-- D net: D_in → inv_in, and D_in → GS_A_in -->
+        <polyline class="wire" id="wD_inv" data-net="D" points="0,280 35,280" />
+        <polyline class="wire" id="wD_gs"  data-net="D" points="0,280 20,280 20,145 145,145" />
 
-        <!-- D_bar net: inv_out → GR_A_in (down and right) -->
-        <polyline class="wire" data-net="Dbar" points="105,280 125,280 125,355 145,355" />
+        <!-- D_bar net: inv_out → GR_A_in -->
+        <polyline class="wire" id="wDbar" data-net="Dbar" points="105,280 125,280 125,355 145,355" />
 
-        <!-- EN net: TOP entry, drops to a corridor on the left of the gating NANDs,
-             then taps GS_B_in and GR_B_in. -->
-        <polyline class="wire" data-net="EN" points="315,35 315,75 125,75 125,415" />
-        <polyline class="wire" data-net="EN" points="125,205 145,205" />
-        <polyline class="wire" data-net="EN" points="125,415 145,415" />
+        <!-- EN net: TOP entry, drops to a left corridor, taps GS_B_in and GR_B_in -->
+        <polyline class="wire" id="wEN_drop" data-net="EN" points="315,35 315,75 125,75 125,415" />
+        <polyline class="wire" id="wEN_gs"   data-net="EN" points="125,205 145,205" />
+        <polyline class="wire" id="wEN_gr"   data-net="EN" points="125,415 145,415" />
 
         <!-- S_bar net: GS_Y_out → latch_S_in -->
-        <polyline class="wire" data-net="Sbar" points="345,165 435,165 435,224 525,224" />
+        <polyline class="wire" id="wSbar" data-net="Sbar" points="345,165 435,165 435,224 525,224" />
 
         <!-- R_bar net: GR_Y_out → latch_R_in -->
-        <polyline class="wire" data-net="Rbar" points="345,375 435,375 435,308 525,308" />
+        <polyline class="wire" id="wRbar" data-net="Rbar" points="345,375 435,375 435,308 525,308" />
 
         <!-- Q out: latch_Q_out → Q pin -->
-        <polyline class="wire" data-net="Q"  points="805,233.33 820,233.33 820,175 840,175" />
+        <polyline class="wire" id="wQ"  data-net="Q"  points="805,233.33 820,233.33 820,175 840,175" />
         <!-- QB out: latch_QB_out → QB pin -->
-        <polyline class="wire" data-net="QB" points="805,317.33 820,317.33 820,385 840,385" />
+        <polyline class="wire" id="wQB" data-net="QB" points="805,317.33 820,317.33 820,385 840,385" />
 
         <!-- Inverter body (small rect, no hover overlay) -->
         <rect class="tbody" id="iInv" x="35" y="259" width="70" height="42" rx="6" />
         <text class="tlabel" x="70" y="280">inv</text>
 
-        <!-- Gating NAND for SET (GS) -->
-        <g class="child-slot" id="slot-gs" tabindex="0" role="button">
+        <!-- Gating NAND for SET (GS): hover embeds an exact copy of /index.html -->
+        <g class="child-slot" id="slot-gs" tabindex="0" role="button"
+           data-embed-page="/index.html" data-embed-svg="gate">
           <rect class="tbody simple-body" id="gGS" x="145" y="105" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="245" y="175">G_S</text>
+          <g class="detailed" id="gsDetail"></g>
         </g>
 
-        <!-- Gating NAND for RESET (GR) -->
-        <g class="child-slot" id="slot-gr" tabindex="0" role="button">
+        <!-- Gating NAND for RESET (GR): hover embeds an exact copy of /index.html -->
+        <g class="child-slot" id="slot-gr" tabindex="0" role="button"
+           data-embed-page="/index.html" data-embed-svg="gate">
           <rect class="tbody simple-body" id="gGR" x="145" y="315" width="200" height="140" rx="10" />
           <text class="tlabel simple-label" x="245" y="385">G_R</text>
+          <g class="detailed" id="grDetail"></g>
         </g>
 
-        <!-- SR latch box (storage cell) -->
-        <g class="child-slot" id="slot-latch" tabindex="0" role="button">
+        <!-- SR latch box (storage cell): hover embeds an exact copy of /latch.html -->
+        <g class="child-slot" id="slot-latch" tabindex="0" role="button"
+           data-embed-page="/latch.html" data-embed-svg="latch">
           <rect class="tbody simple-body" id="gLatch" x="525" y="186.67" width="280" height="186.67" rx="10" />
           <text class="tlabel simple-label" x="665" y="280">SR latch</text>
+          <g class="detailed" id="latchDetail"></g>
         </g>
 
         <!-- Pin nodes -->
