@@ -4,10 +4,7 @@ import {
   buildDrillUrl, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
-import {
-  buildRegisterScene, bindRegisterSceneState,
-  REGISTER_SCENE_W, REGISTER_SCENE_H,
-} from "./scenes/registerScene";
+import { autoFillEmbeds } from "./embedPreview";
 
 // Program counter: 4-bit register + 4-bit adder + feedback loop.
 //
@@ -19,7 +16,6 @@ import {
 // word-aligned fetch, advancing by one 4-byte instruction per cycle).
 
 type Bit = 0 | 1;
-const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const btnCLK   = document.getElementById('btnCLK')   as HTMLButtonElement;
 const btnPulse = document.getElementById('btnPulse') as HTMLButtonElement;
@@ -46,262 +42,90 @@ function bitsOf(n: number): string {
   return `${bitOf(n, 3)}${bitOf(n, 2)}${bitOf(n, 1)}${bitOf(n, 0)}`;
 }
 
-// ── Hover overlays — shared layout constants ────────────────────────────
-// Both overlays fill their parent box (380 × 480). Each holds 4 sub-cells
-// stacked vertically. CRITICAL: row centers must match the parent's D/Q/A/S
-// wire y-positions so the overlay's per-row terminals line up pixel-perfect
-// with the parent wires on hover.
-//
-// Per layer-9 wireframe (wire_sketches/layer9_counter.md): bits sit at
-// evenly-spaced fractions (0.125 / 0.375 / 0.625 / 0.875) of the box
-// height. Parent register box top-left = (80, 140), height 480:
-//   bit 3: y = 140 + 0.125·480 = 200 → overlay-local y =  60
-//   bit 2: y = 140 + 0.375·480 = 320 → overlay-local y = 180
-//   bit 1: y = 140 + 0.625·480 = 440 → overlay-local y = 300
-//   bit 0: y = 140 + 0.875·480 = 560 → overlay-local y = 420
-// Same fractions for the adder box at (800, 140).
-const OVERLAY_W = 380;
-const OVERLAY_H = 480;
-const CELL_BOX_W = 200;
-const CELL_BOX_H = 70;
-// Center the cells horizontally: (OVERLAY_W - CELL_BOX_W) / 2 = 90. Then
-// the LEFT-side input stub (D / A) and the RIGHT-side output run (Q / S)
-// are equal-length 90px segments — symmetric.
-const CELL_BOX_X = 90;
-// Row centers locked to parent wire y-positions. Box y = center - H/2.
-const CELL_Y_BY_BIT: Record<number, number> = {
-  3:  60 - CELL_BOX_H / 2,   // box y: 25,  center: 60
-  2: 180 - CELL_BOX_H / 2,   // box y: 145, center: 180
-  1: 300 - CELL_BOX_H / 2,   // box y: 265, center: 300
-  0: 420 - CELL_BOX_H / 2,   // box y: 385, center: 420
-};
-// y in the gap between bit lowerBit (BELOW) and bit lowerBit+1 (ABOVE).
-// Row pitch 120; with H=70, each gap is 50 units tall — center at
-// midpoint of adjacent row centers (e.g. bit-0 center 420, bit-1 center
-// 300 → gap center 360).
-const GAP_Y_BY_LOWER_BIT: Record<number, number> = {
-  0: 360,
-  1: 240,
-  2: 120,
+// ── Embed EXACT copies of /register.html and /adder4.html in the two slots,
+// and route every counter wire onto the embedded children's projected pins.
+//   register: D ← adder.S (feedback), Q → adder.A, CLK shared
+//   adder:    A ← register.Q, B = STEP constant (tied), Cin = 0 (GND),
+//             S → register.D, Cout unused
+// ──────────────────────────────────────────────────────────────────────────
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
+const REG: Record<string, Pt> = embeds.get('slot-register') || {};
+const ADD: Record<string, Pt> = embeds.get('slot-adder')    || {};
+const setW = (id: string, pts: string) => document.getElementById(id)?.setAttribute('points', pts);
+const placePin = (id: string, x: number, y: number) => {
+  const c = document.getElementById(id);
+  if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
 };
 
-const REG_OVERLAY_X = 80;
-const REG_OVERLAY_Y = 140;
-const ADD_OVERLAY_X = 800;
-const ADD_OVERLAY_Y = 140;
+const regReady = [0, 1, 2, 3].every((i) => REG[`pinD${i}`] && REG[`pinQ${i}`]) && REG.pinCLK;
+const addReady = [0, 1, 2, 3].every((i) => ADD[`pinA${i}`] && ADD[`pinB${i}`] && ADD[`pinS${i}`])
+  && ADD.pinCin && ADD.pinCout;
+if (regReady && addReady) {
+  // CLK → register top
+  setW('wCLK', `270,30 270,${REG.pinCLK.y} ${REG.pinCLK.x},${REG.pinCLK.y}`);
+  placePin('pinCLK', 270, 30);
 
-function makeOverlayBg(g: SVGGElement) {
-  const bg = document.createElementNS(SVG_NS, 'rect');
-  bg.setAttribute('class', 'mini-bg');
-  bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
-  bg.setAttribute('width',  String(OVERLAY_W));
-  bg.setAttribute('height', String(OVERLAY_H));
-  bg.setAttribute('rx', '14');
-  g.appendChild(bg);
-}
+  // Lane constants for the S→D feedback loop below the boxes (staggered so
+  // the four lanes don't overlap). Index 0 = bit0 (innermost).
+  const railX   = [1200, 1220, 1240, 1260];
+  const bottomY = [660, 680, 700, 720];
+  const leftX   = [75, 60, 40, 20];
 
-// Register overlay: embeds the shared registerScene (4 labeled "DFF bit N"
-// boxes). This is the SAME visual that /register.html shows at its top
-// level — no master/slave detail, because that lives one layer deeper
-// and the user has to drill into /register.html to see it.
-function buildRegisterOverlay(): SVGGElement {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'detailed');
-  g.setAttribute('transform', `translate(${REG_OVERLAY_X}, ${REG_OVERLAY_Y})`);
-  makeOverlayBg(g);
-
-  // Shared CLK enters at the top-center (where the parent CLK wire lands) and
-  // is labeled; the stub's top endpoint is the register's CLK terminal.
-  const clkStub = document.createElementNS(SVG_NS, 'polyline');
-  clkStub.setAttribute('class', 'wire-mini');
-  clkStub.setAttribute('data-net', 'CLK');
-  clkStub.setAttribute('points', `${OVERLAY_W / 2},0 ${OVERLAY_W / 2},34`);
-  g.appendChild(clkStub);
-  const clkHeader = document.createElementNS(SVG_NS, 'text');
-  clkHeader.setAttribute('class', 'tlabel-mini-tiny');
-  clkHeader.setAttribute('x', String(OVERLAY_W / 2 + 8));
-  clkHeader.setAttribute('y', '20');
-  clkHeader.setAttribute('text-anchor', 'start');
-  clkHeader.textContent = 'CLK (shared)';
-  g.appendChild(clkHeader);
-
-  // External per-bit D and Q wires (light up to mirror parent state).
-  for (let bit = 3; bit >= 0; bit--) {
-    const boxY = CELL_Y_BY_BIT[bit];
-    const rowCenter = boxY + CELL_BOX_H / 2;
-    const dWire = document.createElementNS(SVG_NS, 'polyline');
-    dWire.setAttribute('class', 'wire-mini');
-    dWire.setAttribute('data-net', `D${bit}`);
-    dWire.setAttribute('points', `0,${rowCenter} ${CELL_BOX_X},${rowCenter}`);
-    g.appendChild(dWire);
-    const qWire = document.createElementNS(SVG_NS, 'polyline');
-    qWire.setAttribute('class', 'wire-mini');
-    qWire.setAttribute('data-net', `Q${bit}`);
-    qWire.setAttribute('points',
-      `${CELL_BOX_X + CELL_BOX_W},${rowCenter} ${OVERLAY_W},${rowCenter}`);
-    g.appendChild(qWire);
+  for (let i = 0; i < 4; i++) {
+    // Q (register.Q) → adder.A, bending in the gap between the boxes
+    setW(`wQ${i}`,
+      `${REG[`pinQ${i}`].x},${REG[`pinQ${i}`].y} 630,${REG[`pinQ${i}`].y} ` +
+      `630,${ADD[`pinA${i}`].y} ${ADD[`pinA${i}`].x},${ADD[`pinA${i}`].y}`);
+    // S (adder.S) → register.D, the big feedback loop wrapping under both boxes
+    setW(`wS${i}`,
+      `${ADD[`pinS${i}`].x},${ADD[`pinS${i}`].y} ${railX[i]},${ADD[`pinS${i}`].y} ` +
+      `${railX[i]},${bottomY[i]} ${leftX[i]},${bottomY[i]} ` +
+      `${leftX[i]},${REG[`pinD${i}`].y} ${REG[`pinD${i}`].x},${REG[`pinD${i}`].y}`);
+    // B constant (tied) — short stub off the adder's left B pin
+    setW(`wB${i}`, `${ADD[`pinB${i}`].x},${ADD[`pinB${i}`].y} 790,${ADD[`pinB${i}`].y}`);
+    placePin(`pinD${i}`, REG[`pinD${i}`].x, REG[`pinD${i}`].y);
+    placePin(`pinS${i}`, ADD[`pinS${i}`].x, ADD[`pinS${i}`].y);
   }
-
-  // Embed the shared register scene. Frame is 380×480 (same as overlay),
-  // so scale is 1×1 and translate is (0, 0).
-  const sx = OVERLAY_W / REGISTER_SCENE_W;
-  const sy = OVERLAY_H / REGISTER_SCENE_H;
-  const wrap = document.createElementNS(SVG_NS, 'g');
-  wrap.setAttribute('class', 'register-scene-wrap');
-  wrap.setAttribute('transform', `translate(0, 0) scale(${sx}, ${sy})`);
-  wrap.appendChild(buildRegisterScene());
-  g.appendChild(wrap);
-
-  return g;
+  // Cin = 0 (tied GND) and the unused Cout — honest stubs off their pins
+  setW('wCin',  `${ADD.pinCin.x},${ADD.pinCin.y} 790,${ADD.pinCin.y}`);
+  setW('wCout', `${ADD.pinCout.x},${ADD.pinCout.y} 1210,${ADD.pinCout.y}`);
 }
 
-// Adder overlay: 4 FAs stacked, per-gap carry arrows (no rail to cross
-// S wires). A enters LEFT, S exits RIGHT, B is constant 0001.
-function buildAdderOverlay(): SVGGElement {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'detailed');
-  g.setAttribute('transform', `translate(${ADD_OVERLAY_X}, ${ADD_OVERLAY_Y})`);
-  makeOverlayBg(g);
+// Light the embedded register to its logical state.
+function lightRegister(hostId: string, D: Bit[], Q: Bit[], clk: Bit) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  for (let i = 0; i < 4; i++) { w(`D${i}`, D[i]); w(`Q${i}`, Q[i]); body(`gBit${i}`, Q[i]); }
+  w('CLK', clk);
+}
 
-  // Top external Cout label — appears above FA3
-  const coutLbl = document.createElementNS(SVG_NS, 'text');
-  coutLbl.setAttribute('class', 'tlabel-mini-tiny');
-  coutLbl.setAttribute('x', String(CELL_BOX_X + CELL_BOX_W / 2));
-  coutLbl.setAttribute('y', '10');
-  coutLbl.textContent = '↑ Cout (unused)';
-  g.appendChild(coutLbl);
-
-  // Bottom external Cin label — appears below FA0. Cin is hardwired to
-  // GND in a pure adder (we're not doing subtraction), so the label
-  // explicitly shows the tie.
-  const cinLbl = document.createElementNS(SVG_NS, 'text');
-  cinLbl.setAttribute('class', 'tlabel-mini-tiny');
-  cinLbl.setAttribute('x', String(CELL_BOX_X + CELL_BOX_W / 2));
-  cinLbl.setAttribute('y', String(OVERLAY_H - 6));
-  cinLbl.textContent = '↑ Cin = 0  (tied to GND)';
-  g.appendChild(cinLbl);
-
-  for (let bit = 3; bit >= 0; bit--) {
-    const boxY = CELL_Y_BY_BIT[bit];
-    const rowCenter = boxY + CELL_BOX_H / 2;
-
-    // A input wire (LEFT short stub)
-    const aWire = document.createElementNS(SVG_NS, 'polyline');
-    aWire.setAttribute('class', 'wire-mini');
-    aWire.setAttribute('data-net', `A${bit}`);
-    aWire.setAttribute('points', `0,${rowCenter} ${CELL_BOX_X},${rowCenter}`);
-    g.appendChild(aWire);
-
-    // S output wire (RIGHT, long)
-    const sWire = document.createElementNS(SVG_NS, 'polyline');
-    sWire.setAttribute('class', 'wire-mini');
-    sWire.setAttribute('data-net', `S${bit}`);
-    sWire.setAttribute('points',
-      `${CELL_BOX_X + CELL_BOX_W},${rowCenter} ${OVERLAY_W},${rowCenter}`);
-    g.appendChild(sWire);
-
-    // FA box
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('class', 'tbody-mini');
-    r.setAttribute('data-bit', String(bit));
-    r.setAttribute('x', String(CELL_BOX_X));
-    r.setAttribute('y', String(boxY));
-    r.setAttribute('width',  String(CELL_BOX_W));
-    r.setAttribute('height', String(CELL_BOX_H));
-    r.setAttribute('rx', '10');
-    g.appendChild(r);
-
-    // Title + readout
-    const t = document.createElementNS(SVG_NS, 'text');
-    t.setAttribute('class', 'tlabel-mini');
-    t.setAttribute('x', String(CELL_BOX_X + CELL_BOX_W / 2));
-    t.setAttribute('y', String(rowCenter - 8));
-    t.textContent = `FA bit ${bit}`;
-    g.appendChild(t);
-
-    const tsub = document.createElementNS(SVG_NS, 'text');
-    tsub.setAttribute('class', 'tlabel-mini-tiny');
-    tsub.setAttribute('x', String(CELL_BOX_X + CELL_BOX_W / 2));
-    tsub.setAttribute('y', String(rowCenter + 14));
-    tsub.textContent = `S = 0`;
-    tsub.setAttribute('data-fa-readout', String(bit));
-    g.appendChild(tsub);
-
-    // B input — a short stub on the LEFT side of the cell, at a y below
-    // A (which is at rowCenter). Per layer-7 wireframe, the FA's B input
-    // is on LEFT frac 0.4 (between A at 0.2 and Cin at 0.667). In the
-    // counter context, B is a CONSTANT tied to Vdd (B=1) or GND (B=0) —
-    // drawn as a short stub so it visibly differs from A which comes
-    // from the parent's Q wire.
-    const bY = rowCenter + 18;
-    const bWire = document.createElementNS(SVG_NS, 'polyline');
-    bWire.setAttribute('class', 'wire-mini');
-    bWire.setAttribute('data-net', `B${bit}`);
-    bWire.setAttribute('data-on', '0');
-    bWire.setAttribute('points', `${CELL_BOX_X - 30},${bY} ${CELL_BOX_X},${bY}`);
-    g.appendChild(bWire);
-
-    // B-constant label, just to the LEFT of the B stub.
-    const bLbl = document.createElementNS(SVG_NS, 'text');
-    bLbl.setAttribute('class', 'tlabel-mini-tiny');
-    bLbl.setAttribute('data-b-label', String(bit));
-    bLbl.setAttribute('x', String(CELL_BOX_X - 35));
-    bLbl.setAttribute('y', String(bY));
-    bLbl.setAttribute('text-anchor', 'end');
-    g.appendChild(bLbl);
+// Light the embedded 4-bit adder to its logical state.
+function lightAdder(hostId: string, A: Bit[], B: Bit[], cin: Bit) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  const c: Bit[] = [cin, 0, 0, 0, 0] as Bit[];
+  const S: Bit[] = [0, 0, 0, 0] as Bit[];
+  for (let i = 0; i < 4; i++) {
+    S[i] = (A[i] ^ B[i] ^ c[i]) as Bit;
+    c[i + 1] = ((A[i] & B[i]) | (A[i] & c[i]) | (B[i] & c[i])) as Bit;
   }
-
-  // Per-gap carry indicators: short vertical "↑ Cn" arrows in each gap
-  // between adjacent FAs. lowerBit is the bit BELOW the gap (Cout source).
-  for (const lowerBitStr of Object.keys(GAP_Y_BY_LOWER_BIT)) {
-    const lowerBit = Number(lowerBitStr);
-    const gapY = GAP_Y_BY_LOWER_BIT[lowerBit];
-    const arrowX = CELL_BOX_X + CELL_BOX_W / 2;
-
-    const arrow = document.createElementNS(SVG_NS, 'polyline');
-    arrow.setAttribute('class', 'wire-mini');
-    arrow.setAttribute('data-net', `carry${lowerBit + 1}`);
-    arrow.setAttribute('points', `${arrowX},${gapY + 10} ${arrowX},${gapY - 10}`);
-    g.appendChild(arrow);
-
-    const arrowLbl = document.createElementNS(SVG_NS, 'text');
-    arrowLbl.setAttribute('class', 'tlabel-mini-tiny');
-    arrowLbl.setAttribute('x', String(arrowX + 18));
-    arrowLbl.setAttribute('y', String(gapY + 4));
-    arrowLbl.textContent = `↑ C${lowerBit}${lowerBit + 1}`;
-    g.appendChild(arrowLbl);
+  for (let i = 0; i < 4; i++) {
+    w(`A${i}`, A[i]); w(`B${i}`, B[i]); w(`S${i}`, S[i]);
+    body(`gFa${i}`, (S[i] || c[i + 1]) ? 1 : 0);
   }
-
-  return g;
-}
-
-// Mount the overlays
-document.getElementById('slot-register')?.appendChild(buildRegisterOverlay());
-document.getElementById('slot-adder')?.appendChild(buildAdderOverlay());
-
-function setMiniWire(slotId: string, net: string, on: Bit) {
-  document.getElementById(slotId)
-    ?.querySelectorAll<SVGPolylineElement>(`.wire-mini[data-net="${net}"]`)
-    .forEach((el) => el.setAttribute('data-on', String(on)));
-}
-function setMiniBit(slotId: string, bit: number, on: Bit) {
-  document.getElementById(slotId)
-    ?.querySelector<SVGRectElement>(`.tbody-mini[data-bit="${bit}"]`)
-    ?.setAttribute('data-on', String(on));
-}
-function setMiniReadout(slotId: string, attr: string, bit: number, text: string, on: Bit) {
-  const el = document.getElementById(slotId)
-    ?.querySelector<SVGTextElement>(`text[${attr}="${bit}"]`);
-  if (!el) return;
-  el.textContent = text;
-  el.setAttribute('fill', on ? 'var(--on)' : '#666');
+  w('Cin', cin); w('C01', c[1]); w('C12', c[2]); w('C23', c[3]); w('Cout', c[4]);
 }
 
 // Add per-wire pulse overlays so the .pulse class can animate flow on lit wires.
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
-  const p = document.createElementNS(SVG_NS, 'polyline');
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
   p.setAttribute('class', 'pulse');
   p.setAttribute('points', w.getAttribute('points') || '');
   const net = w.getAttribute('data-net');
@@ -313,6 +137,7 @@ for (const w of wires) {
 
 function setWire(net: string, on: Bit) {
   svg.querySelectorAll<SVGPolylineElement>(`.wire[data-net="${net}"]`).forEach((el) => {
+    if (el.closest('.detailed')) return;
     el.setAttribute('data-on', String(on));
     const p = pulseFor.get(el);
     if (p) p.setAttribute('data-on', String(on));
@@ -345,74 +170,26 @@ function render() {
   document.getElementById('boxReg')!.setAttribute('data-on', PC !== 0 ? '1' : '0');
   document.getElementById('boxAdd')!.setAttribute('data-on', newNext !== 0 ? '1' : '0');
 
-  // Per-bit Q and S wires + labels
+  const A: Bit[] = [bitOf(PC, 0), bitOf(PC, 1), bitOf(PC, 2), bitOf(PC, 3)];
+  const B: Bit[] = [bitOf(STEP, 0), bitOf(STEP, 1), bitOf(STEP, 2), bitOf(STEP, 3)];
+  const Snext: Bit[] = [bitOf(newNext, 0), bitOf(newNext, 1), bitOf(newNext, 2), bitOf(newNext, 3)];
+
+  // Parent per-bit wires + decorative pins
   for (let i = 0; i < 4; i++) {
-    const q = bitOf(PC, i);
-    const s = bitOf(newNext, i);
-    setWire(`Q${i}`, q);
-    setWire(`S${i}`, s);
-    setPin(`pinS${i}`, s);
-    setPin(`pinD${i}`, s); // D inputs = adder outputs (feedback)
-
-    // Register overlay: parent wires (D and Q at row-center) light per bit.
-    // The inner register scene gets bound once after this loop.
-    setMiniWire('slot-register', `D${i}`, s);
-    setMiniWire('slot-register', `Q${i}`, q);
-
-    // Adder overlay: mirror A/S/carry state on the 4-FA mini
-    setMiniWire('slot-adder', `A${i}`, q);
-    setMiniWire('slot-adder', `S${i}`, s);
-    setMiniBit('slot-adder', i, s);
-    setMiniReadout('slot-adder', 'data-fa-readout', i, `S = ${s}`, s);
+    setWire(`Q${i}`, A[i]);
+    setWire(`S${i}`, Snext[i]);
+    setWire(`B${i}`, B[i]);
+    setPin(`pinS${i}`, Snext[i]);
+    setPin(`pinD${i}`, Snext[i]); // D inputs = adder outputs (feedback)
   }
-  setMiniWire('slot-register', 'CLK', CLK);
-
-  // Bind the inner register scene (cell rects + Q readouts) to the
-  // current PC bits. Single call — the shared module fans out to all 4
-  // cells via data-bit attributes.
-  const regSceneRoot = document.querySelector<SVGGElement>(
-    '#slot-register .register-scene-wrap',
-  );
-  if (regSceneRoot) {
-    bindRegisterSceneState(regSceneRoot, {
-      Q: [bitOf(PC, 0), bitOf(PC, 1), bitOf(PC, 2), bitOf(PC, 3)],
-    });
-  }
-
-  // Carry chain inside the adder overlay. B is the STEP constant, expanded
-  // bit-by-bit: STEP=1 → B=0001, STEP=4 → B=0100.
-  const A = [bitOf(PC, 0), bitOf(PC, 1), bitOf(PC, 2), bitOf(PC, 3)];
-  const B = [bitOf(STEP, 0), bitOf(STEP, 1), bitOf(STEP, 2), bitOf(STEP, 3)];
-  const carry: number[] = [0, 0, 0, 0, 0];
-  for (let i = 0; i < 4; i++) {
-    const sum3 = A[i] + B[i] + carry[i];
-    carry[i + 1] = sum3 >= 2 ? 1 : 0;
-  }
-  for (let k = 0; k <= 4; k++) {
-    setMiniWire('slot-adder', `carry${k}`, carry[k] as Bit);
-  }
-  // Light up each FA's B-constant input wire based on the current STEP.
-  for (let i = 0; i < 4; i++) {
-    setMiniWire('slot-adder', `B${i}`, B[i] as Bit);
-  }
-  // Update per-FA B-constant labels in the adder overlay based on STEP.
-  for (let i = 0; i < 4; i++) {
-    const lbl = document.querySelector<SVGTextElement>(
-      `#slot-adder text[data-b-label="${i}"]`,
-    );
-    if (lbl) {
-      // B is HARDWIRED — show the tie explicitly. B=1 means the wire is
-      // permanently connected to Vdd; B=0 means tied to GND. The +1/+4
-      // toggle in the UI is showing two different physical circuits, not
-      // a runtime switch (a real chip can't dynamically retie wires).
-      lbl.textContent = `B=${B[i]} (${B[i] ? 'Vdd' : 'GND'})`;
-      lbl.setAttribute('fill', B[i] ? 'var(--on)' : '#666');
-    }
-  }
-
-  // CLK wire + pin
+  setWire('Cin', 0);
+  setWire('Cout', (PC + STEP) > 15 ? 1 : 0);
   setWire('CLK', CLK);
   setPin('pinCLK', CLK);
+
+  // Embedded children mirror the parent state exactly.
+  lightRegister('registerDetail', Snext, A, CLK);
+  lightAdder('adderDetail', A, B, 0);
 
   // Controls
   setBtn(btnCLK, 'CLK', CLK);

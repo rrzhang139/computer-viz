@@ -300,16 +300,19 @@
              aria-label="Program counter: 4-bit register with +1 adder feedback"
              preserveAspectRatio="xMidYMid meet">
           <!-- ── CLK fan-in from top to register ─────────────────────────── -->
-          <polyline class="wire" data-net="CLK" points="270,30 270,140" />
+          <!-- All wire geometry is REWRITTEN in counter.ts to land on the
+               embedded register/adder projected pins. -->
+          <polyline class="wire" id="wCLK" data-net="CLK" points="270,30 270,140" />
           <text class="tlabel-small" x="270" y="14">CLK</text>
           <circle class="pin" id="pinCLK" cx="270" cy="30" r="7" />
 
           <!-- ── Register box (left) ──────────────────────────────────────── -->
           <g class="child-slot" id="slot-register" tabindex="0" role="button"
-             aria-label="Register internals">
+             aria-label="Register internals"
+             data-embed-page="/register.html" data-embed-svg="register">
             <rect class="tbody simple-body" id="boxReg" x="80" y="140" width="380" height="480" rx="14" />
             <text class="tlabel simple-label" x="270" y="380">register</text>
-            <!-- detailed overlay injected at runtime by counter.ts -->
+            <g class="detailed" id="registerDetail"></g>
           </g>
           <!-- D input labels (always visible, outside the box) -->
           <text class="tlabel-small" x="60"  y="212">D3</text>
@@ -323,10 +326,11 @@
 
           <!-- ── Adder box (right) ────────────────────────────────────────── -->
           <g class="child-slot" id="slot-adder" tabindex="0" role="button"
-             aria-label="Adder internals">
+             aria-label="Adder internals"
+             data-embed-page="/adder4.html" data-embed-svg="adder4">
             <rect class="tbody simple-body" id="boxAdd" x="800" y="140" width="380" height="480" rx="14" />
             <text class="tlabel simple-label" id="adderTitle" x="990" y="380">adder</text>
-            <!-- detailed overlay injected at runtime by counter.ts -->
+            <g class="detailed" id="adderDetail"></g>
           </g>
           <!-- A and S input/output labels (always visible, outside the box) -->
           <text class="tlabel-small" x="780" y="212">A3</text>
@@ -338,25 +342,26 @@
           <text class="tlabel-small" x="1200" y="452">S1</text>
           <text class="tlabel-small" x="1200" y="572">S0</text>
 
-          <!-- ── Q → A connections (forward bus, always live) ─────────────── -->
-          <polyline class="wire" data-net="Q3" points="460,200 800,200" />
-          <polyline class="wire" data-net="Q2" points="460,320 800,320" />
-          <polyline class="wire" data-net="Q1" points="460,440 800,440" />
-          <polyline class="wire" data-net="Q0" points="460,560 800,560" />
+          <!-- ── Q → A connections (forward bus, register.Q → adder.A) ────── -->
+          <polyline class="wire" id="wQ3" data-net="Q3" points="460,200 800,200" />
+          <polyline class="wire" id="wQ2" data-net="Q2" points="460,320 800,320" />
+          <polyline class="wire" id="wQ1" data-net="Q1" points="460,440 800,440" />
+          <polyline class="wire" id="wQ0" data-net="Q0" points="460,560 800,560" />
 
-          <!--
-            ── Feedback bus (S → D), routed BELOW both boxes.
-            Each lane uses a distinct right-exit-x, bottom-y, left-return-x
-            so they don't visually collide. Bit 3 (top) uses the OUTER lane.
-          -->
-          <!-- S3 → D3 -->
-          <polyline class="wire" data-net="S3" points="1180,200 1260,200 1260,720 20,720 20,200 80,200" />
-          <!-- S2 → D2 -->
-          <polyline class="wire" data-net="S2" points="1180,320 1240,320 1240,700 40,700 40,320 80,320" />
-          <!-- S1 → D1 -->
-          <polyline class="wire" data-net="S1" points="1180,440 1220,440 1220,680 60,680 60,440 80,440" />
-          <!-- S0 → D0 -->
-          <polyline class="wire" data-net="S0" points="1180,560 1200,560 1200,660 75,660 75,560 80,560" />
+          <!-- ── Feedback bus (adder.S → register.D), routed BELOW both boxes -->
+          <polyline class="wire" id="wS3" data-net="S3" points="1180,200 1260,200 1260,720 20,720 20,200 80,200" />
+          <polyline class="wire" id="wS2" data-net="S2" points="1180,320 1240,320 1240,700 40,700 40,320 80,320" />
+          <polyline class="wire" id="wS1" data-net="S1" points="1180,440 1220,440 1220,680 60,680 60,440 80,440" />
+          <polyline class="wire" id="wS0" data-net="S0" points="1180,560 1200,560 1200,660 75,560 75,560 80,560" />
+
+          <!-- ── Adder constant inputs: B = STEP (tied), Cin = 0 (GND), and the
+               unused Cout — short honest stubs off the embedded adder's pins -->
+          <polyline class="wire" id="wB3" data-net="B3" points="800,232 770,232" />
+          <polyline class="wire" id="wB2" data-net="B2" points="800,352 770,352" />
+          <polyline class="wire" id="wB1" data-net="B1" points="800,472 770,472" />
+          <polyline class="wire" id="wB0" data-net="B0" points="800,592 770,592" />
+          <polyline class="wire" id="wCin"  data-net="Cin"  points="800,610 770,610" />
+          <polyline class="wire" id="wCout" data-net="Cout" points="1180,180 1210,180" />
 
           <!-- Small "+N" tag in the gap between boxes, on the wire bus -->
           <text class="tlabel-tag" id="loopTag" x="630" y="100">+1 feedback loop</text>

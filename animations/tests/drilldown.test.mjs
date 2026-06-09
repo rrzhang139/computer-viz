@@ -580,8 +580,9 @@ try {
   // Extract the "cell labels" (per-bit text) from a page.
   // For /register.html: labels are "bit 0", "bit 1", "bit 2", "bit 3"
   //   inside .dff-slot groups.
-  // For /counter.html's register overlay: labels are "DFF bit 0".. "DFF bit 3"
-  //   inside the register scene.
+  // For /counter.html's register overlay: it now embeds an EXACT copy of
+  //   /register.html, so its labels are the same "bit 0".."bit 3" inside the
+  //   embedded .dff-slot groups (under #slot-register .embed).
   // Loose match: extract the trailing digit.
   async function collectBitLabels(pageUrl, selector) {
     await page.goto(`${HOST}${pageUrl}`);
@@ -602,7 +603,7 @@ try {
   await page.hover('#slot-register');
   await page.waitForTimeout(150);
   const overlayBits = await page.$$eval(
-    '#slot-register .register-scene text',
+    '#slot-register .embed text',
     (els) => els
       .map((e) => (e.textContent || '').trim())
       .filter((t) => /bit\s*\d/.test(t))
@@ -636,7 +637,7 @@ try {
   const standaloneOrder = await bitOrderByY('/register.html', null,
     '.dff-slot text.simple-label');
   const overlayOrder = await bitOrderByY('/counter.html', '#slot-register',
-    '#slot-register .register-scene text');
+    '#slot-register .embed text');
   expect(`top-to-bottom bit order matches: standalone=${JSON.stringify(standaloneOrder)} vs overlay=${JSON.stringify(overlayOrder)}`,
     JSON.stringify(standaloneOrder), JSON.stringify(overlayOrder));
 
