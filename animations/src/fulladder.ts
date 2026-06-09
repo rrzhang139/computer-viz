@@ -4,6 +4,7 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
+import { autoFillEmbeds } from "./embedPreview";
 // Full adder: A + B + Cin → (S, Cout)
 //   sum1   = A XOR B          (HA1's sum)
 //   carry1 = A AND B          (HA1's carry)
@@ -32,103 +33,48 @@ let A: Bit = readBitParam('A', _snap?.A ?? 0);
 let B: Bit = readBitParam('B', _snap?.B ?? 0);
 let Cin: Bit = readBitParam('Cin', _snap?.Cin ?? 0);
 
-// ── HA mini geometry ──────────────────────────────────────────────────
-// Local coords match the HA box (240 × 160). Inside: two stylized sub-boxes
-// for XOR (top) and AND (bottom), plus internal wires routing A and B to
-// each sub-box and the sub-box outputs to the parent HA's sum/carry exits.
-
-const HA_BOX = { w: 240, h: 160 };
-const HA_MINI_WIRES: { net: string; points: string }[] = [
-  // A net: enters at (0, 40), tees down at x=30 to reach AND below
-  { net: 'A',     points: '0,40 30,40 30,110' },
-  { net: 'A',     points: '30,40 80,40' },
-  { net: 'A',     points: '30,110 80,110' },
-  // B net: enters at (0, 120), tees up at x=50 to reach XOR above
-  { net: 'B',     points: '0,120 50,120 50,60' },
-  { net: 'B',     points: '50,60 80,60' },
-  { net: 'B',     points: '50,120 80,120' },
-  // Sub-box outputs
-  { net: 'sum',   points: '160,40 240,40' },
-  { net: 'carry', points: '160,120 240,120' },
-];
-const HA_MINI_BOXES = [
-  { tid: 'XOR', x: 80,  y: 20,  w: 80, h: 40, lx: 120, ly: 40 },
-  { tid: 'AND', x: 80,  y: 100, w: 80, h: 40, lx: 120, ly: 120 },
-];
-
-interface SlotBox { x: number; y: number; w: number; h: number; }
-const HA_SLOT_POS: Record<string, SlotBox> = {
-  ha1: { x: 180, y: 60, w: 240, h: 160 },
-  ha2: { x: 530, y: 60, w: 240, h: 160 },
+// ── Embed an EXACT copy of /halfadder.html in each HA slot, and route the
+// full adder's wires onto the embedded half adders' real pins. ───────────
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
+const HA1: Record<string, Pt> = embeds.get('slot-ha1') || {};
+const HA2: Record<string, Pt> = embeds.get('slot-ha2') || {};
+const setW = (id: string, pts: string) => document.getElementById(id)?.setAttribute('points', pts);
+const placePin = (id: string, x: number, y: number) => {
+  const c = document.getElementById(id);
+  if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
 };
-
-function buildHaMini(slot: string, box: SlotBox): SVGGElement {
-  const g = document.createElementNS(SVG_NS, 'g');
-  g.setAttribute('class', 'detailed');
-  g.setAttribute('data-slot', slot);
-  g.setAttribute('transform',
-    `translate(${box.x}, ${box.y}) scale(${box.w / HA_BOX.w}, ${box.h / HA_BOX.h})`);
-
-  // Background pane so the mini reads as a unit
-  const bg = document.createElementNS(SVG_NS, 'rect');
-  bg.setAttribute('fill', 'rgba(20, 20, 20, 0.92)');
-  bg.setAttribute('stroke', 'var(--on)');
-  bg.setAttribute('stroke-width', '1.5');
-  bg.setAttribute('vector-effect', 'non-scaling-stroke');
-  bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
-  bg.setAttribute('width', String(HA_BOX.w));
-  bg.setAttribute('height', String(HA_BOX.h));
-  bg.setAttribute('rx', '10');
-  g.appendChild(bg);
-
-  for (const w of HA_MINI_WIRES) {
-    const wire = document.createElementNS(SVG_NS, 'polyline');
-    wire.setAttribute('class', 'wire-mini');
-    wire.setAttribute('data-net', w.net);
-    wire.setAttribute('data-on', '0');
-    wire.setAttribute('points', w.points);
-    g.appendChild(wire);
-  }
-  for (const b of HA_MINI_BOXES) {
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('class', 'tbody-mini');
-    r.setAttribute('data-tid', b.tid);
-    r.setAttribute('x', String(b.x));
-    r.setAttribute('y', String(b.y));
-    r.setAttribute('width', String(b.w));
-    r.setAttribute('height', String(b.h));
-    r.setAttribute('rx', '6');
-    g.appendChild(r);
-    const t = document.createElementNS(SVG_NS, 'text');
-    t.setAttribute('class', 'tlabel-mini');
-    t.setAttribute('data-tid', b.tid);
-    t.setAttribute('x', String(b.lx));
-    t.setAttribute('y', String(b.ly));
-    t.textContent = b.tid;
-    g.appendChild(t);
-  }
-  return g;
+if (HA1.pinA && HA1.pinB && HA1.pinSum && HA1.pinCarry &&
+    HA2.pinA && HA2.pinB && HA2.pinSum && HA2.pinCarry) {
+  // HA1: A_in←A, B_in←B, Sum→sum1, Carry→carry1.
+  placePin('pinA', 0, HA1.pinA.y); setW('wA', `0,${HA1.pinA.y} ${HA1.pinA.x},${HA1.pinA.y}`);
+  placePin('pinB', 0, HA1.pinB.y); setW('wB', `0,${HA1.pinB.y} ${HA1.pinB.x},${HA1.pinB.y}`);
+  // sum1: HA1.Sum → HA2.A
+  setW('wSum1', `${HA1.pinSum.x},${HA1.pinSum.y} ${HA2.pinA.x},${HA2.pinA.y}`);
+  // Cin: enters from the left, wraps UP over HA1, down onto HA2.B (stay left of HA2 box)
+  placePin('pinCin', 0, 380);
+  setW('wCin', `0,380 60,380 60,40 ${HA2.pinB.x - 25},40 ${HA2.pinB.x - 25},${HA2.pinB.y} ${HA2.pinB.x},${HA2.pinB.y}`);
+  // carry1: HA1.Carry → OR top input (530,320)
+  setW('wCarry1', `${HA1.pinCarry.x},${HA1.pinCarry.y} 460,${HA1.pinCarry.y} 460,320 530,320`);
+  // carry2: HA2.Carry → OR bottom input (530,400), wrapping below
+  setW('wCarry2', `${HA2.pinCarry.x},${HA2.pinCarry.y} 810,${HA2.pinCarry.y} 810,460 490,460 490,400 530,400`);
+  // S: HA2.Sum → S_out
+  setW('wS', `${HA2.pinSum.x},${HA2.pinSum.y} 1020,${HA2.pinSum.y}`);
+  placePin('pinS', 1020, HA2.pinSum.y);
 }
 
-for (const slot of Object.keys(HA_SLOT_POS)) {
-  document.getElementById(`slot-${slot}`)
-    ?.appendChild(buildHaMini(slot, HA_SLOT_POS[slot]));
+// Light an embedded half adder to its logical state.
+function lightHa(hostId: string, a: Bit, b: Bit) {
+  const host = document.getElementById(hostId);
+  if (!host) return;
+  const sum: Bit = (a ^ b) as Bit;
+  const carry: Bit = (a & b) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('A', a); w('B', b); w('sum', sum); w('carry', carry);
+  body('gXor', sum); body('gAnd', carry);
 }
-
-function setHaMiniState(slot: string, A: Bit, B: Bit) {
-  const root = svg.querySelector(`g.detailed[data-slot="${slot}"]`);
-  if (!root) return;
-  const sum: Bit = (A ^ B) as Bit;
-  const carry: Bit = (A & B) as Bit;
-  const set = (sel: string, on: Bit) =>
-    root.querySelectorAll(sel).forEach((el) => el.setAttribute('data-on', String(on)));
-  set('.wire-mini[data-net="A"]',     A);
-  set('.wire-mini[data-net="B"]',     B);
-  set('.wire-mini[data-net="sum"]',   sum);
-  set('.wire-mini[data-net="carry"]', carry);
-  root.querySelector(`.tbody-mini[data-tid="XOR"]`)?.setAttribute('data-on', String(sum));
-  root.querySelector(`.tbody-mini[data-tid="AND"]`)?.setAttribute('data-on', String(carry));
-}
+interface SlotBox { x: number; y: number; w: number; h: number; }
 
 // ── OR truth table overlay ───────────────────────────────────────────
 const OR_BOX = { x: 530, y: 280, w: 200, h: 160 };
@@ -209,7 +155,7 @@ function highlightOrRow(currentRow: number) {
 }
 
 // ── Pulse overlay for wires ──────────────────────────────────────────
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS(SVG_NS, 'polyline');
@@ -260,9 +206,9 @@ function render() {
   document.getElementById('pinS')!.setAttribute('data-on',    String(S));
   document.getElementById('pinCout')!.setAttribute('data-on', String(Cout));
 
-  // Propagate state into hover overlay minis
-  setHaMiniState('ha1', A, B);
-  setHaMiniState('ha2', sum1, Cin);
+  // Propagate state into the embedded half-adder copies + OR truth table
+  lightHa('ha1Detail', A, B);
+  lightHa('ha2Detail', sum1, Cin);
   highlightOrRow(carry1 * 2 + carry2);
 
   sumDisplay.textContent = String(S);

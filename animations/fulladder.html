@@ -403,40 +403,45 @@
           <!-- GND rail -->
           <polyline class="wire" data-net="GND" points="0,560 1020,560" />
 
-          <!-- A and B: straight horizontals into HA1 -->
-          <polyline class="wire" data-net="A" points="0,100 180,100" />
-          <polyline class="wire" data-net="B" points="0,180 180,180" />
+          <!-- A and B: straight horizontals into HA1 (routed onto embedded HA1 pins in TS) -->
+          <polyline class="wire" id="wA" data-net="A" points="0,100 180,100" />
+          <polyline class="wire" id="wB" data-net="B" points="0,180 180,180" />
 
-          <!-- C_in: wraps UP over HA1 to reach HA2.B_in on the LEFT -->
-          <polyline class="wire" data-net="Cin" points="0,380 60,380 60,40 505,40 505,180 530,180" />
+          <!-- C_in: wraps UP over HA1 to reach HA2's B input on the LEFT -->
+          <polyline class="wire" id="wCin" data-net="Cin" points="0,380 60,380 60,40 505,40 505,180 530,180" />
 
-          <!-- sum1 (HA1's sum) → HA2's A input (straight horizontal at y=100) -->
-          <polyline class="wire" data-net="sum1" points="420,100 530,100" />
+          <!-- sum1 (HA1's sum) → HA2's A input -->
+          <polyline class="wire" id="wSum1" data-net="sum1" points="420,100 530,100" />
 
           <!-- carry1 (HA1's carry) → OR.A (down and right into OR top input) -->
-          <polyline class="wire" data-net="carry1" points="420,180 460,180 460,320 530,320" />
+          <polyline class="wire" id="wCarry1" data-net="carry1" points="420,180 460,180 460,320 530,320" />
 
           <!-- carry2 (HA2's carry) → OR.B (wraps around to the bottom) -->
-          <polyline class="wire" data-net="carry2" points="770,180 810,180 810,460 490,460 490,400 530,400" />
+          <polyline class="wire" id="wCarry2" data-net="carry2" points="770,180 810,180 810,460 490,460 490,400 530,400" />
 
           <!-- S (final sum, from HA2) → S_out pin -->
-          <polyline class="wire" data-net="S" points="770,100 1020,100" />
+          <polyline class="wire" id="wS" data-net="S" points="770,100 1020,100" />
 
           <!-- C_out (from OR) → C_out pin -->
           <polyline class="wire" data-net="Cout" points="730,360 1020,360" />
 
-          <!-- HA1 (top-left): half adder taking A and B -->
-          <g class="gate-slot" id="slot-ha1" tabindex="0" role="button">
+          <!-- HA1 (top-left): half adder taking A and B. Hover embeds an EXACT
+               copy of /halfadder.html; wires route onto its real pins (TS). -->
+          <g class="gate-slot child-slot" id="slot-ha1" tabindex="0" role="button"
+             data-embed-page="/halfadder.html" data-embed-svg="halfadder">
             <rect class="tbody simple-body" id="gHa1" x="180" y="60" width="240" height="160" rx="12" />
             <text class="tlabel simple-label" x="300" y="125">HA1</text>
             <text class="tlabel-small simple-label" x="300" y="155">half adder (A + B)</text>
+            <g class="detailed" id="ha1Detail"></g>
           </g>
 
           <!-- HA2 (top-right): half adder taking sum1 and C_in -->
-          <g class="gate-slot" id="slot-ha2" tabindex="0" role="button">
+          <g class="gate-slot child-slot" id="slot-ha2" tabindex="0" role="button"
+             data-embed-page="/halfadder.html" data-embed-svg="halfadder">
             <rect class="tbody simple-body" id="gHa2" x="530" y="60" width="240" height="160" rx="12" />
             <text class="tlabel simple-label" x="650" y="125">HA2</text>
             <text class="tlabel-small simple-label" x="650" y="155">half adder (sum1 + Cin)</text>
+            <g class="detailed" id="ha2Detail"></g>
           </g>
 
           <!-- OR gate: combines the two carries -->
