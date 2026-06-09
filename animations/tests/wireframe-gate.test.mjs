@@ -55,6 +55,7 @@ const LAYER_TO_PAGE = {
   regfile:    'regfile.html',
   alu:        'alu.html',
   alu1:       'alu1.html',
+  datapath:   'datapath.html',
 };
 
 // Terminals that don't appear as data-net wires because they're

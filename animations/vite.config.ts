@@ -20,6 +20,7 @@ export default defineConfig({
         regfile:    resolve(__dirname, 'regfile.html'),
         alu:        resolve(__dirname, 'alu.html'),
         alu1:       resolve(__dirname, 'alu1.html'),
+        datapath:   resolve(__dirname, 'datapath.html'),
       },
     },
   },

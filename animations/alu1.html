@@ -205,13 +205,13 @@
         </div>
         <div class="step-bodies">
           <article class="step">
-            <h3>where we are: one bit of the ALU</h3>
-            <p>The previous page showed the <em>4-bit</em> ALU — wide buses, four answers in parallel. This page zooms into <span class="accent">one bit-slice of it</span>. Everything the wide ALU does, it does by stacking four copies of <em>this</em>.</p>
+            <h3>where we are: the ALU, one bit wide</h3>
+            <p>The <kbd>ALU</kbd> is the CPU's calculator: hand it two operands and a 2-bit <kbd>op</kbd> and it adds, ANDs, ORs, or XORs them. We build it <span class="accent">one bit wide</span> — the true design unit — because a wider ALU is just this slice replicated, one per bit.</p>
             <p>A slice takes one bit of each operand (<kbd>A</kbd>, <kbd>B</kbd>), a carry-in <kbd>Cin</kbd>, and the 2-bit <kbd>op</kbd>, and produces one result bit <kbd>Y</kbd> plus a carry-out <kbd>Cout</kbd>. Inputs on the LEFT, results on the RIGHT. This is the same "build the 1-bit cell, then replicate" move you saw with the full adder → 4-bit adder.</p>
           </article>
           <article class="step" hidden>
             <h3>four tiny machines, computed at once</h3>
-            <p>Just like the wide ALU, all four blocks run together on the same <kbd>A</kbd> and <kbd>B</kbd>: the <kbd>full adder</kbd> computes <kbd>A + B + Cin</kbd>, and the single <kbd>AND</kbd>, <kbd>OR</kbd>, <kbd>XOR</kbd> gates each compute their one-bit result. Four answers, ready before <kbd>op</kbd> has chosen anything.</p>
+            <p>All four blocks run together on the same <kbd>A</kbd> and <kbd>B</kbd>: the <kbd>full adder</kbd> computes <kbd>A + B + Cin</kbd>, and the single <kbd>AND</kbd>, <kbd>OR</kbd>, <kbd>XOR</kbd> gates each compute their one-bit result. Four answers, ready before <kbd>op</kbd> has chosen anything.</p>
             <p>Click the <kbd>full adder</kbd> to drill into <kbd>/fulladder.html</kbd> — it's literally the full adder you built earlier, now doing the ADD inside the ALU.</p>
           </article>
           <article class="step" hidden>
@@ -222,11 +222,11 @@
           <article class="step" hidden>
             <h3>the carry is the one wire between slices</h3>
             <p>Only the <em>ADD</em> path uses <kbd>Cin</kbd> and <kbd>Cout</kbd>. The bitwise ops compute a carry too, but the MUX never selects it, so it's harmless. Toggle <kbd>Cin</kbd> with <kbd>op = 00</kbd>: <kbd>Y</kbd> flips, because the slice is now adding three 1-bit numbers.</p>
-            <p>This <kbd>Cout</kbd> is what feeds the <em>next</em> slice's <kbd>Cin</kbd> when you stack four of these into the 4-bit ALU. Control (<kbd>op</kbd>) is broadcast to every slice; data (<kbd>A</kbd>, <kbd>B</kbd>) is per-slice; the carry is the <span class="accent">only wire that runs between slices</span>.</p>
+            <p>This <kbd>Cout</kbd> is what feeds the <em>next</em> slice's <kbd>Cin</kbd> when you stack these into a wider ALU. Control (<kbd>op</kbd>) is broadcast to every slice; data (<kbd>A</kbd>, <kbd>B</kbd>) is per-slice; the carry is the <span class="accent">only wire that runs between slices</span>.</p>
           </article>
           <article class="step" hidden>
             <h3>why this matters</h3>
-            <p>This one slice is the true design unit of an ALU. Stack 4 of them (broadcasting <kbd>op</kbd>, chaining <kbd>Cout → Cin</kbd>) and you have the 4-bit ALU on the previous page; stack 32 and you have the RV32I ALU that runs <kbd>add x3, x1, x2</kbd>.</p>
+            <p>This one slice is the true design unit of an ALU. Stack 4 of them (broadcasting <kbd>op</kbd>, chaining <kbd>Cout → Cin</kbd>) and you have a 4-bit ALU; stack 32 and you have the RV32I ALU that runs <kbd>add x3, x1, x2</kbd>.</p>
             <p>Widening a datapath is never "redesign the logic" — it's "replicate the bit-slice and broadcast the control." The same idea widened the adder and the register file. The slice is the atom; the width is just how many you place side by side.</p>
           </article>
         </div>

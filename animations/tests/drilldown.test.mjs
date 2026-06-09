@@ -417,15 +417,21 @@ try {
   await checkBreadcrumb('← back to regfile · reg2');
   await backAndExpectAlive('#slot-reg2');
 
-  // Drill into the read MUX — carries the 4 stored bits + read address
+  // Drill into read MUX A — carries the 4 stored bits + read-port-A address
   await drill('#slot-mux');
-  expect('regfile→mux which=rmux', new URL(page.url()).searchParams.get('which'), 'rmux');
-  expect('regfile→mux in2=1 (reg2 stored)', new URL(page.url()).searchParams.get('in2'), '1');
-  expect('regfile→mux s1=1 (raddr1)',       new URL(page.url()).searchParams.get('s1'), '1');
-  await checkBreadcrumb('← back to regfile · rmux');
+  expect('regfile→muxA which=rmuxA', new URL(page.url()).searchParams.get('which'), 'rmuxA');
+  expect('regfile→muxA in2=1 (reg2 stored)', new URL(page.url()).searchParams.get('in2'), '1');
+  expect('regfile→muxA s1=1 (raddr1)',       new URL(page.url()).searchParams.get('s1'), '1');
+  await checkBreadcrumb('← back to regfile · rmuxA');
   await page.screenshot({ path: path.join(OUT_DIR, '10_regfile_to_mux.png') });
   await backAndExpectAlive('#slot-mux');
   expect('regfile back: reg2 still stored (snapshot)', await wireOn('q2'), '1');
+
+  // Drill into read MUX B (the second read port) — same stored bits, port-B addr
+  await drill('#slot-muxB');
+  expect('regfile→muxB which=rmuxB', new URL(page.url()).searchParams.get('which'), 'rmuxB');
+  expect('regfile→muxB in2=1 (reg2 stored)', new URL(page.url()).searchParams.get('in2'), '1');
+  await backAndExpectAlive('#slot-muxB');
 
   // ════════════════════════════════════════════════════════════════
   // 17) ALU: parallel compute, op-select, drill into adder + op-MUX
@@ -670,8 +676,11 @@ try {
     { page: '/regfile.html',   slot: 'slot-decoder',  expectedTitle: /decoder|computer-viz/i },
     { page: '/regfile.html',   slot: 'slot-reg2',     expectedTitle: /DFF|computer-viz/i },
     { page: '/regfile.html',   slot: 'slot-mux',      expectedTitle: /MUX|computer-viz/i },
+    { page: '/regfile.html',   slot: 'slot-muxB',     expectedTitle: /MUX|computer-viz/i },
     { page: '/alu.html',       slot: 'slot-adder',    expectedTitle: /adder|computer-viz/i },
     { page: '/alu.html',       slot: 'slot-mux',      expectedTitle: /MUX|computer-viz/i },
+    { page: '/datapath.html',  slot: 'slot-regfile',  expectedTitle: /register file|computer-viz/i },
+    { page: '/datapath.html',  slot: 'slot-alu',      expectedTitle: /ALU|computer-viz/i },
   ];
 
   for (const { page: pagePath, slot, expectedTitle } of VALID_DRILLS) {

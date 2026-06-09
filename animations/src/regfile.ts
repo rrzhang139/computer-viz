@@ -39,6 +39,8 @@ const btnWaddr0 = document.getElementById('btnWaddr0') as HTMLButtonElement;
 const btnWdata  = document.getElementById('btnWdata')  as HTMLButtonElement;
 const btnRaddr1 = document.getElementById('btnRaddr1') as HTMLButtonElement;
 const btnRaddr0 = document.getElementById('btnRaddr0') as HTMLButtonElement;
+const btnRaddrB1 = document.getElementById('btnRaddrB1') as HTMLButtonElement;
+const btnRaddrB0 = document.getElementById('btnRaddrB0') as HTMLButtonElement;
 const btnPulse  = document.getElementById('btnPulse')  as HTMLButtonElement;
 const btnReset  = document.getElementById('btnReset')  as HTMLButtonElement;
 const svg       = document.getElementById('regfile')   as unknown as SVGSVGElement;
@@ -47,10 +49,13 @@ const waddrBits = document.getElementById('waddrBits') as HTMLElement;
 const waddrDec  = document.getElementById('waddrDec')  as HTMLElement;
 const raddrBits = document.getElementById('raddrBits') as HTMLElement;
 const raddrDec  = document.getElementById('raddrDec')  as HTMLElement;
+const raddrBBits = document.getElementById('raddrBBits') as HTMLElement;
+const raddrBDec  = document.getElementById('raddrBDec')  as HTMLElement;
 const memBits   = document.getElementById('memBits')   as HTMLElement;
 const rdataBit  = document.getElementById('rdataBit')  as HTMLElement;
+const rdataBBit = document.getElementById('rdataBBit') as HTMLElement;
 
-type RfSnap = { mem: Bit[]; we: Bit; waddr1: Bit; waddr0: Bit; raddr1: Bit; raddr0: Bit; wdata: Bit };
+type RfSnap = { mem: Bit[]; we: Bit; waddr1: Bit; waddr0: Bit; raddr1: Bit; raddr0: Bit; raddrB1: Bit; raddrB0: Bit; wdata: Bit };
 const SNAP_KEY = 'regfile';
 // Seed the four registers with a pattern where flipping either read-address
 // bit changes the bit read out, so reading is obviously live on load.
@@ -66,6 +71,8 @@ let waddr1: Bit = readBitParam('waddr1', _snap?.waddr1 ?? 0);
 let waddr0: Bit = readBitParam('waddr0', _snap?.waddr0 ?? 0);
 let raddr1: Bit = readBitParam('raddr1', _snap?.raddr1 ?? 0);
 let raddr0: Bit = readBitParam('raddr0', _snap?.raddr0 ?? 0);
+let raddrB1: Bit = readBitParam('raddrB1', _snap?.raddrB1 ?? 0);
+let raddrB0: Bit = readBitParam('raddrB0', (_snap?.raddrB0 ?? 1) as Bit);  // default port B → reg1, so the two ports differ on load
 let wdata: Bit  = readBitParam('wdata', _snap?.wdata ?? 0);
 let clk: Bit    = 0;  // transient — only high during a clock-write pulse
 
@@ -112,25 +119,31 @@ for (let i = 0; i < 4; i++) {
   host.appendChild(placeDffScene(scene, regTerminals(i).place));
 }
 
-// The read-MUX box. The preview (buildMuxScene) is dropped in at a uniform
-// scale; the SAME transform is then used to project the scene's input/output
-// anchors into page coordinates, and the parent wires are routed onto those
-// projected points — so the wires always meet the MUX's real terminals even
-// if the box moves or resizes (nothing here is hardcoded to a y).
-const MUX_BOX = { x: 1010, y: 230, w: 200, h: 330 };
-const muxSc = Math.min(MUX_BOX.w / MUX_SCENE_W, MUX_BOX.h / MUX_SCENE_H);
-const muxOx = MUX_BOX.x + (MUX_BOX.w - MUX_SCENE_W * muxSc) / 2;
-const muxOy = MUX_BOX.y + (MUX_BOX.h - MUX_SCENE_H * muxSc) / 2;
-const muxAt = (a: { x: number; y: number }) => ({ x: muxOx + a.x * muxSc, y: muxOy + a.y * muxSc });
-
-const muxDetailHost = document.getElementById('muxDetail');
-const muxScene = muxDetailHost ? buildMuxScene() : null;
-if (muxDetailHost && muxScene) {
-  const wrap = document.createElementNS(SVG_NS, 'g');
-  wrap.setAttribute('transform', `translate(${muxOx}, ${muxOy}) scale(${muxSc})`);
-  wrap.appendChild(muxScene);
-  muxDetailHost.appendChild(wrap);
+// Two read-MUX boxes (port A top, port B bottom). Each preview (buildMuxScene)
+// is dropped in at a uniform scale; the SAME transform projects its input/
+// output anchors into page coordinates so the parent wires meet the MUX's real
+// terminals (nothing hardcoded to a y). `mountMux` returns the scene (for state
+// binding) + an `at()` projector.
+function mountMux(hostId: string, box: { x: number; y: number; w: number; h: number }) {
+  const sc = Math.min(box.w / MUX_SCENE_W, box.h / MUX_SCENE_H);
+  const ox = box.x + (box.w - MUX_SCENE_W * sc) / 2;
+  const oy = box.y + (box.h - MUX_SCENE_H * sc) / 2;
+  const at = (a: { x: number; y: number }) => ({ x: ox + a.x * sc, y: oy + a.y * sc });
+  const host = document.getElementById(hostId);
+  let scene: SVGGElement | null = null;
+  if (host) {
+    scene = buildMuxScene();
+    const wrap = document.createElementNS(SVG_NS, 'g');
+    wrap.setAttribute('transform', `translate(${ox}, ${oy}) scale(${sc})`);
+    wrap.appendChild(scene);
+    host.appendChild(wrap);
+  }
+  return { scene, at };
 }
+const MUX_A_BOX = { x: 1010, y: 110, w: 185, h: 220 };   // matches gMux rect
+const MUX_B_BOX = { x: 1010, y: 410, w: 185, h: 220 };   // matches gMuxB rect
+const muxA = mountMux('muxDetail', MUX_A_BOX);
+const muxB = mountMux('muxDetailB', MUX_B_BOX);
 
 // Route the projected wires. Only the route shape (lane x's, the over-the-top
 // read-address path, the wdata bus x) lives here; every endpoint is a
@@ -150,23 +163,33 @@ function setWirePoints(id: string, points: string) {
     const { CLK } = reg[i];
     setWirePoints(`gclk${i}`, `${AND_TIP_X},${AND_CY[i]} ${CLK.x},${AND_CY[i]} ${CLK.x},${CLK.y}`);
   }
-  // read address: across the top, drop into the MUX selects (projected)
-  const s1 = muxAt(MUX_SCENE_ANCHORS.s1), s0 = muxAt(MUX_SCENE_ANCHORS.s0);
-  setWirePoints('raddr1', `0,28 990,28 990,${s1.y} ${s1.x},${s1.y}`);
-  setWirePoints('raddr0', `0,48 1000,48 1000,${s0.y} ${s0.x},${s0.y}`);
-  // register outputs (Q, right-center) converge into the MUX data inputs
-  const inY = [muxAt(MUX_SCENE_ANCHORS.in0), muxAt(MUX_SCENE_ANCHORS.in1),
-               muxAt(MUX_SCENE_ANCHORS.in2), muxAt(MUX_SCENE_ANCHORS.in3)];
-  const laneX = { 3: 965, 2: 980, 1: 980, 0: 965 } as Record<number, number>;
+  // read addresses: port A across the top into MUX-A selects, port B into
+  // MUX-B selects (both projected onto the preview's s1/s0 stubs).
+  const aS1 = muxA.at(MUX_SCENE_ANCHORS.s1), aS0 = muxA.at(MUX_SCENE_ANCHORS.s0);
+  setWirePoints('raddr1', `0,28 990,28 990,${aS1.y} ${aS1.x},${aS1.y}`);
+  setWirePoints('raddr0', `0,48 1000,48 1000,${aS0.y} ${aS0.x},${aS0.y}`);
+  const bS1 = muxB.at(MUX_SCENE_ANCHORS.s1), bS0 = muxB.at(MUX_SCENE_ANCHORS.s0);
+  setWirePoints('raddrB1', `0,92 974,92 974,${bS1.y} ${bS1.x},${bS1.y}`);
+  setWirePoints('raddrB0', `0,112 984,112 984,${bS0.y} ${bS0.x},${bS0.y}`);
+  // register outputs (Q, right-center) fan to BOTH read MUXes' data inputs.
+  const inKey = ['in0', 'in1', 'in2', 'in3'] as const;
+  const laneA = { 3: 952, 2: 958, 1: 958, 0: 952 } as Record<number, number>;
+  const laneB = { 3: 946, 2: 964, 1: 964, 0: 946 } as Record<number, number>;
   for (let i = 0; i < 4; i++) {
-    const q = reg[i].Q, mi = inY[i];
-    setWirePoints(`q${i}`, `${q.x},${q.y} ${laneX[i]},${q.y} ${laneX[i]},${mi.y} ${mi.x},${mi.y}`);
+    const q = reg[i].Q;
+    const a = muxA.at(MUX_SCENE_ANCHORS[inKey[i]]);
+    const b = muxB.at(MUX_SCENE_ANCHORS[inKey[i]]);
+    setWirePoints(`q${i}`,  `${q.x},${q.y} ${laneA[i]},${q.y} ${laneA[i]},${a.y} ${a.x},${a.y}`);
+    setWirePoints(`q${i}B`, `${q.x},${q.y} ${laneB[i]},${q.y} ${laneB[i]},${b.y} ${b.x},${b.y}`);
   }
-  // MUX output → rdata pin/label
-  const out = muxAt(MUX_SCENE_ANCHORS.out);
-  setWirePoints('rdata', `${out.x},${out.y} 1400,${out.y}`);
-  document.getElementById('pinRdata')?.setAttribute('cy', String(out.y));
-  document.querySelector('text[data-pin="rdata"]')?.setAttribute('y', String(out.y));
+  // MUX outputs → rdata / rdataB pins + labels.
+  const outA = muxA.at(MUX_SCENE_ANCHORS.out), outB = muxB.at(MUX_SCENE_ANCHORS.out);
+  setWirePoints('rdata', `${outA.x},${outA.y} 1400,${outA.y}`);
+  setWirePoints('rdataB', `${outB.x},${outB.y} 1400,${outB.y}`);
+  document.getElementById('pinRdata')?.setAttribute('cy', String(outA.y));
+  document.querySelector('text[data-pin="rdata"]')?.setAttribute('y', String(outA.y));
+  document.getElementById('pinRdataB')?.setAttribute('cy', String(outB.y));
+  document.querySelector('text[data-pin="rdataB"]')?.setAttribute('y', String(outB.y));
 
   // Decoder: write address/enable → its projected a1/EN/a0 inputs; one-hot
   // wen3..0 leave its projected sel outputs and run into each AND's wen input.
@@ -213,6 +236,7 @@ function setBtn(btn: HTMLButtonElement | null, label: string, value: Bit) {
 function render() {
   const waddrIdx = waddr1 * 2 + waddr0;
   const raddrIdx = raddr1 * 2 + raddr0;
+  const raddrBIdx = raddrB1 * 2 + raddrB0;
 
   // Write decoder → one-hot write-enable (gated by we)
   const wen: Bit[] = [0, 0, 0, 0];
@@ -220,8 +244,9 @@ function render() {
   const gclk: Bit[] = [0, 0, 0, 0];
   for (let i = 0; i < 4; i++) gclk[i] = (clk && wen[i]) as Bit;
 
-  // Read port (combinational)
+  // Two read ports (combinational) — each picks one register's bit.
   const rdata: Bit = mem[raddrIdx];
+  const rdataB: Bit = mem[raddrBIdx];
 
   // Input wires + pins
   setNet('we', we);         setPin('pinWe', we);
@@ -229,6 +254,8 @@ function render() {
   setNet('waddr0', waddr0); setPin('pinWaddr0', waddr0);
   setNet('raddr1', raddr1); setPin('pinRaddr1', raddr1);
   setNet('raddr0', raddr0); setPin('pinRaddr0', raddr0);
+  setNet('raddrB1', raddrB1); setPin('pinRaddrB1', raddrB1);
+  setNet('raddrB0', raddrB0); setPin('pinRaddrB0', raddrB0);
   setNet('clk', clk);       setPin('pinClk', clk);
   setNet('wdata', wdata);   setPin('pinWdata', wdata);
 
@@ -238,8 +265,8 @@ function render() {
     setNet(`gclk${i}`, gclk[i]);
     setNet(`q${i}`, mem[i]);
   }
-  setNet('rdata', rdata);
-  setPin('pinRdata', rdata);
+  setNet('rdata', rdata);   setPin('pinRdata', rdata);
+  setNet('rdataB', rdataB); setPin('pinRdataB', rdataB);
 
   // Body glows
   setBody('gDecoder', we);
@@ -248,6 +275,7 @@ function render() {
     setBody(`gReg${i}`, mem[i]);
   }
   setBody('gMux', rdata);
+  setBody('gMuxB', rdataB);
 
   // Hover-preview state.
   if (decoderDetail) {
@@ -270,8 +298,9 @@ function render() {
   for (let i = 0; i < 4; i++) {
     if (dffScenes[i]) bindDffSceneState(dffScenes[i]!, { D: wdata, CLK: gclk[i], Qm: mem[i], Q: mem[i] });
   }
-  // Read-MUX preview: the four stored bits, read address as select.
-  if (muxScene) bindMuxSceneState(muxScene, { ins: [...mem] as Bit[], s1: raddr1, s0: raddr0 });
+  // Read-MUX previews: the four stored bits, each port's read address as select.
+  if (muxA.scene) bindMuxSceneState(muxA.scene, { ins: [...mem] as Bit[], s1: raddr1, s0: raddr0 });
+  if (muxB.scene) bindMuxSceneState(muxB.scene, { ins: [...mem] as Bit[], s1: raddrB1, s0: raddrB0 });
 
   // Buttons
   setBtn(btnWe, 'we', we);
@@ -280,18 +309,23 @@ function render() {
   setBtn(btnWdata, 'wdata', wdata);
   setBtn(btnRaddr1, 'raddr1', raddr1);
   setBtn(btnRaddr0, 'raddr0', raddr0);
+  setBtn(btnRaddrB1, 'raddrB1', raddrB1);
+  setBtn(btnRaddrB0, 'raddrB0', raddrB0);
 
   // Readouts
   waddrBits.textContent = `${waddr1}${waddr0}`;
   waddrDec.textContent = ` (${waddrIdx})`;
   raddrBits.textContent = `${raddr1}${raddr0}`;
   raddrDec.textContent = ` (${raddrIdx})`;
+  raddrBBits.textContent = `${raddrB1}${raddrB0}`;
+  raddrBDec.textContent = ` (${raddrBIdx})`;
   memBits.textContent = `r0=${mem[0]} r1=${mem[1]} r2=${mem[2]} r3=${mem[3]}`;
   rdataBit.textContent = String(rdata);
+  rdataBBit.textContent = String(rdataB);
 }
 
 function persist() {
-  saveSnapshot<RfSnap>(SNAP_KEY, { mem: [...mem] as Bit[], we, waddr1, waddr0, raddr1, raddr0, wdata });
+  saveSnapshot<RfSnap>(SNAP_KEY, { mem: [...mem] as Bit[], we, waddr1, waddr0, raddr1, raddr0, raddrB1, raddrB0, wdata });
 }
 
 function commitWrite() { if (we) mem[waddr1 * 2 + waddr0] = wdata; }
@@ -302,6 +336,8 @@ btnWaddr0.addEventListener('click', () => { waddr0 = waddr0 === 0 ? 1 : 0; rende
 btnWdata.addEventListener('click',  () => { wdata = wdata === 0 ? 1 : 0; render(); persist(); });
 btnRaddr1.addEventListener('click', () => { raddr1 = raddr1 === 0 ? 1 : 0; render(); persist(); });
 btnRaddr0.addEventListener('click', () => { raddr0 = raddr0 === 0 ? 1 : 0; render(); persist(); });
+btnRaddrB1.addEventListener('click', () => { raddrB1 = raddrB1 === 0 ? 1 : 0; render(); persist(); });
+btnRaddrB0.addEventListener('click', () => { raddrB0 = raddrB0 === 0 ? 1 : 0; render(); persist(); });
 
 // Clock-write pulse: clk 0→1 (latch on the edge) →0 — only the addressed
 // register sees the gated clock edge.
@@ -313,7 +349,7 @@ btnPulse.addEventListener('click', () => {
 
 btnReset.addEventListener('click', () => {
   for (let i = 0; i < 4; i++) mem[i] = SEED[i];   // back to the preloaded demo bits
-  we = 0; waddr1 = 0; waddr0 = 0; raddr1 = 0; raddr0 = 0; wdata = 0; clk = 0;
+  we = 0; waddr1 = 0; waddr0 = 0; raddr1 = 0; raddr0 = 0; raddrB1 = 0; raddrB0 = 1; wdata = 0; clk = 0;
   clearSnapshot(SNAP_KEY);
   render();
 });
@@ -336,9 +372,16 @@ for (let i = 0; i < 4; i++) {
 }
 document.getElementById('slot-mux')?.addEventListener('click', () => {
   window.location.assign(buildDrillUrl('/mux.html', {
-    from: 'regfile', which: 'rmux',
+    from: 'regfile', which: 'rmuxA',
     in0: mem[0], in1: mem[1], in2: mem[2], in3: mem[3],
     s1: raddr1, s0: raddr0,
+  }));
+});
+document.getElementById('slot-muxB')?.addEventListener('click', () => {
+  window.location.assign(buildDrillUrl('/mux.html', {
+    from: 'regfile', which: 'rmuxB',
+    in0: mem[0], in1: mem[1], in2: mem[2], in3: mem[3],
+    s1: raddrB1, s0: raddrB0,
   }));
 });
 
