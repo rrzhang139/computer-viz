@@ -486,7 +486,7 @@ try {
   expect('alu1: adder sum wire dark (1^1^0=0)', await wireOn('add'), '0');
   expect('alu1: Y readout 0 (1+1 sum bit)', await page.$eval('#yBit', (e) => e.textContent), '0');
   expect('alu1: Cout readout 1 (1+1 carry)', await page.$eval('#coutBit', (e) => e.textContent), '1');
-  expect('alu1: cout wire lit', await wireOn('cout'), '1');
+  expect('alu1: Cout wire lit', await wireOn('Cout'), '1');
   // Switch to AND (op=01): Y = 1 AND 1 = 1
   await page.click('#btnOp0');
   await page.waitForTimeout(40);

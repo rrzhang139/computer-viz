@@ -4,10 +4,7 @@ import {
   buildDrillUrl, readBitParam, initDrillBreadcrumb,
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
-import {
-  buildMuxScene, bindMuxSceneState, placeMuxScene,
-  MUX_SCENE_W, MUX_SCENE_H, MUX_SCENE_ANCHORS,
-} from "./scenes/muxScene";
+import { autoFillEmbeds } from "./embedPreview";
 
 // 1-bit ALU slice with 4 operations selected by a 2-bit op:
 //   00 → A + B (+Cin)   01 → A AND B   10 → A OR B   11 → A XOR B
@@ -40,120 +37,35 @@ let op0: Bit = readBitParam('op0', _snap?.op0 ?? 0);
 
 const OP_NAMES = ['ADD', 'AND', 'OR', 'XOR'];
 
-// ── Full-adder hover preview (mounted into #faDetail) ─────────────────
-// Geometry is the standalone /fulladder.html content, local frame
-// 1020 × 560, fitted into the full-adder box. Mirrors adder4.ts's FA mini.
-const FA_LOCAL_W = 1020;
-const FA_LOCAL_H = 560;
-const FA_MINI_WIRES: { net: string; points: string; alwaysOn?: boolean }[] = [
-  { net: 'Vdd', alwaysOn: true, points: '0,0 1020,0' },
-  { net: 'GND', points: '0,560 1020,560' },
-  { net: 'A',    points: '0,100 180,100' },
-  { net: 'B',    points: '0,180 180,180' },
-  { net: 'Cin',  points: '0,380 60,380 60,40 505,40 505,180 530,180' },
-  { net: 'sum1', points: '420,100 530,100' },
-  { net: 'c1',   points: '420,180 460,180 460,320 530,320' },
-  { net: 'c2',   points: '770,180 810,180 810,460 490,460 490,400 530,400' },
-  { net: 'S',    points: '770,100 1020,100' },
-  { net: 'Cout', points: '730,360 1020,360' },
-];
-const FA_MINI_SUBBOXES = [
-  { tid: 'HA1', x: 180, y: 60,  w: 240, h: 160, lx: 300, ly: 125 },
-  { tid: 'HA2', x: 530, y: 60,  w: 240, h: 160, lx: 650, ly: 125 },
-  { tid: 'OR',  x: 530, y: 280, w: 200, h: 160, lx: 630, ly: 345 },
-];
-const FA_MINI_WIRELABELS = [
-  { text: 'sum1', x: 475, y: 88 },
-  { text: 'c1',   x: 478, y: 250 },
-  { text: 'c2',   x: 828, y: 320 },
-];
-const FA_BOX = { x: 385, y: 105, w: 210, h: 140 };
+// ── Embed EXACT copies of the children (the canonical standard): the full
+// adder → /fulladder.html, the op-MUX → /mux.html. autoFillEmbeds returns each
+// embed's projected pins, so every wire lands on a real terminal.
+type Pt = { x: number; y: number };
+const embeds = autoFillEmbeds(svg);
+const FA: Record<string, Pt>  = embeds.get('slot-fa')  || {};
+const MUX: Record<string, Pt> = embeds.get('slot-mux') || {};
 
-function buildFaMini(): void {
-  const host = document.getElementById('faDetail');
-  if (!host) return;
-  const g = document.createElementNS(SVG_NS, 'g');
-  const sx = FA_BOX.w / FA_LOCAL_W;
-  const sy = FA_BOX.h / FA_LOCAL_H;
-  g.setAttribute('transform', `translate(${FA_BOX.x}, ${FA_BOX.y}) scale(${sx}, ${sy})`);
-
-  const bg = document.createElementNS(SVG_NS, 'rect');
-  bg.setAttribute('class', 'mini-bg');
-  bg.setAttribute('x', '0'); bg.setAttribute('y', '0');
-  bg.setAttribute('width', String(FA_LOCAL_W));
-  bg.setAttribute('height', String(FA_LOCAL_H));
-  bg.setAttribute('rx', '36');
-  g.appendChild(bg);
-
-  for (const w of FA_MINI_WIRES) {
-    const wire = document.createElementNS(SVG_NS, 'polyline');
-    wire.setAttribute('class', 'wire-mini');
-    wire.setAttribute('data-net', w.net);
-    wire.setAttribute('data-on', w.alwaysOn ? '1' : '0');
-    wire.setAttribute('points', w.points);
-    g.appendChild(wire);
-  }
-  for (const sb of FA_MINI_SUBBOXES) {
-    const r = document.createElementNS(SVG_NS, 'rect');
-    r.setAttribute('class', 'tbody-mini');
-    r.setAttribute('data-tid', sb.tid);
-    r.setAttribute('x', String(sb.x)); r.setAttribute('y', String(sb.y));
-    r.setAttribute('width', String(sb.w)); r.setAttribute('height', String(sb.h));
-    r.setAttribute('rx', '12');
-    g.appendChild(r);
-    const t = document.createElementNS(SVG_NS, 'text');
-    t.setAttribute('class', 'tlabel-mini');
-    t.setAttribute('data-tid', sb.tid);
-    t.setAttribute('x', String(sb.lx)); t.setAttribute('y', String(sb.ly));
-    t.textContent = sb.tid;
-    g.appendChild(t);
-  }
-  for (const l of FA_MINI_WIRELABELS) {
-    const t = document.createElementNS(SVG_NS, 'text');
-    t.setAttribute('class', 'tlabel-mini-tiny');
-    t.setAttribute('x', String(l.x)); t.setAttribute('y', String(l.y));
-    t.textContent = l.text;
-    g.appendChild(t);
-  }
-  host.appendChild(g);
+function lightFa(a_: Bit, b_: Bit, cin_: Bit) {
+  const host = document.getElementById('faDetail'); if (!host) return;
+  const sum1: Bit = (a_ ^ b_) as Bit, carry1: Bit = (a_ & b_) as Bit;
+  const S: Bit = (sum1 ^ cin_) as Bit, carry2: Bit = (sum1 & cin_) as Bit;
+  const Cout: Bit = (carry1 | carry2) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('A', a_); w('B', b_); w('Cin', cin_); w('sum1', sum1); w('carry1', carry1); w('carry2', carry2); w('S', S); w('Cout', Cout);
+  body('gHa1', (sum1 || carry1) ? 1 : 0); body('gHa2', (S || carry2) ? 1 : 0); body('gOr', Cout);
 }
-
-function bindFaMini(): void {
-  const root = document.getElementById('faDetail');
-  if (!root) return;
-  const sum1: Bit = (a ^ b) as Bit;
-  const c1:   Bit = (a & b) as Bit;
-  const S:    Bit = (sum1 ^ cin) as Bit;
-  const c2:   Bit = (sum1 & cin) as Bit;
-  const Cout: Bit = (c1 | c2) as Bit;
-  const set = (sel: string, on: Bit) =>
-    root.querySelectorAll(sel).forEach((el) => el.setAttribute('data-on', String(on)));
-  set('.wire-mini[data-net="A"]',    a);
-  set('.wire-mini[data-net="B"]',    b);
-  set('.wire-mini[data-net="Cin"]',  cin);
-  set('.wire-mini[data-net="sum1"]', sum1);
-  set('.wire-mini[data-net="c1"]',   c1);
-  set('.wire-mini[data-net="c2"]',   c2);
-  set('.wire-mini[data-net="S"]',    S);
-  set('.wire-mini[data-net="Cout"]', Cout);
-  root.querySelector('.tbody-mini[data-tid="HA1"]')?.setAttribute('data-on', String((sum1 || c1) ? 1 : 0));
-  root.querySelector('.tbody-mini[data-tid="HA2"]')?.setAttribute('data-on', String((S || c2) ? 1 : 0));
-  root.querySelector('.tbody-mini[data-tid="OR"]')?.setAttribute('data-on', String(Cout));
+function lightMux(ins: Bit[], s1_: Bit, s0_: Bit) {
+  const host = document.getElementById('muxDetail'); if (!host) return;
+  const sel: Bit[] = [0, 0, 0, 0] as Bit[]; sel[s1_ * 2 + s0_] = 1;
+  const andOut: Bit[] = ins.map((v, i) => (v & sel[i]) as Bit);
+  const out: Bit = (andOut[0] | andOut[1] | andOut[2] | andOut[3]) as Bit;
+  const w = (net: string, on: Bit) => host.querySelectorAll(`.wire[data-net="${net}"]`).forEach((e) => e.setAttribute('data-on', String(on)));
+  const body = (id: string, on: Bit) => host.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on));
+  w('s1', s1_); w('s0', s0_); w('EN', 1);
+  for (let i = 0; i < 4; i++) { w(`in${i}`, ins[i]); w(`sel${i}`, sel[i]); w(`andOut${i}`, andOut[i]); body(`gAnd${i}`, andOut[i]); }
+  w('out', out); body('gOr', out); body('gDecoder', 1);
 }
-
-// ── op-MUX hover preview (mounted into #muxDetail) ────────────────────
-const MUX_BOX = { x: 945, y: 280, w: 210, h: 420 };  // matches the gMux rect
-const muxAt = (a: { x: number; y: number }) => ({
-  x: MUX_BOX.x + a.x * (MUX_BOX.w / MUX_SCENE_W),
-  y: MUX_BOX.y + a.y * (MUX_BOX.h / MUX_SCENE_H),
-});
-const muxDetail = document.getElementById('muxDetail');
-const muxScene = muxDetail ? buildMuxScene() : null;
-if (muxDetail && muxScene) {
-  muxDetail.appendChild(placeMuxScene(muxScene, MUX_BOX));
-}
-
-buildFaMini();
 
 // Align the parent's full-adder wires onto the FA preview's PROJECTED
 // terminals (A/B/Cin on the left, S/Cout on the right) so they meet the cell
@@ -162,40 +74,36 @@ buildFaMini();
 // adder draws them (Cout comes from the OR gate, below S). The Cout wire then
 // routes up to the top-right Cout terminal (the carry leaves at the top so
 // slices chain cleanly when stacked into the 4-bit ALU).
-{
-  const sx = FA_BOX.w / FA_LOCAL_W, sy = FA_BOX.h / FA_LOCAL_H;
-  const at = (lx: number, ly: number) => ({ x: FA_BOX.x + lx * sx, y: FA_BOX.y + ly * sy });
-  const A = at(0, 100), B = at(0, 180), Cin = at(0, 380);
-  const S = at(1020, 100), Cout = at(1020, 360);
+if (FA.pinA && FA.pinB && FA.pinCin && FA.pinS && FA.pinCout
+    && MUX.pinIn0 && MUX.pinIn1 && MUX.pinIn2 && MUX.pinIn3 && MUX.pinS0 && MUX.pinS1 && MUX.pinOut) {
   const set = (id: string, pts: string) => document.getElementById(id)?.setAttribute('points', pts);
-  set('aFa', `70,385 70,${A.y} ${A.x},${A.y}`);
-  set('bFa', `105,595 105,${B.y} ${B.x},${B.y}`);
-  set('cinWire', `0,${Cin.y} ${Cin.x},${Cin.y}`);
-  document.getElementById('pinCin')?.setAttribute('cy', String(Cin.y));
-  set('coutWire', `${Cout.x},${Cout.y} 660,${Cout.y} 660,140 1400,140`);
+  const placePin = (id: string, x: number, y: number) => {
+    const c = document.getElementById(id);
+    if (c) { c.setAttribute('cx', String(x)); c.setAttribute('cy', String(y)); }
+  };
+  // Full adder: A/B/Cin in (left), S/Cout out (right) — projected pins.
+  set('aFa', `70,385 70,${FA.pinA.y} ${FA.pinA.x},${FA.pinA.y}`);
+  set('bFa', `105,595 105,${FA.pinB.y} ${FA.pinB.x},${FA.pinB.y}`);
+  set('cinWire', `0,${FA.pinCin.y} ${FA.pinCin.x},${FA.pinCin.y}`);
+  placePin('pinCin', 0, FA.pinCin.y);
+  // Cout leaves at the top-right (so slices chain cleanly when stacked).
+  set('coutWire', `${FA.pinCout.x},${FA.pinCout.y} 660,${FA.pinCout.y} 660,140 1400,140`);
 
   // op-MUX: each compute block's result → its projected data input; op selects
-  // → s1/s0; output → Y. (add=in0 … xor=in3; the preview orders in3 top … in0
-  // bottom, so the add/xor routes cross — connected, just not straight.)
-  const s1 = muxAt(MUX_SCENE_ANCHORS.s1), s0 = muxAt(MUX_SCENE_ANCHORS.s0);
-  const in0 = muxAt(MUX_SCENE_ANCHORS.in0), in1 = muxAt(MUX_SCENE_ANCHORS.in1);
-  const in2 = muxAt(MUX_SCENE_ANCHORS.in2), in3 = muxAt(MUX_SCENE_ANCHORS.in3);
-  const mout = muxAt(MUX_SCENE_ANCHORS.out);
-  set('addWire', `${S.x},${S.y} 700,${S.y} 700,${in0.y} ${in0.x},${in0.y}`);   // full-adder sum
-  // route AND past the OR gate's output (x>756) before dropping to in1, so the
-  // two don't run side-by-side near y≈600 (keeps them distinguishable).
-  set('andWire', `595,385 820,385 820,${in1.y} ${in1.x},${in1.y}`);
-  set('orWire',  `595,595 756,595 756,${in2.y} ${in2.x},${in2.y}`);
-  set('xorWire', `595,805 784,805 784,${in3.y} ${in3.x},${in3.y}`);
-  set('op1Wire', `0,105 35,105 35,35 896,35 896,${s1.y} ${s1.x},${s1.y}`);
-  set('op0Wire', `0,175 56,175 56,14 910,14 910,${s0.y} ${s0.x},${s0.y}`);
-  set('yWire', `${mout.x},${mout.y} 1400,${mout.y}`);
-  document.getElementById('pinY')?.setAttribute('cy', String(mout.y));
-  document.querySelector('text[data-pin="y"]')?.setAttribute('y', String(mout.y));
+  // → s1/s0; output → Y. (add=in0 … xor=in3.)
+  set('addWire', `${FA.pinS.x},${FA.pinS.y} 700,${FA.pinS.y} 700,${MUX.pinIn0.y} ${MUX.pinIn0.x},${MUX.pinIn0.y}`);
+  set('andWire', `595,385 820,385 820,${MUX.pinIn1.y} ${MUX.pinIn1.x},${MUX.pinIn1.y}`);
+  set('orWire',  `595,595 756,595 756,${MUX.pinIn2.y} ${MUX.pinIn2.x},${MUX.pinIn2.y}`);
+  set('xorWire', `595,805 784,805 784,${MUX.pinIn3.y} ${MUX.pinIn3.x},${MUX.pinIn3.y}`);
+  set('op1Wire', `0,105 35,105 35,35 896,35 896,${MUX.pinS1.y} ${MUX.pinS1.x},${MUX.pinS1.y}`);
+  set('op0Wire', `0,175 56,175 56,14 910,14 910,${MUX.pinS0.y} ${MUX.pinS0.x},${MUX.pinS0.y}`);
+  set('yWire', `${MUX.pinOut.x},${MUX.pinOut.y} 1480,${MUX.pinOut.y}`);
+  placePin('pinY', 1480, MUX.pinOut.y);
+  document.querySelector('text[data-pin="y"]')?.setAttribute('y', String(MUX.pinOut.y));
 }
 
-// Per-wire pulse overlays.
-const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
+// Per-wire pulse overlays (exclude embedded children's own wires).
+const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire')).filter((w) => !w.closest('.detailed'));
 const pulseFor = new Map<SVGPolylineElement, SVGPolylineElement>();
 for (const w of wires) {
   const p = document.createElementNS(SVG_NS, 'polyline');
@@ -210,6 +118,7 @@ for (const w of wires) {
 
 function setNet(net: string, on: Bit) {
   svg.querySelectorAll<SVGPolylineElement>(`.wire[data-net="${net}"]`).forEach((el) => {
+    if (el.closest('.detailed')) return;  // embedded children light via their own helpers
     el.setAttribute('data-on', String(on));
     pulseFor.get(el)?.setAttribute('data-on', String(on));
   });
@@ -247,13 +156,13 @@ function render() {
   setNet('xor', xorv); setBody('gXor', xorv);
 
   // Carry-out (from the full adder) + selected result → Y
-  setNet('cout', cout); setPin('pinCout', cout);
+  setNet('Cout', cout); setPin('pinCout', cout);
   setNet('Y', Y); setPin('pinY', Y);
   setBody('gMux', Y);
 
-  // Hover previews
-  bindFaMini();
-  if (muxScene) bindMuxSceneState(muxScene, { ins: [sum, andv, orv, xorv], s1: op1, s0: op0 });
+  // Embedded previews — exact copies of the child pages.
+  lightFa(a, b, cin);
+  lightMux([sum, andv, orv, xorv], op1, op0);
 
   // Buttons
   setBtn('btnA', 'A', a); setBtn('btnB', 'B', b); setBtn('btnCin', 'Cin', cin);

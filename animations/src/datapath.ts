@@ -149,7 +149,7 @@ function render() {
     gAnd0: wen[0], gAnd1: wen[1], gAnd2: wen[2], gAnd3: wen[3], gMux: A, gMuxB: B,
   });
   lightEmbed('aluDetail', {
-    op1, op0, Cin: 0, A, B, add: A ^ B, and: A & B, or: A | B, xor: A ^ B, cout: A & B, Y,
+    op1, op0, Cin: 0, A, B, add: A ^ B, and: A & B, or: A | B, xor: A ^ B, Cout: A & B, Y,
   }, {
     gFa: ((A ^ B) | (A & B)) as Bit, gAnd: A & B, gOr: A | B, gXor: A ^ B, gMux: Y,
   });

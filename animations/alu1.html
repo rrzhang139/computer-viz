@@ -163,7 +163,7 @@
 
           <!-- full adder carry-out: exits lower-right (from the OR gate), routes
                up to the top-right Cout terminal (carry leaves at the top) -->
-          <polyline class="wire" data-net="cout" id="coutWire" points="595,195 660,195 660,140 1400,140" />
+          <polyline class="wire" data-net="Cout" id="coutWire" points="595,195 660,195 660,140 1400,140" />
 
           <!-- op selects route over the top edge into the MUX -->
           <polyline class="wire" data-net="op1" id="op1Wire" points="0,105 35,105 35,35 896,35 896,350 945,350" />
@@ -174,7 +174,8 @@
 
           <!-- ── Children ───────────────────────────────────────────────── -->
           <!-- full adder (drillable) -->
-          <g class="child-slot" id="slot-fa" tabindex="0" role="button" aria-label="full adder">
+          <g class="child-slot" id="slot-fa" tabindex="0" role="button" aria-label="full adder"
+             data-embed-page="/fulladder.html" data-embed-svg="fulladder">
             <rect class="tbody simple-body" id="gFa" x="385" y="105" width="210" height="140" rx="10" />
             <text class="tlabel simple-label" x="490" y="175">full adder</text>
             <g class="detailed" id="faDetail"></g>
@@ -189,9 +190,10 @@
           <text class="tlabel" x="490" y="805">XOR</text>
 
           <!-- 4-to-1 op-MUX (drillable) -->
-          <g class="child-slot" id="slot-mux" tabindex="0" role="button" aria-label="MUX">
-            <rect class="tbody simple-body" id="gMux" x="945" y="280" width="210" height="420" rx="10" />
-            <text class="tlabel simple-label" x="1050" y="490">MUX</text>
+          <g class="child-slot" id="slot-mux" tabindex="0" role="button" aria-label="MUX"
+             data-embed-page="/mux.html" data-embed-svg="mux">
+            <rect class="tbody simple-body" id="gMux" x="945" y="250" width="470" height="330" rx="10" />
+            <text class="tlabel simple-label" x="1180" y="415">MUX</text>
             <g class="detailed" id="muxDetail"></g>
           </g>
         </svg>
