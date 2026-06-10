@@ -98,6 +98,14 @@ function embedSvg(host: Element, raw: string, svgId: string, box: Box): PinMap |
       }
       e.removeAttribute('id');
       e.classList?.remove('child-slot');
+      // CRITICAL: the parent slot fades its OWN `.simple-body`/`.simple-label`
+      // to 0 on hover (to reveal this preview). The embedded child's component
+      // boxes/labels share those class names and sit INSIDE the hovered slot,
+      // so they'd be faded to invisible too — you'd see only wires, no gates.
+      // Drop the class names (keep `tbody`/`tlabel` for styling + lighting) so
+      // the inner structure stays visible.
+      e.classList?.remove('simple-body');
+      e.classList?.remove('simple-label');
       // If the embedded page is itself a migrated composite, its own slots
       // carry data-embed-page. Strip those so the clone is fully inert and is
       // never re-discovered as a (now id-less) embed slot by the fidelity test.
@@ -130,6 +138,8 @@ function embedRendered(host: Element, render: (box: Box) => SVGGElement, box: Bo
     }
     e.removeAttribute('id');
     e.classList?.remove('child-slot');
+    e.classList?.remove('simple-body');
+    e.classList?.remove('simple-label');
     e.removeAttribute('data-embed-page');
     e.removeAttribute('data-embed-svg');
   }
@@ -137,10 +147,42 @@ function embedRendered(host: Element, render: (box: Box) => SVGGElement, box: Bo
   return pins;
 }
 
+// Inject (once per document) the styling that keeps an embedded preview
+// LEGIBLE. Unlit component boxes/wires/pins are near-black on the page (so they
+// recede behind lit ones), but at preview scale on a black canvas that makes
+// the inner STRUCTURE invisible — you'd see only the lit wires, not the gates.
+// These rules brighten only the OFF elements (`:not([data-on="1"])`), so lit
+// ones keep the page's orange and the boxes/wires are always visible. One
+// place fixes every embed on every page.
+function ensureEmbedStyle() {
+  if (document.getElementById('embed-legibility')) return;
+  const s = document.createElement('style');
+  s.id = 'embed-legibility';
+  s.textContent = `
+    /* The embed group is scaled DOWN to fit its box, which would shrink every
+       stroke to sub-pixel (invisible). non-scaling-stroke keeps strokes at a
+       constant on-screen width so the inner gates/wires stay legible. */
+    .embed .tbody, .embed .tbody-mini, .embed .wire, .embed .pin, .embed path {
+      vector-effect: non-scaling-stroke;
+    }
+    .embed .tbody:not([data-on="1"]), .embed .tbody-mini:not([data-on="1"]),
+    .embed path.tbody:not([data-on="1"]) {
+      fill: #202020; stroke: #7a7a7a; stroke-dasharray: none; stroke-width: 1.4;
+    }
+    .embed .tbody[data-on="1"], .embed .tbody-mini[data-on="1"] { stroke-width: 1.7; }
+    .embed .wire { stroke-width: 1.7; }
+    .embed .wire:not([data-on="1"]) { stroke: #5e5e5e; }
+    .embed .pin:not([data-on="1"]) { fill: #6f6f6f; }
+    .embed text { fill: #a2a2a2; }
+  `;
+  document.head.appendChild(s);
+}
+
 // Fill every [data-embed-page] slot under `root`. Returns slotId → projected
 // child pin positions (so the parent can route its wires ONTO the embedded
 // replica's real pins). Logs loudly any slot it cannot satisfy.
 export function autoFillEmbeds(root: ParentNode): Map<string, PinMap> {
+  ensureEmbedStyle();
   const out = new Map<string, PinMap>();
   for (const slot of Array.from(root.querySelectorAll('[data-embed-page]'))) {
     const id = (slot as Element).id;
