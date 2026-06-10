@@ -190,8 +190,8 @@
           <circle class="pin" id="pinWaddr0"  cx="0" cy="320" r="7" />
           <circle class="pin" id="pinClk"     cx="0" cy="470" r="7" />
           <circle class="pin" id="pinWdata"   cx="0" cy="710" r="7" />
-          <circle class="pin" id="pinRdata"   cx="1400" cy="222" r="7" />
-          <circle class="pin" id="pinRdataB"  cx="1400" cy="522" r="7" />
+          <circle class="pin" id="pinRdata"   cx="1505" cy="255" r="7" />
+          <circle class="pin" id="pinRdataB"  cx="1505" cy="615" r="7" />
           <text class="tlabel-small" x="-16" y="28"  text-anchor="end">raddr1</text>
           <text class="tlabel-small" x="-16" y="48"  text-anchor="end">raddr0</text>
           <text class="tlabel-small" x="-16" y="92"  text-anchor="end">raddrB1</text>
@@ -201,8 +201,8 @@
           <text class="tlabel-small" x="-16" y="320" text-anchor="end">waddr0</text>
           <text class="tlabel-small" x="-16" y="470" text-anchor="end">clk</text>
           <text class="tlabel-small" x="-16" y="710" text-anchor="end">wdata</text>
-          <text class="tlabel-small" x="1416" y="222" text-anchor="start" data-pin="rdata">rdata</text>
-          <text class="tlabel-small" x="1416" y="522" text-anchor="start" data-pin="rdataB">rdataB</text>
+          <text class="tlabel-small" x="1521" y="255" text-anchor="start" data-pin="rdata">rdata</text>
+          <text class="tlabel-small" x="1521" y="615" text-anchor="start" data-pin="rdataB">rdataB</text>
 
           <!-- ── Wires (points set programmatically in src/regfile.ts) ────── -->
           <!-- read-port A address rides across the TOP into MUX-A selects -->
@@ -266,8 +266,10 @@
           <polyline class="wire" data-net="qb0" id="qbStub0" points="930,645 952,645" />
 
           <!-- MUX outputs → rdata (port A) and rdataB (port B) -->
-          <polyline class="wire" data-net="rdata"  id="rdata"  points="1195,222 1400,222" />
-          <polyline class="wire" data-net="rdataB" id="rdataB" points="1195,522 1400,522" />
+          <!-- Static points exit the enlarged MUX boxes' right edge (x=1480);
+               regfile.ts re-anchors them onto the MUX out pins at runtime. -->
+          <polyline class="wire" data-net="rdata"  id="rdata"  points="1480,255 1505,255" />
+          <polyline class="wire" data-net="rdataB" id="rdataB" points="1480,615 1505,615" />
 
           <!-- ── Children ───────────────────────────────────────────────── -->
           <!-- 2-to-4 decoder (write select) -->

@@ -173,7 +173,10 @@ function ensureEmbedStyle() {
     .embed .wire { stroke-width: 1.7; }
     .embed .wire:not([data-on="1"]) { stroke: #5e5e5e; }
     .embed .pin:not([data-on="1"]) { fill: #6f6f6f; }
-    .embed text { fill: #a2a2a2; }
+    /* Hide ALL text inside a preview — component names, pin labels and wire
+       labels just clutter the scaled-down structure. The shapes carry the
+       meaning; the full labels are there when you actually drill in. */
+    .embed text { display: none; }
   `;
   document.head.appendChild(s);
 }
