@@ -11,10 +11,10 @@
       .nav { display: none; }
       .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
       .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; min-height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
       .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
       .step[hidden] { display: none; }
       .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
       .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
@@ -200,7 +200,7 @@
       </div>
 
       <aside class="step-panel">
-        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span></div>
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span></div>
         <div class="step-nav">
           <button class="btn" id="stepPrev">← prev</button>
           <button class="btn" id="stepNext">next →</button>
@@ -208,28 +208,38 @@
         <div class="step-bodies">
           <article class="step">
             <h3>where we are: the ALU, one bit wide</h3>
-            <p>The <kbd>ALU</kbd> is the CPU's calculator: hand it two operands and a 2-bit <kbd>op</kbd> and it adds, ANDs, ORs, or XORs them. We build it <span class="accent">one bit wide</span> — the true design unit — because a wider ALU is just this slice replicated, one per bit.</p>
-            <p>A slice takes one bit of each operand (<kbd>A</kbd>, <kbd>B</kbd>), a carry-in <kbd>Cin</kbd>, and the 2-bit <kbd>op</kbd>, and produces one result bit <kbd>Y</kbd> plus a carry-out <kbd>Cout</kbd>. Inputs on the LEFT, results on the RIGHT. This is the same "build the 1-bit cell, then replicate" move you saw with the full adder → 4-bit adder.</p>
+            <p>The <kbd>ALU</kbd> is the CPU's calculator: hand it two operands and a 2-bit <kbd>op</kbd> and it adds, ANDs, ORs, or XORs them. We build it <span class="accent">one bit wide</span> — the true design unit — because a wider ALU is nothing more than this exact slice replicated, one copy per bit.</p>
+            <p>A slice takes one bit of each operand (<kbd>A</kbd>, <kbd>B</kbd>), a carry-in <kbd>Cin</kbd>, and the 2-bit <kbd>op</kbd>, and produces one result bit <kbd>Y</kbd> plus a carry-out <kbd>Cout</kbd>. Inputs on the LEFT, results on the RIGHT. Press <kbd>↺ reset</kbd> so every input starts at 0, and watch the readout strip — it shows <kbd>A</kbd>, <kbd>B</kbd>, <kbd>Cin</kbd>, <kbd>op</kbd>, <kbd>Y</kbd>, and <kbd>Cout</kbd> live. This is the same "build the 1-bit cell, then replicate" move you saw take the full adder up to the 4-bit adder.</p>
           </article>
           <article class="step" hidden>
             <h3>four tiny machines, computed at once</h3>
-            <p>All four blocks run together on the same <kbd>A</kbd> and <kbd>B</kbd>: the <kbd>full adder</kbd> computes <kbd>A + B + Cin</kbd>, and the single <kbd>AND</kbd>, <kbd>OR</kbd>, <kbd>XOR</kbd> gates each compute their one-bit result. Four answers, ready before <kbd>op</kbd> has chosen anything.</p>
-            <p>Click the <kbd>full adder</kbd> to drill into <kbd>/fulladder.html</kbd> — it's literally the full adder you built earlier, now doing the ADD inside the ALU.</p>
+            <p>The four blocks on the left all run together on the same <kbd>A</kbd> and <kbd>B</kbd>, every cycle: the <kbd>full adder</kbd> computes <kbd>A + B + Cin</kbd> (one sum bit plus a carry), and the single <kbd>AND</kbd>, <kbd>OR</kbd>, and <kbd>XOR</kbd> gates each compute their one-bit result. Toggle <kbd>A</kbd> and <kbd>B</kbd> and you'll see several blocks light at once — four answers sitting ready before <kbd>op</kbd> has chosen anything.</p>
+            <p>Click the <kbd>full adder</kbd> to drill into <kbd>/fulladder.html</kbd> — it's literally the full adder you built earlier (two half-adders and an OR), now serving as the ADD path inside the ALU.</p>
           </article>
           <article class="step" hidden>
-            <h3>op picks one answer</h3>
-            <p>The 2-bit <kbd>op</kbd> drives a 4-to-1 <kbd>MUX</kbd>: <kbd>00 → A+B</kbd>, <kbd>01 → AND</kbd>, <kbd>10 → OR</kbd>, <kbd>11 → XOR</kbd>. Whichever it points at flows to <kbd>Y</kbd>; the other three are dropped. Click the <kbd>MUX</kbd> to drill into <kbd>/mux.html</kbd> — the exact primitive doing the selecting.</p>
-            <p>Set <kbd>A = 1</kbd>, <kbd>B = 1</kbd>. With <kbd>op = 00</kbd> the adder wins: <kbd>Y = 0</kbd> and <em>Cout = 1</em> (1+1 = 10). Flip <kbd>op0</kbd> to <kbd>01</kbd> — now <kbd>Y = 1</kbd> (1 AND 1), and the carry is ignored.</p>
+            <h3>op picks exactly one answer</h3>
+            <p>The 2-bit <kbd>op</kbd> drives a 4-to-1 <kbd>MUX</kbd> on the right: <kbd>00 → A+B</kbd>, <kbd>01 → AND</kbd>, <kbd>10 → OR</kbd>, <kbd>11 → XOR</kbd>. Whichever <kbd>op</kbd> points at flows out to <kbd>Y</kbd>; the other three results are computed and discarded. Click the <kbd>MUX</kbd> to drill into <kbd>/mux.html</kbd> — the exact primitive doing the selecting.</p>
+            <p>Set both operands high: <kbd>A = 1</kbd>, <kbd>B = 1</kbd>. Leave <kbd>op = 00</kbd> (ADD) and read the result in the next step — first just confirm all the operand wires into the blocks are lit.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>same A and B, four different Y</h3>
+            <p>With <kbd>A = 1</kbd> and <kbd>B = 1</kbd> still loaded (and <kbd>Cin = 0</kbd>), step <kbd>op</kbd> through every value and read <kbd>Y</kbd>:</p>
+            <p><kbd>op=00</kbd> ADD → <kbd>Y = 0</kbd> with <kbd>Cout = 1</kbd>, because 1 + 1 = <kbd>10</kbd>: the sum bit is 0 and the carry escapes (more on that next). Flip <kbd>op0</kbd> → <kbd>op=01</kbd> AND → <kbd>Y = 1</kbd> (both bits are 1), and the carry is now irrelevant. <kbd>op=10</kbd> OR → <kbd>Y = 1</kbd>. <kbd>op=11</kbd> XOR → <kbd>Y = 0</kbd> (the bits are equal, so they differ in zero places). <em>The operands never moved; only the select did.</em></p>
           </article>
           <article class="step" hidden>
             <h3>the carry is the one wire between slices</h3>
-            <p>Only the <em>ADD</em> path uses <kbd>Cin</kbd> and <kbd>Cout</kbd>. The bitwise ops compute a carry too, but the MUX never selects it, so it's harmless. Toggle <kbd>Cin</kbd> with <kbd>op = 00</kbd>: <kbd>Y</kbd> flips, because the slice is now adding three 1-bit numbers.</p>
-            <p>This <kbd>Cout</kbd> is what feeds the <em>next</em> slice's <kbd>Cin</kbd> when you stack these into a wider ALU. Control (<kbd>op</kbd>) is broadcast to every slice; data (<kbd>A</kbd>, <kbd>B</kbd>) is per-slice; the carry is the <span class="accent">only wire that runs between slices</span>.</p>
+            <p>Only the ADD path uses <kbd>Cin</kbd> and <kbd>Cout</kbd> — the bitwise ops compute a carry internally too, but the MUX never forwards it, so it stays harmless. See it move the result: with <kbd>op = 00</kbd>, set <kbd>A = 1</kbd>, <kbd>B = 0</kbd>, <kbd>Cin = 0</kbd> → <kbd>Y = 1</kbd>, <kbd>Cout = 0</kbd>. Now turn <kbd>Cin = 1</kbd> → the slice is adding <em>three</em> 1-bit numbers (1+0+1 = <kbd>10</kbd>), so <kbd>Y = 0</kbd> and <kbd>Cout = 1</kbd>.</p>
+            <p>That <kbd>Cout</kbd> is exactly what feeds the <em>next</em> slice's <kbd>Cin</kbd> when you stack these into a wider ALU. Note the division of labor: control (<kbd>op</kbd>) is broadcast identically to every slice, data (<kbd>A</kbd>, <kbd>B</kbd>) is private to each slice, and the carry is the <span class="accent">only wire that runs from one slice to the next</span>.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>how four of these become a 4-bit add</h3>
+            <p>Make the chaining concrete. Imagine four of these slices stacked, computing <kbd>0001 + 0001</kbd>. The bit-0 slice gets <kbd>A=1, B=1, Cin=0</kbd> → <kbd>Y=0, Cout=1</kbd> (you just saw this). That <kbd>Cout=1</kbd> becomes the bit-1 slice's <kbd>Cin</kbd>, where <kbd>A=0, B=0, Cin=1</kbd> → <kbd>Y=1, Cout=0</kbd>. The upper two slices add 0+0+0 → 0.</p>
+            <p>Read the result bits top-to-bottom: <kbd>0010</kbd> = 2. The carry rippled exactly one slice up and stopped. Nothing here is special-cased per position — every slice is this same page, and the <kbd>Cout → Cin</kbd> handoff is the whole mechanism that turns four one-bit adds into one four-bit add.</p>
           </article>
           <article class="step" hidden>
             <h3>why this matters</h3>
-            <p>This one slice is the true design unit of an ALU. Stack 4 of them (broadcasting <kbd>op</kbd>, chaining <kbd>Cout → Cin</kbd>) and you have a 4-bit ALU; stack 32 and you have the RV32I ALU that runs <kbd>add x3, x1, x2</kbd>.</p>
-            <p>Widening a datapath is never "redesign the logic" — it's "replicate the bit-slice and broadcast the control." The same idea widened the adder and the register file. The slice is the atom; the width is just how many you place side by side.</p>
+            <p>This one slice is the true atom of an ALU. Stack 4 of them — broadcasting <kbd>op</kbd> to all, chaining <kbd>Cout → Cin</kbd> up the column — and you have a 4-bit ALU; stack 32 and you have the RV32I ALU that runs <kbd>add x3, x1, x2</kbd>. The <kbd>datapath</kbd> page embeds exactly this slice as its ALU.</p>
+            <p>Widening a datapath is never "redesign the logic" — it's "replicate the bit-slice and broadcast the control." The same move widened the adder and the register file. The slice is the unit; the width is just how many you set side by side.</p>
           </article>
         </div>
       </aside>

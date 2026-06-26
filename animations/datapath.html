@@ -11,16 +11,16 @@
       .nav { display: none; }
       .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
       .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; min-height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
       .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
       .step[hidden] { display: none; }
       .step h3 { font-family: ui-monospace, monospace; font-size: calc(15px * var(--content-scale, 1)); text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 calc(10px * var(--content-scale, 1)); font-weight: 500; }
       .step p { margin: 0 0 calc(10px * var(--content-scale, 1)); color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: calc(15px * var(--content-scale, 1)); line-height: 1.5; }
       .step p:last-child { margin-bottom: 0; }
       .step kbd { font-family: ui-monospace, monospace; font-size: calc(13px * var(--content-scale, 1)); background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
-      @media (max-width: 900px) { .step-panel { height: auto; min-height: 180px; } .step-bodies { overflow: visible; } .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; } }
+      @media (max-width: 900px) { .step-panel { height: auto; min-height: 180px; } .step-bodies { overflow: visible; max-height: none; } .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; } }
       .step em { color: #fff; font-style: normal; }
       .step .accent { color: var(--on); }
       .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
@@ -129,8 +129,8 @@
           <!-- Pins + wires are POSITIONED in src/datapath.ts so every wire lands
                exactly on the embedded child's projected pin (the core invariant:
                the datapath's lines connect to the real component's terminals). -->
-          <circle class="pin" id="pinRaddr1"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddr1"  text-anchor="end">raddr1</text>
-          <circle class="pin" id="pinRaddr0"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddr0"  text-anchor="end">raddr0</text>
+          <circle class="pin" id="pinRaddr1"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddr1"  text-anchor="end">raddrA1</text>
+          <circle class="pin" id="pinRaddr0"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddr0"  text-anchor="end">raddrA0</text>
           <circle class="pin" id="pinRaddrB1" cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddrB1" text-anchor="end">raddrB1</text>
           <circle class="pin" id="pinRaddrB0" cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinRaddrB0" text-anchor="end">raddrB0</text>
           <circle class="pin" id="pinWaddr1"  cx="0" cy="0" r="7" /><text class="tlabel-small" data-pin="pinWaddr1"  text-anchor="end">waddr1</text>
@@ -181,36 +181,65 @@
       </div>
 
       <aside class="step-panel">
-        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span></div>
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 8</span></div>
         <div class="step-nav">
           <button class="btn" id="stepPrev">← prev</button>
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
           <article class="step">
-            <h3>where we are: the whole loop</h3>
-            <p>Every page so far built one part. This wires two of them — the <kbd>register file</kbd> and the <kbd>ALU</kbd> — into the loop a CPU actually runs.</p>
-            <p>One instruction, <kbd>add x3, x1, x2</kbd>, is four moves: <em>read</em> x1, <em>read</em> x2, <em>add</em> them, <em>write</em> x3. Follow it left to right across the diagram.</p>
+            <h3>where we are: the whole loop, assembled</h3>
+            <p>Every page until now built <em>one</em> part in isolation. This page is the assembly: it takes two of those parts — the <kbd>register file</kbd> on the left (where the numbers live) and the <kbd>ALU</kbd> on the right (where the math happens) — and wires them into the exact loop a real CPU runs on every instruction.</p>
+            <p>Over the next steps you'll execute one instruction end to end, one button at a time: <kbd>add x3, x1, x2</kbd> — "read register x1, read register x2, add them, store the sum into x3." That's <em>four</em> moves — <em>read, read, operate, write-back</em> — and you'll do each by hand, then read your own result back to close the loop.</p>
+            <p class="do">Press <kbd>↺ reset</kbd> so the values match what's described, then press <kbd>next →</kbd>.</p>
           </article>
           <article class="step" hidden>
-            <h3>step 1 — read two registers</h3>
-            <p>Set <kbd>read x1</kbd> and <kbd>read x2</kbd> to two different registers. The file has <em>two</em> read ports, so both values come out at once — that's why <kbd>add</kbd> needs only one pass.</p>
-            <p>Watch <kbd>rdataA</kbd> and <kbd>rdataB</kbd> light as they cross into the ALU. No clock — reading is instant.</p>
+            <h3>read the map: left → right, then back around</h3>
+            <p>Orient first. <em>Every input is a labeled terminal on the LEFT edge.</em> The two read-address lines <kbd>raddrA1</kbd>/<kbd>raddrA0</kbd> choose the first source register — you drive them with the <kbd>read x1</kbd> buttons <kbd>a1</kbd>/<kbd>a0</kbd>; <kbd>raddrB1</kbd>/<kbd>raddrB0</kbd> choose the second (<kbd>read x2</kbd> → <kbd>b1</kbd>/<kbd>b0</kbd>); <kbd>waddr1</kbd>/<kbd>waddr0</kbd> pick the write target (<kbd>write x3</kbd> → <kbd>w1</kbd>/<kbd>w0</kbd>), with <kbd>we</kbd> to enable the write, <kbd>clk</kbd> the clock, and <kbd>op1</kbd>/<kbd>op0</kbd> the operation (the <kbd>op</kbd> buttons). The two big blocks are the <kbd>register file</kbd> and, fed by it, the <kbd>ALU</kbd>; the answer leaves on the RIGHT as <kbd>result</kbd> (with the carry-out <kbd>Cout</kbd> above it). The two wires <em>between</em> the blocks are the whole point — the file's two read outputs cross into the ALU as its operands, and the ALU's result loops back along the bottom into the write port.</p>
+            <p class="do">Hover the <kbd>register file</kbd> block and hold still.</p>
+            <p>The box swaps for its real internals, lit to <em>this exact state</em>: <kbd>r0</kbd> glows (the one seeded 1), and read port A's MUX is already forwarding <kbd>r0</kbd>'s bit — that lit path out the right edge is the <em>1</em> sitting in operand <kbd>A</kbd>. The write-side decoder is dark, because <kbd>we = 0</kbd>: nothing can be written yet.</p>
+            <p class="do">Now hover the <kbd>ALU</kbd> block.</p>
+            <p>Inside, the full adder and the AND/OR/XOR gates are <em>all</em> chewing on <kbd>A</kbd> and <kbd>B</kbd> at once; the op-MUX at the output is forwarding just the ADD line. What you see on hover is exactly the page you'd land on by clicking — click either block any time to drill all the way down.</p>
           </article>
           <article class="step" hidden>
-            <h3>step 2 — pick the operation</h3>
-            <p>The <kbd>op</kbd> bits tell the ALU what to do: <kbd>00</kbd> add, <kbd>01</kbd> AND, <kbd>10</kbd> OR, <kbd>11</kbd> XOR.</p>
-            <p>Leave it on <kbd>00</kbd> for add. The ALU combines its two operands and the answer appears on <kbd>Y</kbd> → <kbd>result</kbd>.</p>
+            <h3>read your two source registers</h3>
+            <p>Checkpoint: the <kbd>stored</kbd> readout should say <kbd>r0=1 r1=0 r2=0 r3=0</kbd>, with <kbd>A</kbd> = 1 and <kbd>B</kbd> = 0. (If not, press <kbd>↺ reset</kbd>.) An address is just the register number in binary: <kbd>00→r0, 01→r1, 10→r2, 11→r3</kbd>. <kbd>read x1</kbd> is <kbd>00</kbd>, so port A points at <kbd>r0</kbd> and operand <kbd>A</kbd> reads <em>1</em>.</p>
+            <p class="do">Click <kbd>b0</kbd> so <kbd>read x2</kbd> becomes <kbd>00</kbd>.</p>
+            <p>Now <em>both</em> ports point at <kbd>r0</kbd>: operand <kbd>B</kbd> flips <em>0 → 1</em> and the lower wire between the blocks lights as that bit crosses into the ALU. Verify the one thing that matters: the <kbd>B</kbd> readout reads <em>1</em>. The same stored bit is feeding <em>both</em> read outputs in the <em>same instant</em> — no clock, no waiting — which is exactly the trick that lets <kbd>add</kbd> grab two operands in a single pass.</p>
+            <p class="do">Click <kbd>b0</kbd> again to point <kbd>read x2</kbd> back at <kbd>01</kbd> (<kbd>r1</kbd>).</p>
+            <p>Operand <kbd>B</kbd> drops back to <em>0</em>. That's the add we'll actually run: <kbd>A = 1</kbd> (from <kbd>r0</kbd>), <kbd>B = 0</kbd> (from <kbd>r1</kbd>).</p>
           </article>
           <article class="step" hidden>
-            <h3>step 3 — write it back</h3>
-            <p>See <kbd>Y</kbd> loop around the bottom into the file's write port. Set <kbd>write x3</kbd> to a target and turn <kbd>we = 1</kbd>.</p>
-            <p>Press <kbd>↻ run cycle</kbd>: on the clock edge <kbd>Y</kbd> latches into that register. The result is now stored — a later read can use it. <span class="accent">That feedback is what makes a machine make progress.</span></p>
+            <h3>tell the ALU what to do</h3>
+            <p>The ALU computes ADD, AND, OR, and XOR of <kbd>A</kbd> and <kbd>B</kbd> <em>simultaneously</em>; the 2-bit <kbd>op</kbd> only chooses which one becomes the <kbd>result</kbd>: <kbd>00→ADD</kbd>, <kbd>01→AND</kbd>, <kbd>10→OR</kbd>, <kbd>11→XOR</kbd>. Right now <kbd>op = 00</kbd> (ADD) and <kbd>1 + 0 = 1</kbd>, so the <kbd>result</kbd> readout is <em>1</em>.</p>
+            <p class="do">Before you click: with <kbd>A = 1</kbd> and <kbd>B = 0</kbd>, predict what <kbd>result</kbd> becomes if <kbd>op</kbd> selects AND. Then click <kbd>op0</kbd>.</p>
+            <p><kbd>op</kbd> is now <kbd>01</kbd> (AND) and <kbd>result</kbd> drops <em>1 → 0</em> — because <kbd>1 AND 0 = 0</kbd>. The operands never moved; all that changed is <em>which precomputed answer</em> the op-MUX forwards. That's the ALU's whole trick: compute everything, then pick.</p>
+            <p class="do">Click <kbd>op0</kbd> again to return to <kbd>op = 00</kbd> (ADD).</p>
+            <p><kbd>result</kbd> goes back to <em>1</em>. We're set up to execute the real <kbd>add</kbd>: operands <kbd>1</kbd> and <kbd>0</kbd>, operation ADD, answer <kbd>1</kbd> — now sitting on the wire, waiting.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the anticlimax — a result, but nothing stored</h3>
+            <p>Follow the ALU's output wire: besides leaving on the RIGHT as <kbd>result</kbd>, it bends around the bottom of the diagram and arrives back at the register file's write-data input on the left. That returning wire is the <span class="accent">feedback loop</span> — the thing that lets a machine build on its own previous answers instead of computing once and stopping.</p>
+            <p>And yet — look at the <kbd>stored</kbd> readout: it still says <kbd>r3=0</kbd>. The answer is <em>on the wire</em> but nothing has been remembered. Computing a result and <em>committing</em> it are deliberately separate: a write needs a target (<kbd>write x3</kbd> is already aimed at <kbd>r3</kbd>), the enable <kbd>we = 1</kbd>, <em>and</em> a clock edge. None of those have happened, so the value sits there, harmless. Next step we make all three line up.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>run one full cycle, slowly</h3>
+            <p>Setup confirm: <kbd>result</kbd> reads <em>1</em>, and <kbd>write x3</kbd> is <kbd>11</kbd> — that's <kbd>r3</kbd> (register 3, the <kbd>x3</kbd> the instruction names), currently <em>0</em> (dark), so a change will be impossible to miss.</p>
+            <p class="do">Click <kbd>we</kbd> so it reads <kbd>we 1</kbd>.</p>
+            <p>Writing is now <em>armed</em> — and still nothing has stored. <kbd>we</kbd> only unlocks the gate; it's the edge that pushes the value through. (Hover the <kbd>register file</kbd> and you'll see the write decoder light up and raise exactly one line — the one aimed at <kbd>r3</kbd>.)</p>
+            <p class="do">Press <kbd>↻ run cycle</kbd> and watch <kbd>r3</kbd>.</p>
+            <p>On the clock edge the <kbd>result</kbd> latches into <kbd>r3</kbd>: the <kbd>stored</kbd> readout flips <kbd>r3=0 → r3=1</kbd> and that register starts glowing. The other three never had write-enable aimed at them, so they hold untouched. <em>You just executed the write-back half of an instruction.</em></p>
+          </article>
+          <article class="step" hidden>
+            <h3>the loop closes — read back what you computed</h3>
+            <p>Here's the payoff of that feedback wire. The <kbd>1</kbd> you just wrote into <kbd>r3</kbd> is now an ordinary stored bit, indistinguishable from the seeded ones — so a <em>later</em> instruction can read it. Port B is still parked on <kbd>r1</kbd>, reading <em>0</em>; let's aim it at what you just computed.</p>
+            <p class="do">Click <kbd>b1</kbd> so <kbd>read x2</kbd> becomes <kbd>11</kbd>, pointing port B at <kbd>r3</kbd> — the register you just wrote.</p>
+            <p>Watch operand <kbd>B</kbd> flip <em>0 → 1</em>: the number you computed last cycle is now an input this cycle, pulled straight back out through the second read port. That round trip — <span class="accent">read → operate → write-back → read again</span> — is the entire reason a CPU makes progress. One instruction's output becomes the next instruction's input; strip out the loop and the machine could compute exactly one thing and have nowhere to put it.</p>
           </article>
           <article class="step" hidden>
             <h3>why this matters</h3>
-            <p>This is the heart of a CPU. Read → operate → write-back is the shape of nearly every instruction.</p>
-            <p>Widen the wires to 32 bits and drive <kbd>op</kbd>/<kbd>raddr</kbd>/<kbd>waddr</kbd> from a decoded instruction instead of buttons, and this same loop runs RV32I. Everything below it was built so this loop could exist.</p>
+            <p>You're now looking at the literal core of a CPU. <em>Read two registers → run them through the ALU → write the result back</em> is the shape of nearly every arithmetic and logic instruction in the machine; <kbd>add</kbd>, <kbd>sub</kbd>, <kbd>and</kbd>, <kbd>or</kbd>, <kbd>xor</kbd>, <kbd>slt</kbd> all walk this exact path and differ only in the <kbd>op</kbd> bits.</p>
+            <p>Two changes turn this toy into RV32I: widen every wire from 1 bit to 32, and stop driving <kbd>op</kbd>/<kbd>read x1</kbd>/<kbd>read x2</kbd>/<kbd>write x3</kbd> from buttons — instead decode them out of a 32-bit instruction word fetched from memory. Same loop, same blocks, same wires. Everything you built underneath this page existed so that this read → operate → write-back loop could run.</p>
           </article>
         </div>
       </aside>

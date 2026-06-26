@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / CPU — single-cycle datapath</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; min-height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: calc(15px * var(--content-scale, 1)); text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 calc(10px * var(--content-scale, 1)); font-weight: 500; }
+      .step p { margin: 0 0 calc(10px * var(--content-scale, 1)); color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: calc(15px * var(--content-scale, 1)); line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: calc(13px * var(--content-scale, 1)); background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      @media (max-width: 900px) { .step-panel { height: auto; min-height: 180px; } .step-bodies { overflow: visible; max-height: none; } .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; } }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 16px; cursor: pointer; min-width: 52px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      .btn-pulse { background: rgba(239, 159, 39, 0.12); color: var(--on); border-color: var(--on); }
+      .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
+      .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 66vh; width: 100%; height: auto; }
+
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .wire.bus { stroke-width: 7; }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      /* Supply rails — quiet background framing, not signal wires. */
+      .rail { fill: none; stroke: #1d1d1d; stroke-width: 2; stroke-linecap: round; }
+
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.4; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #888; font-size: 30px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .stage-head { fill: #5a5a5a; font-size: 23px; letter-spacing: 0.16em; font-family: ui-monospace, monospace; text-anchor: middle; pointer-events: none; user-select: none; text-transform: uppercase; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+      .tlabel-small { fill: #888; font-size: 20px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+
+      /* Drillable child blocks: hover swaps the box for the child's internals. */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot .simple-body, .child-slot .simple-label { transition: opacity 180ms; }
+      .child-slot:hover .simple-body, .child-slot:focus-within .simple-body,
+      .child-slot:hover .simple-label, .child-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      .detailed .pulse { display: none; }
+
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.10em; }
+      .out-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/cpu.html" aria-current="page">CPU</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn btn-pulse" id="btnStep">↻ run instruction</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">PC</span><span class="bits" id="rPc">0</span>
+          <span class="sep">·</span>
+          <span class="label">instr</span><span class="bits" id="rInstr">—</span>
+          <span class="sep">·</span>
+          <span class="label">A</span><span class="bits" id="rA">0</span>
+          <span class="label">B</span><span class="bits" id="rB">0</span>
+          <span class="label">→ result</span><span class="bits" id="rY">0</span>
+          <span class="sep">·</span>
+          <span class="label">regs</span><span class="bits" id="rRegs">r0=1 r1=1 r2=0 r3=0</span>
+        </div>
+
+        <!--
+          CPU — a single-cycle datapath, every block a LIVE drill into the page
+          that builds it. Hover any block: it swaps for an exact copy of that
+          page's diagram, and the datapath's wires land on the embedded
+          component's real pins (src/cpu.ts routes them via autoFillEmbeds, the
+          same mechanism datapath.html uses). Toy R-type ISA (op|rs1|rs2|rd),
+          1-bit data. Wireframe: wire_sketches/layer18_cpu.md.
+        -->
+        <svg id="cpu" viewBox="-120 -30 4360 1460" role="img"
+             aria-label="CPU single-cycle datapath: fetch, decode, execute, write-back"
+             preserveAspectRatio="xMidYMid meet">
+          <polyline class="rail" data-net="Vdd" points="0,8 4100,8" />
+          <polyline class="rail" data-net="GND" points="0,1400 4100,1400" />
+
+          <!-- stage headers -->
+          <text class="stage-head" x="260"  y="18">IF · fetch</text>
+          <text class="stage-head" x="1020" y="18">ID · decode</text>
+          <text class="stage-head" x="3600" y="18">EX · execute</text>
+          <text class="stage-head" x="3560" y="1080">WB · write-back</text>
+
+          <!-- ── source / sink terminals (CPU-level constants + clock) ─────── -->
+          <circle class="pin" id="pinClk"  cx="-100" cy="1200" r="7" /><text class="tlabel-small" data-pin="pinClk"  text-anchor="end" x="-118" y="1200">clk</text>
+          <circle class="pin" id="pinOne"  cx="1460" cy="410"  r="7" /><text class="tlabel-small" data-pin="pinOne"  text-anchor="middle" x="1460" y="388">1</text>
+          <circle class="pin" id="pinZero" cx="3090" cy="1080" r="7" /><text class="tlabel-small" data-pin="pinZero" text-anchor="middle" x="3090" y="1058">0</text>
+          <!-- ALU carry-out (unused by 1-bit ops) -->
+          <circle class="pin" id="coutTerm" cx="4090" cy="560" r="6" /><text class="tlabel-small" data-pin="coutTerm" text-anchor="start" x="4080" y="530">Cout</text>
+
+
+          <!-- ── wires (geometry set in src/cpu.ts onto projected pins) ─────── -->
+          <!-- clock -->
+          <polyline class="wire" data-net="clk" id="wClkPc" points="0,0 0,0" />
+          <polyline class="wire" data-net="clk" id="wClkRf" points="0,0 0,0" />
+          <!-- PC address out (right) → imem. The +1 loop is INSIDE the PC now
+               (see slot-pc preview), so there is no feedback band at this level. -->
+          <polyline class="wire" data-net="addr1"  id="wPcA1" points="0,0 0,0" />
+          <polyline class="wire" data-net="addr0"  id="wPcA0" points="0,0 0,0" />
+          <!-- instruction word: imem.rdata → the instruction decoder as ONE
+               8-bit bus (/8); the decoder slices it into the field buses below. -->
+          <polyline class="wire bus" data-net="instr" id="wInstr" points="0,0 0,0" />
+          <!-- decoded field buses (/2): rs1/rs2/rd → register file, opcode → ALU.
+               Each leaves the decoder and FANS into its consumer's two pins. -->
+          <polyline class="wire" data-net="rs1h" id="wRfA1" points="0,0 0,0" />
+          <polyline class="wire" data-net="rs1l" id="wRfA0" points="0,0 0,0" />
+          <polyline class="wire" data-net="rs2h" id="wRfB1" points="0,0 0,0" />
+          <polyline class="wire" data-net="rs2l" id="wRfB0" points="0,0 0,0" />
+          <polyline class="wire" data-net="rd1"  id="wWaddr1" points="0,0 0,0" />
+          <polyline class="wire" data-net="rd0"  id="wWaddr0" points="0,0 0,0" />
+          <!-- register file: write controls + read data out -->
+          <polyline class="wire" data-net="one"    id="wWe"     points="0,0 0,0" />
+          <polyline class="wire" data-net="wb"     id="wWdata"  points="0,0 0,0" />
+          <polyline class="wire" data-net="rdataA" id="wRdataA" points="0,0 0,0" />
+          <polyline class="wire" data-net="rdataB" id="wRdataB" points="0,0 0,0" />
+          <!-- op bus → ALU operation select (continuation of the control path) -->
+          <polyline class="wire" data-net="op1"  id="wAluOp1" points="0,0 0,0" />
+          <polyline class="wire" data-net="op0"  id="wAluOp0" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero" id="wAluCin" points="0,0 0,0" />
+          <polyline class="wire" data-net="cout" id="wAluCout" points="0,0 0,0" />
+          <!-- ALU result → write-back MUX, MUX → register file write data -->
+          <polyline class="wire" data-net="aluY"    id="wAluY"   points="0,0 0,0" />
+          <polyline class="wire" data-net="memdata" id="wMuxIn1" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"    id="wMuxIn2" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"    id="wMuxIn3" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"    id="wMuxS1"  points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"    id="wMuxS0"  points="0,0 0,0" />
+
+          <!-- ── drillable blocks (each = exact embed of its page) ─────────── -->
+          <!-- IF: program counter. The +1 adder sits on the LEFT and feeds the
+               register on the RIGHT; the register's Q is the current PC, exposed
+               as the address out on the right edge. The increment loop lives
+               inside (revealed on hover) — at this level the PC has only clk-in
+               (top) and the two address bits out (right). Drill → /counter.html. -->
+          <g class="child-slot" id="slot-pc" tabindex="0" role="button"
+             aria-label="program counter — click to drill into the counter">
+            <rect class="tbody simple-body" id="gPc" x="40" y="130" width="440" height="320" rx="12" />
+            <text class="tlabel simple-label" x="260" y="290">PC</text>
+            <!-- hover preview: a program counter = adder(+1) → register, looped -->
+            <g class="detailed" id="pcDetail">
+              <rect class="tbody" data-body="gPcAdd" x="80" y="190" width="120" height="210" rx="10" />
+              <text class="tlabel" x="140" y="295">+1</text>
+              <rect class="tbody" data-body="gPcReg" x="300" y="190" width="120" height="210" rx="10" />
+              <text class="tlabel" x="360" y="295">reg</text>
+              <!-- clk into the register (top) -->
+              <polyline class="wire" data-net="clk" points="360,130 360,190" />
+              <!-- adder sum S → register D (the next-PC bus) -->
+              <polyline class="wire" data-net="pcnext" points="200,250 300,250" />
+              <polyline class="wire" data-net="pcnext" points="200,350 300,350" />
+              <!-- register Q → address out (right edge) -->
+              <polyline class="wire" data-net="addr1" points="420,250 480,250" />
+              <polyline class="wire" data-net="addr0" points="420,350 480,350" />
+              <!-- feedback: register Q loops back to the adder A inputs (+1 loop) -->
+              <polyline class="wire" data-net="addr1" points="420,250 452,250 452,430 60,430 60,250 80,250" />
+              <polyline class="wire" data-net="addr0" points="420,350 438,350 438,414 72,414 72,350 80,350" />
+            </g>
+            <!-- external terminals (always visible; the CPU wires land here) -->
+            <circle class="pin" id="pinPcClk" cx="360" cy="130" r="7" />
+            <circle class="pin" id="pinPcA1"  cx="480" cy="250" r="7" />
+            <circle class="pin" id="pinPcA0"  cx="480" cy="350" r="7" />
+            <text class="tlabel-small" x="500" y="250" text-anchor="start">addr1</text>
+            <text class="tlabel-small" x="500" y="350" text-anchor="start">addr0</text>
+          </g>
+          <!-- IF: instruction memory -->
+          <g class="child-slot" id="slot-imem" tabindex="0" role="button" aria-label="instruction memory"
+             data-embed-page="/mem.html" data-embed-svg="mem">
+            <rect class="tbody simple-body" id="gImem" x="40" y="580" width="500" height="470" rx="12" />
+            <text class="tlabel simple-label" x="290" y="815">instruction memory</text>
+            <g class="detailed" id="imemDetail"></g>
+          </g>
+          <!-- ID: instruction decoder — slices the 8-bit word into field buses -->
+          <g class="child-slot" id="slot-idecode" tabindex="0" role="button" aria-label="instruction decoder"
+             data-embed-page="/idecode.html" data-embed-svg="idecode">
+            <rect class="tbody simple-body" id="gIdecode" x="640" y="640" width="760" height="420" rx="12" />
+            <text class="tlabel simple-label" x="1020" y="850">decode</text>
+            <g class="detailed" id="idecodeDetail"></g>
+          </g>
+          <!-- ID/WB: register file -->
+          <g class="child-slot" id="slot-regfile" tabindex="0" role="button" aria-label="register file"
+             data-embed-page="/regfile.html" data-embed-svg="regfile">
+            <rect class="tbody simple-body" id="gRegfile" x="1500" y="450" width="1500" height="760" rx="12" />
+            <text class="tlabel simple-label" x="2250" y="830">register file</text>
+            <g class="detailed" id="regfileDetail"></g>
+          </g>
+          <!-- EX: ALU -->
+          <g class="child-slot" id="slot-alu" tabindex="0" role="button" aria-label="ALU"
+             data-embed-page="/alu1.html" data-embed-svg="alu1">
+            <rect class="tbody simple-body" id="gAlu" x="3140" y="430" width="920" height="620" rx="12" />
+            <text class="tlabel simple-label" x="3600" y="740">ALU</text>
+            <g class="detailed" id="aluDetail"></g>
+          </g>
+          <!-- WB: write-back MUX -->
+          <g class="child-slot" id="slot-wbmux" tabindex="0" role="button" aria-label="write-back MUX"
+             data-embed-page="/mux.html" data-embed-svg="mux">
+            <rect class="tbody simple-body" id="gWbmux" x="3200" y="1090" width="720" height="270" rx="12" />
+            <text class="tlabel simple-label" x="3560" y="1225">write-back</text>
+            <g class="detailed" id="wbmuxDetail"></g>
+          </g>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 6</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step" data-stage="overview" data-focus="all" data-gate="#btnReset">
+            <h3>the whole machine — and you can open every box</h3>
+            <p>This is a working processor's datapath, assembled from pages you've already built. <em>Every block is a live door</em> — hover one (<kbd>PC</kbd>, <kbd>instruction memory</kbd>, <kbd>decode</kbd>, <kbd>register file</kbd>, <kbd>ALU</kbd>, <kbd>write-back</kbd>) to swap it for an exact copy of the page that builds it; click to drill to the transistors.</p>
+            <p>There are a lot of wires, so each is <em>colored by what it carries</em> — and every step tells you the one or two colors to watch and to ignore the rest: <kbd class="wt-addr1">address</kbd>, <kbd class="wt-instr">instruction</kbd>, <kbd class="wt-op">op</kbd>, operands <kbd class="wt-rdataA">A</kbd> + <kbd class="wt-rdataB">B</kbd>, the <kbd class="wt-aluY">result</kbd>, the <kbd class="wt-wb">write-back</kbd> loop, the <kbd class="wt-clk">clock</kbd>.</p>
+            <p class="do">Press <kbd>↺ reset</kbd>. The readout above should now read <kbd>PC 00</kbd> · <kbd>r0=1 r1=1 r2=0 r3=0</kbd>. We'll press <kbd>↻ run instruction</kbd> once per step, parking the camera on one stage each press.</p>
+          </article>
+          <article class="step" hidden data-stage="fetch" data-focus="#gPc,#gImem" data-gate="#btnStep">
+            <h3>fetch: PC → instruction memory</h3>
+            <p><strong>Watch two colors only: <kbd class="wt-addr1">address</kbd> (blue) and <kbd class="wt-instr">instr</kbd> (violet).</strong> The <kbd>PC</kbd> holds the current address; the blue <kbd class="wt-addr1">address</kbd> wires leave its right side and wrap to the <kbd>instruction memory</kbd>, which hands the word back on the violet <kbd class="wt-instr">instr</kbd> bus rising in the gap to its right.</p>
+            <p class="do">Press <kbd>↻ run instruction</kbd> once. This is instruction 0, <kbd>ADD r2,r0,r1</kbd>. Watch the blue <kbd class="wt-addr1">address</kbd> wires and the violet <kbd class="wt-instr">instr</kbd> bus light, and the readout's <kbd>PC</kbd> tick <kbd>00 → 01</kbd>.</p>
+            <p>(Hover <kbd>PC</kbd> or <kbd>instruction memory</kbd> to open the real register cells and the memory's read MUX.)</p>
+          </article>
+          <article class="step" hidden data-stage="decode" data-focus="#gControl,#gRegfile" data-gate="#btnStep">
+            <h3>decode: split the instruction, read two registers</h3>
+            <p><strong>The 8-bit <kbd class="wt-instr">instr</kbd> bus (/8) enters the <kbd>decode</kbd> block, which slices it into four 2-bit field buses (/2).</strong> <kbd class="wt-rdataA">rs1</kbd> → the <kbd>register file</kbd>'s read-A address and <kbd class="wt-rdataB">rs2</kbd> → read-B; <kbd>rd</kbd> → the write address; and the amber <kbd class="wt-op">op</kbd> bus runs to the <kbd>ALU</kbd>. No logic — pure field extraction.</p>
+            <p class="do">Press <kbd>↻ run instruction</kbd> once. The readout now shows <kbd>AND r3,r0,r1</kbd> — <kbd class="wt-op">op</kbd>=<kbd>01</kbd>, <kbd class="wt-rdataA">rs1</kbd>=<kbd>00</kbd>→r0, <kbd class="wt-rdataB">rs2</kbd>=<kbd>01</kbd>→r1 — so the <kbd>A</kbd>/<kbd>B</kbd> readout reads <kbd>A=1 B=1</kbd>.</p>
+            <p>(Hover <kbd>decode</kbd> to watch the 8-bit word split into its <kbd>opcode</kbd>/<kbd>rs1</kbd>/<kbd>rs2</kbd>/<kbd>rd</kbd> fields, each leaving as a <kbd>/2</kbd> bus.)</p>
+          </article>
+          <article class="step" hidden data-stage="execute" data-focus="#gAlu" data-gate="#btnStep">
+            <h3>execute: the ALU computes</h3>
+            <p><strong>Follow the two operands across the central gap into the <kbd>ALU</kbd>:</strong> green <kbd class="wt-rdataA">A</kbd> and teal <kbd class="wt-rdataB">B</kbd>. The amber <kbd class="wt-op">op</kbd> line from the decoder tells the ALU which operation to forward as the orange <kbd class="wt-aluY">result</kbd>.</p>
+            <p class="do">Press <kbd>↻ run instruction</kbd> once. The readout now shows <kbd>OR r2,r0,r1</kbd>. With green <kbd class="wt-rdataA">A</kbd>=1 and teal <kbd class="wt-rdataB">B</kbd>=1, watch the <kbd>result</kbd> readout become <kbd>1</kbd> (<kbd>1 OR 1 = 1</kbd>).</p>
+            <p>(Hover the <kbd>ALU</kbd> — the adder and the AND/OR/XOR gates all compute at once; the op-MUX forwards the chosen one.)</p>
+          </article>
+          <article class="step" hidden data-stage="writeback" data-focus="#gWbmux,#gRegfile" data-gate="#btnStep">
+            <h3>write-back: the result returns to storage</h3>
+            <p><strong>Follow the pink <kbd class="wt-wb">write-back</kbd> loop along the bottom.</strong> The orange <kbd class="wt-aluY">result</kbd> enters the <kbd>write-back</kbd> MUX, then the pink <kbd class="wt-wb">write-back</kbd> wire carries it all the way back to the register file's write port. The cyan <kbd class="wt-clk">clock</kbd> edge is what makes that write actually commit to register <kbd>rd</kbd>.</p>
+            <p class="do">Press <kbd>↻ run instruction</kbd> once. The readout shows <kbd>XOR r3,r0,r1</kbd>; follow the pink <kbd class="wt-wb">write-back</kbd> loop and watch the <kbd>regs</kbd> readout flip <kbd>r3</kbd> from <kbd>1 → 0</kbd> (<kbd>1 XOR 1 = 0</kbd>). Keep pressing to loop the four-instruction program.</p>
+            <p>(Hover <kbd>write-back</kbd> to open the MUX that picks ALU-result vs. memory-data.)</p>
+          </article>
+          <article class="step" hidden data-stage="why" data-focus="all">
+            <h3>why this matters</h3>
+            <p>You're looking at a complete CPU datapath — <em>fetch → decode → execute → write-back</em> — and every block opens into the real circuit underneath, down to transistors. Widen the wires to 32 bits and swap the toy ops for the full RV32I set and this shape runs real programs.</p>
+            <p>The one thing this single-cycle view leaves out is <em>overlap</em>: a pipeline inserts registers between these stages so several instructions run at once. That's the timing layer on top of exactly this datapath.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/cpu.ts"></script>
+  </body>
+</html>

@@ -56,6 +56,10 @@ const LAYER_TO_PAGE = {
   alu:        'alu.html',
   alu1:       'alu1.html',
   datapath:   'datapath.html',
+  idecode:    'idecode.html',
+  mem:        'mem.html',
+  fetch:      'fetch.html',
+  cpu:        'cpu.html',
 };
 
 // Terminals that don't appear as data-net wires because they're

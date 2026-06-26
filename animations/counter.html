@@ -296,57 +296,66 @@
             CLK enters TOP (control signal invariant)
             no external data input (PC self-feeds)
         -->
-        <svg id="counter" viewBox="-40 -30 1380 800" role="img"
+        <svg id="counter" viewBox="-40 -30 1500 800" role="img"
              aria-label="Program counter: 4-bit register with +1 adder feedback"
              preserveAspectRatio="xMidYMid meet">
           <!-- ── CLK fan-in from top to register ─────────────────────────── -->
           <!-- All wire geometry is REWRITTEN in counter.ts to land on the
                embedded register/adder projected pins. -->
-          <polyline class="wire" id="wCLK" data-net="CLK" points="270,30 270,140" />
-          <text class="tlabel-small" x="270" y="14">CLK</text>
-          <circle class="pin" id="pinCLK" cx="270" cy="30" r="7" />
+          <polyline class="wire" id="wCLK" data-net="CLK" points="990,30 990,140" />
+          <text class="tlabel-small" x="990" y="14">CLK</text>
+          <circle class="pin" id="pinCLK" cx="990" cy="30" r="7" />
 
-          <!-- ── Register box (left) ──────────────────────────────────────── -->
-          <g class="child-slot" id="slot-register" tabindex="0" role="button"
-             aria-label="Register internals"
-             data-embed-page="/register.html" data-embed-svg="register">
-            <rect class="tbody simple-body" id="boxReg" x="80" y="140" width="380" height="480" rx="14" />
-            <text class="tlabel simple-label" x="270" y="380">register</text>
-            <g class="detailed" id="registerDetail"></g>
-          </g>
-          <!-- D input labels (always visible, outside the box) -->
-          <text class="tlabel-small" x="60"  y="212">D3</text>
-          <text class="tlabel-small" x="60"  y="332">D2</text>
-          <text class="tlabel-small" x="60"  y="452">D1</text>
-          <text class="tlabel-small" x="60"  y="572">D0</text>
-          <text class="tlabel-small" x="480" y="212">Q3</text>
-          <text class="tlabel-small" x="480" y="332">Q2</text>
-          <text class="tlabel-small" x="480" y="452">Q1</text>
-          <text class="tlabel-small" x="480" y="572">Q0</text>
-
-          <!-- ── Adder box (right) ────────────────────────────────────────── -->
+          <!-- ── Adder box (LEFT) ─────────────────────────────────────────── -->
           <g class="child-slot" id="slot-adder" tabindex="0" role="button"
              aria-label="Adder internals"
              data-embed-page="/adder4.html" data-embed-svg="adder4">
-            <rect class="tbody simple-body" id="boxAdd" x="800" y="140" width="380" height="480" rx="14" />
-            <text class="tlabel simple-label" id="adderTitle" x="990" y="380">adder</text>
+            <rect class="tbody simple-body" id="boxAdd" x="80" y="140" width="380" height="480" rx="14" />
+            <text class="tlabel simple-label" id="adderTitle" x="270" y="380">adder</text>
             <g class="detailed" id="adderDetail"></g>
           </g>
-          <!-- A and S input/output labels (always visible, outside the box) -->
-          <text class="tlabel-small" x="780" y="212">A3</text>
-          <text class="tlabel-small" x="780" y="332">A2</text>
-          <text class="tlabel-small" x="780" y="452">A1</text>
-          <text class="tlabel-small" x="780" y="572">A0</text>
-          <text class="tlabel-small" x="1200" y="212">S3</text>
-          <text class="tlabel-small" x="1200" y="332">S2</text>
-          <text class="tlabel-small" x="1200" y="452">S1</text>
-          <text class="tlabel-small" x="1200" y="572">S0</text>
+          <!-- A (input, left) and S (output, right) labels -->
+          <text class="tlabel-small" x="60"  y="212">A3</text>
+          <text class="tlabel-small" x="60"  y="332">A2</text>
+          <text class="tlabel-small" x="60"  y="452">A1</text>
+          <text class="tlabel-small" x="60"  y="572">A0</text>
+          <text class="tlabel-small" x="480" y="212">S3</text>
+          <text class="tlabel-small" x="480" y="332">S2</text>
+          <text class="tlabel-small" x="480" y="452">S1</text>
+          <text class="tlabel-small" x="480" y="572">S0</text>
+
+          <!-- ── Register box (RIGHT) ─────────────────────────────────────── -->
+          <g class="child-slot" id="slot-register" tabindex="0" role="button"
+             aria-label="Register internals"
+             data-embed-page="/register.html" data-embed-svg="register">
+            <rect class="tbody simple-body" id="boxReg" x="800" y="140" width="380" height="480" rx="14" />
+            <text class="tlabel simple-label" x="990" y="380">register</text>
+            <g class="detailed" id="registerDetail"></g>
+          </g>
+          <!-- D (input, left) and Q (output, right) labels -->
+          <text class="tlabel-small" x="780"  y="212">D3</text>
+          <text class="tlabel-small" x="780"  y="332">D2</text>
+          <text class="tlabel-small" x="780"  y="452">D1</text>
+          <text class="tlabel-small" x="780"  y="572">D0</text>
+          <text class="tlabel-small" x="1200" y="212">Q3</text>
+          <text class="tlabel-small" x="1200" y="332">Q2</text>
+          <text class="tlabel-small" x="1200" y="452">Q1</text>
+          <text class="tlabel-small" x="1200" y="572">Q0</text>
 
           <!-- ── Q → A connections (forward bus, register.Q → adder.A) ────── -->
           <polyline class="wire" id="wQ3" data-net="Q3" points="460,200 800,200" />
           <polyline class="wire" id="wQ2" data-net="Q2" points="460,320 800,320" />
           <polyline class="wire" id="wQ1" data-net="Q1" points="460,440 800,440" />
           <polyline class="wire" id="wQ0" data-net="Q0" points="460,560 800,560" />
+
+          <!-- ── Count output (PC value): the register's Q1/Q0 tapped out the
+               RIGHT edge, routed OVER the top, clear of the adder + feedback.
+               This is the address that the fetch page feeds to memory.
+               Positioned in counter.ts onto the projected register Q pins. -->
+          <polyline class="wire" id="wQ3out" data-net="Q3" points="0,0 0,0" />
+          <polyline class="wire" id="wQ2out" data-net="Q2" points="0,0 0,0" />
+          <polyline class="wire" id="wQ1out" data-net="Q1" points="0,0 0,0" />
+          <polyline class="wire" id="wQ0out" data-net="Q0" points="0,0 0,0" />
 
           <!-- ── Feedback bus (adder.S → register.D), routed BELOW both boxes -->
           <polyline class="wire" id="wS3" data-net="S3" points="1180,200 1260,200 1260,720 20,720 20,200 80,200" />
@@ -375,6 +384,17 @@
           <circle class="pin" id="pinS2" cx="1180" cy="320" r="6" />
           <circle class="pin" id="pinS1" cx="1180" cy="440" r="6" />
           <circle class="pin" id="pinS0" cx="1180" cy="560" r="6" />
+          <!-- Count output pins (PC value → fetch address). The register sits on
+               the RIGHT now, so its Q1/Q0 tap straight out the right edge. -->
+          <circle class="pin" id="pinQ3out" cx="1290" cy="303" r="7" />
+          <circle class="pin" id="pinQ2out" cx="1290" cy="359" r="7" />
+          <circle class="pin" id="pinQ1out" cx="1290" cy="415" r="7" />
+          <circle class="pin" id="pinQ0out" cx="1290" cy="471" r="7" />
+          <text class="tlabel-small" x="1308" y="303" text-anchor="start">Q3</text>
+          <text class="tlabel-small" x="1308" y="359" text-anchor="start">Q2</text>
+          <text class="tlabel-small" x="1308" y="415" text-anchor="start">Q1</text>
+          <text class="tlabel-small" x="1308" y="471" text-anchor="start">Q0</text>
+          <text class="tlabel-small" x="1300" y="262" text-anchor="middle">count out</text>
         </svg>
       </div>
       <aside class="step-panel">
@@ -393,8 +413,8 @@
           </article>
           <article class="step" hidden>
             <h3>the layout</h3>
-            <p>On the left, the 4-bit <em>register</em> from the previous page. On the right, the 4-bit <em>adder</em>, with its B input hardwired to <kbd>0001</kbd> — so its job is simply "output A + 1".</p>
-            <p>The register's outputs <span class="accent">Q3..Q0</span> feed straight into the adder's <span class="accent">A3..A0</span>. The adder's outputs <span class="accent">S3..S0</span> loop back along the bottom into the register's <span class="accent">D3..D0</span>. <em>That loop is the whole trick.</em></p>
+            <p>On the left, the 4-bit <em>adder</em>, with its B input hardwired to <kbd>0001</kbd> — so its job is simply "output A + 1". On the right, the 4-bit <em>register</em> from the previous page, whose stored value <span class="accent">Q3..Q0</span> taps straight out the right edge as the PC.</p>
+            <p>The adder's outputs <span class="accent">S3..S0</span> feed forward across the gap into the register's <span class="accent">D3..D0</span>. The register's outputs <span class="accent">Q3..Q0</span> loop back along the bottom into the adder's <span class="accent">A3..A0</span>. <em>That loop is the whole trick.</em></p>
           </article>
           <article class="step" hidden>
             <h3>press pulse — PC increments</h3>

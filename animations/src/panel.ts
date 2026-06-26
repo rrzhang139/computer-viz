@@ -61,7 +61,7 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
 .canvas-col svg {
   max-height: calc(100vh - ${PANEL_HEIGHT_PX + 110}px) !important;
   min-height: 240px;
-  height: calc(100vh - ${PANEL_HEIGHT_PX + 110}px) !important;
+  height: auto !important;
   width: 100% !important;
 }
 
@@ -70,7 +70,8 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
   body { padding-bottom: 240px; }
   .canvas-col svg {
     max-height: calc(100vh - 360px) !important;
-    height: calc(100vh - 360px) !important;
+    min-height: 200px;
+    height: auto !important;
   }
 }
 @media (max-width: 600px) {
@@ -80,7 +81,34 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
   .step p { font-size: 16px !important; }
   .canvas-col svg {
     max-height: calc(100vh - 380px) !important;
-    height: calc(100vh - 380px) !important;
+    min-height: 180px;
+    height: auto !important;
+  }
+}
+/* Landscape phone / short viewport: shrink panel so the diagram still has room.
+   Also compress controls and readout — many-button pages (regfile, datapath)
+   otherwise eat the entire short axis. */
+@media (max-height: 500px) {
+  .step-panel { height: 140px !important; padding: 8px 14px 10px !important; }
+  body { padding-bottom: 140px; }
+  .step h3 { font-size: 13px !important; margin: 0 0 5px !important; }
+  .step p { font-size: 12px !important; line-height: 1.35 !important; margin: 0 0 5px !important; }
+  .step-meta { font-size: 10px !important; margin: 0 0 5px !important; }
+  .step-nav .btn { min-width: 70px !important; min-height: 32px !important; padding: 4px 10px !important; font-size: 12px !important; }
+  .controls { gap: 6px !important; row-gap: 4px !important; padding: 0 !important; }
+  .controls-row { gap: 5px !important; row-gap: 4px !important; }
+  .controls .btn, .controls-row .btn {
+    min-height: 32px !important; min-width: 44px !important;
+    padding: 4px 8px !important; font-size: 11px !important;
+  }
+  .controls-row .label { font-size: 9px !important; min-width: auto !important; }
+  .out-readout, .sel-readout {
+    font-size: 10px !important; padding: 4px 10px !important; gap: 8px !important;
+  }
+  .canvas-col svg {
+    max-height: calc(100vh - 200px) !important;
+    min-height: 100px;
+    height: auto !important;
   }
 }
 `;

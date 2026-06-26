@@ -26,15 +26,19 @@ x ∈ [-12, 12], y ∈ [-8, 6]
 
 ## External terminals
 
-| key       | role          | (x, y)        | edge   |
-|-----------|---------------|---------------|--------|
-| CLK_in    | clock in      | (-5, 5)       | TOP    |
-| Vdd       | supply (+V)   | ( 0, 6)       | TOP    |
-| GND       | supply (0V)   | ( 0, -8)      | BOTTOM |
+| key       | role                    | (x, y)        | edge   |
+|-----------|-------------------------|---------------|--------|
+| CLK_in    | clock in                | (-5, 5)       | TOP    |
+| Q1_out    | count bit 1 (PC out)    | (12, 1.5)     | RIGHT  |
+| Q0_out    | count bit 0 (PC out)    | (12, 0.5)     | RIGHT  |
+| Vdd       | supply (+V)             | ( 0, 6)       | TOP    |
+| GND       | supply (0V)             | ( 0, -8)      | BOTTOM |
 
-The PC has NO external D / Q / S external terminals — its data path is
-a closed feedback loop. The actual stored value is read by a sidebar
-implementation (UI), not via a wire.
+The PC's data path is a closed `+1` feedback loop (D ← S, Q → A); the
+register's Q is also tapped out on the RIGHT as the **count output** — the
+PC value that addresses memory on the fetch page. (Only the low 2 bits are
+exposed here, enough to address the toy's 4 instructions; the D/S feedback
+terminals stay internal.)
 
 ## Internal supply distribution
 
@@ -146,6 +150,13 @@ are outside the reg box (rail_L_n ≤ -9.5 < -7 = reg left).
 | add_S2_out     | reg_D2_in       | (10.5, 1), (10.5, -6.7), (-10.5, -6.7), (-10.5, 1) | S2 |
 | add_S1_out     | reg_D1_in       | (10, -1), (10, -6.4), (-10, -6.4), (-10, -1)   | S1  |
 | add_S0_out     | reg_D0_in       | (9.5, -3), (9.5, -6.1), (-9.5, -6.1), (-9.5, -3) | S0 |
+| reg_Q1_out     | Q1_out          | (1, -1), (1, 5), (11.5, 5), (11.5, 1.5)        | Q1  |
+| reg_Q0_out     | Q0_out          | (1.5, -3), (1.5, 4.7), (11.8, 4.7), (11.8, 0.5) | Q0 |
+
+The count-output wires tap the register's Q1/Q0 (the same nets that feed the
+adder's A1/A0) and route OVER the top — up in the gap left of the adder, across
+above it (clear of the adder's top edge), and down the far right past the
+feedback rails — to the RIGHT-edge `Q1_out`/`Q0_out` terminals.
 
 ## Alignment claims
 

@@ -4,5 +4,8 @@
   "outputDirectory": "dist",
   "devCommand": "npm run dev",
   "framework": null,
-  "cleanUrls": true
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/cpu/:stage", "destination": "/cpu.html?stage=:stage" }
+  ]
 }

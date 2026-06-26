@@ -5,6 +5,8 @@ import {
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
 import { autoFillEmbeds } from "./embedPreview";
+import { initSteps } from "./steps";
+import { initCanvasZoom } from "./canvasZoom";
 
 // Program counter: 4-bit register + 4-bit adder + feedback loop.
 //
@@ -62,34 +64,51 @@ const regReady = [0, 1, 2, 3].every((i) => REG[`pinD${i}`] && REG[`pinQ${i}`]) &
 const addReady = [0, 1, 2, 3].every((i) => ADD[`pinA${i}`] && ADD[`pinB${i}`] && ADD[`pinS${i}`])
   && ADD.pinCin && ADD.pinCout;
 if (regReady && addReady) {
-  // CLK → register top
-  setW('wCLK', `270,30 270,${REG.pinCLK.y} ${REG.pinCLK.x},${REG.pinCLK.y}`);
-  placePin('pinCLK', 270, 30);
+  // Layout (swapped): adder on the LEFT, register on the RIGHT, so the
+  // register's Q (the PC value) lands on the right edge and taps straight out.
+  //   adder.A  ← register.Q  (the feedback loop, wrapping under both boxes)
+  //   adder.S  → register.D  (short hop across the gap)
+  //   register.Q → count out (right edge, direct)
 
-  // Lane constants for the S→D feedback loop below the boxes (staggered so
-  // the four lanes don't overlap). Index 0 = bit0 (innermost).
-  const railX   = [1200, 1220, 1240, 1260];
+  // CLK → register top (register now on the right)
+  setW('wCLK', `${REG.pinCLK.x},30 ${REG.pinCLK.x},${REG.pinCLK.y}`);
+  placePin('pinCLK', REG.pinCLK.x, 30);
+
+  // Lane constants for the Q→A feedback loop wrapping UNDER both boxes. The
+  // right rails sit BEYOND the count-out pins (x≈1290) so they never cross the
+  // count-out taps; index 0 = bit0 (innermost). Left rails clear the adder.
+  const railX   = [1330, 1355, 1380, 1405];
   const bottomY = [660, 680, 700, 720];
-  const leftX   = [75, 60, 40, 20];
+  const leftX   = [60, 44, 28, 12];
 
   for (let i = 0; i < 4; i++) {
-    // Q (register.Q) → adder.A, bending in the gap between the boxes
-    setW(`wQ${i}`,
-      `${REG[`pinQ${i}`].x},${REG[`pinQ${i}`].y} 630,${REG[`pinQ${i}`].y} ` +
-      `630,${ADD[`pinA${i}`].y} ${ADD[`pinA${i}`].x},${ADD[`pinA${i}`].y}`);
-    // S (adder.S) → register.D, the big feedback loop wrapping under both boxes
+    // S (adder.S, right edge of LEFT box) → register.D (left edge of RIGHT box):
+    // short hop bending once in the gap between the boxes.
     setW(`wS${i}`,
-      `${ADD[`pinS${i}`].x},${ADD[`pinS${i}`].y} ${railX[i]},${ADD[`pinS${i}`].y} ` +
+      `${ADD[`pinS${i}`].x},${ADD[`pinS${i}`].y} 630,${ADD[`pinS${i}`].y} ` +
+      `630,${REG[`pinD${i}`].y} ${REG[`pinD${i}`].x},${REG[`pinD${i}`].y}`);
+    // Q (register.Q, right edge of RIGHT box) → adder.A (left edge of LEFT box):
+    // the big feedback loop wrapping under both boxes.
+    setW(`wQ${i}`,
+      `${REG[`pinQ${i}`].x},${REG[`pinQ${i}`].y} ${railX[i]},${REG[`pinQ${i}`].y} ` +
       `${railX[i]},${bottomY[i]} ${leftX[i]},${bottomY[i]} ` +
-      `${leftX[i]},${REG[`pinD${i}`].y} ${REG[`pinD${i}`].x},${REG[`pinD${i}`].y}`);
+      `${leftX[i]},${ADD[`pinA${i}`].y} ${ADD[`pinA${i}`].x},${ADD[`pinA${i}`].y}`);
     // B constant (tied) — short stub off the adder's left B pin
-    setW(`wB${i}`, `${ADD[`pinB${i}`].x},${ADD[`pinB${i}`].y} 790,${ADD[`pinB${i}`].y}`);
+    setW(`wB${i}`, `${ADD[`pinB${i}`].x},${ADD[`pinB${i}`].y} ${ADD[`pinB${i}`].x - 40},${ADD[`pinB${i}`].y}`);
     placePin(`pinD${i}`, REG[`pinD${i}`].x, REG[`pinD${i}`].y);
     placePin(`pinS${i}`, ADD[`pinS${i}`].x, ADD[`pinS${i}`].y);
   }
-  // Cin = 0 (tied GND) and the unused Cout — honest stubs off their pins
-  setW('wCin',  `${ADD.pinCin.x},${ADD.pinCin.y} 790,${ADD.pinCin.y}`);
-  setW('wCout', `${ADD.pinCout.x},${ADD.pinCout.y} 1210,${ADD.pinCout.y}`);
+  // Cin = 0 (tied GND, off the adder's left) and the unused Cout (off the right)
+  setW('wCin',  `${ADD.pinCin.x},${ADD.pinCin.y} ${ADD.pinCin.x - 40},${ADD.pinCin.y}`);
+  setW('wCout', `${ADD.pinCout.x},${ADD.pinCout.y} ${ADD.pinCout.x + 40},${ADD.pinCout.y}`);
+
+  // Count output: every register Q taps straight out to a right-edge pin, so
+  // all four flip-flop outputs visibly leave the block (the low 2 bits are the
+  // address the fetch page reads).
+  for (let i = 0; i < 4; i++) {
+    setW(`wQ${i}out`, `${REG[`pinQ${i}`].x},${REG[`pinQ${i}`].y} 1290,${REG[`pinQ${i}`].y}`);
+    placePin(`pinQ${i}out`, 1290, REG[`pinQ${i}`].y);
+  }
 }
 
 // Light the embedded register to its logical state.
@@ -186,6 +205,8 @@ function render() {
   setWire('Cout', (PC + STEP) > 15 ? 1 : 0);
   setWire('CLK', CLK);
   setPin('pinCLK', CLK);
+  // Count-output pins — every register output (low 2 bits → fetch address)
+  for (let i = 0; i < 4; i++) setPin(`pinQ${i}out`, A[i]);
 
   // Embedded children mirror the parent state exactly.
   lightRegister('registerDetail', Snext, A, CLK);
@@ -249,24 +270,8 @@ initDrillBreadcrumb();
 
 render();
 
-// Step walkthrough nav
-const steps = Array.from(document.querySelectorAll<HTMLElement>('.step'));
-const stepPrev = document.getElementById('stepPrev') as HTMLButtonElement;
-const stepNext = document.getElementById('stepNext') as HTMLButtonElement;
-const stepNum  = document.getElementById('stepNum')!;
-const stepCount = document.getElementById('stepCount')!;
-stepCount.textContent = ` / ${steps.length}`;
-let currentStep = 0;
-function showStep(i: number) {
-  currentStep = Math.max(0, Math.min(steps.length - 1, i));
-  steps.forEach((s, idx) => s.toggleAttribute('hidden', idx !== currentStep));
-  stepNum.textContent = String(currentStep + 1);
-  stepPrev.disabled = currentStep === 0;
-  stepNext.disabled = currentStep === steps.length - 1;
-}
-stepPrev.addEventListener('click', () => showStep(currentStep - 1));
-stepNext.addEventListener('click', () => showStep(currentStep + 1));
-showStep(0);
+initCanvasZoom();
+initSteps();
 
 initPanel();
 initToc();

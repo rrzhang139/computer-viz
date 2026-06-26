@@ -5,6 +5,24 @@ import {
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
 import { autoFillEmbeds } from "./embedPreview";
+import { initSteps } from "./steps";
+import { initCanvasZoom } from "./canvasZoom";
+import { applyWireColors } from "./wireColors";
+
+// Symbol → wire colour (trace the many parallel lines). Each read port ties its
+// address + result to one hue; the gated clock is its own colour, distinct from
+// the raw clock, so you can see the clock get gated.
+const WIRE_COLORS: Record<string, string> = {
+  clk: "#56ccf2",
+  we: "#ff6fae",
+  waddr0: "#6f8cff", waddr1: "#6f8cff",
+  raddrA0: "#57e08b", raddrA1: "#57e08b", rdata: "#57e08b",
+  raddrB0: "#2fcfc7", raddrB1: "#2fcfc7", rdataB: "#2fcfc7",
+  wdata: "#ffcf3a",
+  wen0: "#b98cff", wen1: "#b98cff", wen2: "#b98cff", wen3: "#b98cff",
+  gclk0: "#ff8a3d", gclk1: "#ff8a3d", gclk2: "#ff8a3d", gclk3: "#ff8a3d",
+  q0: "#c8d860", q1: "#c8d860", q2: "#c8d860", q3: "#c8d860",
+};
 
 // Register file — 4 entries × 1 bit, 1 write port + 1 read port.
 //
@@ -30,8 +48,8 @@ const btnWe     = document.getElementById('btnWe')     as HTMLButtonElement;
 const btnWaddr1 = document.getElementById('btnWaddr1') as HTMLButtonElement;
 const btnWaddr0 = document.getElementById('btnWaddr0') as HTMLButtonElement;
 const btnWdata  = document.getElementById('btnWdata')  as HTMLButtonElement;
-const btnRaddr1 = document.getElementById('btnRaddr1') as HTMLButtonElement;
-const btnRaddr0 = document.getElementById('btnRaddr0') as HTMLButtonElement;
+const btnRaddrA1 = document.getElementById('btnRaddrA1') as HTMLButtonElement;
+const btnRaddrA0 = document.getElementById('btnRaddrA0') as HTMLButtonElement;
 const btnRaddrB1 = document.getElementById('btnRaddrB1') as HTMLButtonElement;
 const btnRaddrB0 = document.getElementById('btnRaddrB0') as HTMLButtonElement;
 const btnPulse  = document.getElementById('btnPulse')  as HTMLButtonElement;
@@ -48,12 +66,12 @@ const memBits   = document.getElementById('memBits')   as HTMLElement;
 const rdataBit  = document.getElementById('rdataBit')  as HTMLElement;
 const rdataBBit = document.getElementById('rdataBBit') as HTMLElement;
 
-type RfSnap = { mem: Bit[]; we: Bit; waddr1: Bit; waddr0: Bit; raddr1: Bit; raddr0: Bit; raddrB1: Bit; raddrB0: Bit; wdata: Bit };
+type RfSnap = { mem: Bit[]; we: Bit; waddr1: Bit; waddr0: Bit; raddrA1: Bit; raddrA0: Bit; raddrB1: Bit; raddrB0: Bit; wdata: Bit };
 const SNAP_KEY = 'regfile';
-// Seed the four registers with a pattern where flipping either read-address
-// bit changes the bit read out, so reading is obviously live on load.
-// (reg0=1, reg1=0, reg2=0, reg3=1.)
-const SEED: Bit[] = [1, 0, 0, 1];
+// Seed: only reg3 holds a 1. The walkthrough stores a bit into reg2 and
+// reads it back, so reg0 (port A's power-on address 00) must start at 0 —
+// otherwise "read back what you wrote" shows a 1 that was already there.
+const SEED: Bit[] = [0, 0, 0, 1];
 const _snap = loadSnapshot<RfSnap>(SNAP_KEY);
 const mem: Bit[] = [
   (_snap?.mem?.[0] ?? SEED[0]) as Bit, (_snap?.mem?.[1] ?? SEED[1]) as Bit,
@@ -62,8 +80,8 @@ const mem: Bit[] = [
 let we: Bit     = readBitParam('we', _snap?.we ?? 0);
 let waddr1: Bit = readBitParam('waddr1', _snap?.waddr1 ?? 0);
 let waddr0: Bit = readBitParam('waddr0', _snap?.waddr0 ?? 0);
-let raddr1: Bit = readBitParam('raddr1', _snap?.raddr1 ?? 0);
-let raddr0: Bit = readBitParam('raddr0', _snap?.raddr0 ?? 0);
+let raddrA1: Bit = readBitParam('raddrA1', _snap?.raddrA1 ?? 0);
+let raddrA0: Bit = readBitParam('raddrA0', _snap?.raddrA0 ?? 0);
 let raddrB1: Bit = readBitParam('raddrB1', _snap?.raddrB1 ?? 0);
 let raddrB0: Bit = readBitParam('raddrB0', (_snap?.raddrB0 ?? 1) as Bit);  // default port B → reg1, so the two ports differ on load
 let wdata: Bit  = readBitParam('wdata', _snap?.wdata ?? 0);
@@ -105,8 +123,8 @@ if (rfReady) {
   // each register's Q̄ is unused → short honest stub off the pin.
   for (let i = 0; i < 4; i++) setWirePoints(`qbStub${i}`, `${REG[i].pinQB.x},${REG[i].pinQB.y} 952,${REG[i].pinQB.y}`);
   // read addresses → each MUX's s1/s0 select pins.
-  setWirePoints('raddr1',  `0,28 990,28 990,${MUXA.pinS1.y} ${MUXA.pinS1.x},${MUXA.pinS1.y}`);
-  setWirePoints('raddr0',  `0,48 1000,48 1000,${MUXA.pinS0.y} ${MUXA.pinS0.x},${MUXA.pinS0.y}`);
+  setWirePoints('raddrA1', `0,28 990,28 990,${MUXA.pinS1.y} ${MUXA.pinS1.x},${MUXA.pinS1.y}`);
+  setWirePoints('raddrA0', `0,48 1000,48 1000,${MUXA.pinS0.y} ${MUXA.pinS0.x},${MUXA.pinS0.y}`);
   setWirePoints('raddrB1', `0,92 974,92 974,${MUXB.pinS1.y} ${MUXB.pinS1.x},${MUXB.pinS1.y}`);
   setWirePoints('raddrB0', `0,112 984,112 984,${MUXB.pinS0.y} ${MUXB.pinS0.x},${MUXB.pinS0.y}`);
   // register outputs (Q pin) fan to BOTH read MUXes' data input pins.
@@ -182,6 +200,7 @@ for (const w of wires) {
   w.insertAdjacentElement('afterend', p);
   pulseFor.set(w, p);
 }
+applyWireColors(svg, WIRE_COLORS);
 
 function setNet(net: string, on: Bit) {
   svg.querySelectorAll<SVGPolylineElement>(`.wire[data-net="${net}"]`).forEach((el) => {
@@ -200,7 +219,7 @@ function setBtn(btn: HTMLButtonElement | null, label: string, value: Bit) {
 
 function render() {
   const waddrIdx = waddr1 * 2 + waddr0;
-  const raddrIdx = raddr1 * 2 + raddr0;
+  const raddrIdx = raddrA1 * 2 + raddrA0;
   const raddrBIdx = raddrB1 * 2 + raddrB0;
 
   // Write decoder → one-hot write-enable (gated by we)
@@ -217,8 +236,8 @@ function render() {
   setNet('we', we);         setPin('pinWe', we);
   setNet('waddr1', waddr1); setPin('pinWaddr1', waddr1);
   setNet('waddr0', waddr0); setPin('pinWaddr0', waddr0);
-  setNet('raddr1', raddr1); setPin('pinRaddr1', raddr1);
-  setNet('raddr0', raddr0); setPin('pinRaddr0', raddr0);
+  setNet('raddrA1', raddrA1); setPin('pinRaddrA1', raddrA1);
+  setNet('raddrA0', raddrA0); setPin('pinRaddrA0', raddrA0);
   setNet('raddrB1', raddrB1); setPin('pinRaddrB1', raddrB1);
   setNet('raddrB0', raddrB0); setPin('pinRaddrB0', raddrB0);
   setNet('clk', clk);       setPin('pinClk', clk);
@@ -245,7 +264,7 @@ function render() {
   // Embedded-preview state — each is an exact copy of the child page.
   lightDecoder(waddr1, waddr0, we, wen);
   for (let i = 0; i < 4; i++) lightDff(`reg${i}Detail`, wdata, gclk[i], mem[i]);
-  lightMux('muxDetail',  [...mem] as Bit[], raddr1, raddr0);
+  lightMux('muxDetail',  [...mem] as Bit[], raddrA1, raddrA0);
   lightMux('muxDetailB', [...mem] as Bit[], raddrB1, raddrB0);
 
   // Buttons
@@ -253,15 +272,15 @@ function render() {
   setBtn(btnWaddr1, 'waddr1', waddr1);
   setBtn(btnWaddr0, 'waddr0', waddr0);
   setBtn(btnWdata, 'wdata', wdata);
-  setBtn(btnRaddr1, 'raddr1', raddr1);
-  setBtn(btnRaddr0, 'raddr0', raddr0);
+  setBtn(btnRaddrA1, 'raddrA1', raddrA1);
+  setBtn(btnRaddrA0, 'raddrA0', raddrA0);
   setBtn(btnRaddrB1, 'raddrB1', raddrB1);
   setBtn(btnRaddrB0, 'raddrB0', raddrB0);
 
   // Readouts
   waddrBits.textContent = `${waddr1}${waddr0}`;
   waddrDec.textContent = ` (${waddrIdx})`;
-  raddrBits.textContent = `${raddr1}${raddr0}`;
+  raddrBits.textContent = `${raddrA1}${raddrA0}`;
   raddrDec.textContent = ` (${raddrIdx})`;
   raddrBBits.textContent = `${raddrB1}${raddrB0}`;
   raddrBDec.textContent = ` (${raddrBIdx})`;
@@ -271,7 +290,7 @@ function render() {
 }
 
 function persist() {
-  saveSnapshot<RfSnap>(SNAP_KEY, { mem: [...mem] as Bit[], we, waddr1, waddr0, raddr1, raddr0, raddrB1, raddrB0, wdata });
+  saveSnapshot<RfSnap>(SNAP_KEY, { mem: [...mem] as Bit[], we, waddr1, waddr0, raddrA1, raddrA0, raddrB1, raddrB0, wdata });
 }
 
 function commitWrite() { if (we) mem[waddr1 * 2 + waddr0] = wdata; }
@@ -280,8 +299,8 @@ btnWe.addEventListener('click',     () => { we = we === 0 ? 1 : 0; render(); per
 btnWaddr1.addEventListener('click', () => { waddr1 = waddr1 === 0 ? 1 : 0; render(); persist(); });
 btnWaddr0.addEventListener('click', () => { waddr0 = waddr0 === 0 ? 1 : 0; render(); persist(); });
 btnWdata.addEventListener('click',  () => { wdata = wdata === 0 ? 1 : 0; render(); persist(); });
-btnRaddr1.addEventListener('click', () => { raddr1 = raddr1 === 0 ? 1 : 0; render(); persist(); });
-btnRaddr0.addEventListener('click', () => { raddr0 = raddr0 === 0 ? 1 : 0; render(); persist(); });
+btnRaddrA1.addEventListener('click', () => { raddrA1 = raddrA1 === 0 ? 1 : 0; render(); persist(); });
+btnRaddrA0.addEventListener('click', () => { raddrA0 = raddrA0 === 0 ? 1 : 0; render(); persist(); });
 btnRaddrB1.addEventListener('click', () => { raddrB1 = raddrB1 === 0 ? 1 : 0; render(); persist(); });
 btnRaddrB0.addEventListener('click', () => { raddrB0 = raddrB0 === 0 ? 1 : 0; render(); persist(); });
 
@@ -295,7 +314,7 @@ btnPulse.addEventListener('click', () => {
 
 btnReset.addEventListener('click', () => {
   for (let i = 0; i < 4; i++) mem[i] = SEED[i];   // back to the preloaded demo bits
-  we = 0; waddr1 = 0; waddr0 = 0; raddr1 = 0; raddr0 = 0; raddrB1 = 0; raddrB0 = 1; wdata = 0; clk = 0;
+  we = 0; waddr1 = 0; waddr0 = 0; raddrA1 = 0; raddrA0 = 0; raddrB1 = 0; raddrB0 = 1; wdata = 0; clk = 0;
   clearSnapshot(SNAP_KEY);
   render();
 });
@@ -320,7 +339,7 @@ document.getElementById('slot-mux')?.addEventListener('click', () => {
   window.location.assign(buildDrillUrl('/mux.html', {
     from: 'regfile', which: 'rmuxA',
     in0: mem[0], in1: mem[1], in2: mem[2], in3: mem[3],
-    s1: raddr1, s0: raddr0,
+    s1: raddrA1, s0: raddrA0,
   }));
 });
 document.getElementById('slot-muxB')?.addEventListener('click', () => {
@@ -334,24 +353,8 @@ document.getElementById('slot-muxB')?.addEventListener('click', () => {
 initDrillBreadcrumb();
 render();
 
-// ── Step walkthrough nav ─────────────────────────────────────────────
-const steps = Array.from(document.querySelectorAll<HTMLElement>('.step'));
-const stepPrev = document.getElementById('stepPrev') as HTMLButtonElement;
-const stepNext = document.getElementById('stepNext') as HTMLButtonElement;
-const stepNum  = document.getElementById('stepNum')!;
-const stepCount = document.getElementById('stepCount')!;
-stepCount.textContent = ` / ${steps.length}`;
-let currentStep = 0;
-function showStep(i: number) {
-  currentStep = Math.max(0, Math.min(steps.length - 1, i));
-  steps.forEach((s, idx) => s.toggleAttribute('hidden', idx !== currentStep));
-  stepNum.textContent = String(currentStep + 1);
-  stepPrev.disabled = currentStep === 0;
-  stepNext.disabled = currentStep === steps.length - 1;
-}
-stepPrev.addEventListener('click', () => showStep(currentStep - 1));
-stepNext.addEventListener('click', () => showStep(currentStep + 1));
-showStep(0);
+initCanvasZoom();
+initSteps();
 
 initPanel();
 initToc();

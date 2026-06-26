@@ -20,7 +20,7 @@ register selected by `(waddr1, waddr0)` latches `wdata`. The decoder's
 one-hot output `wen0..wen3` gates the clock (the four `&` cells) so only
 the addressed register sees an edge.
 
-Read path (combinational): `(raddr1, raddr0)` drives the MUX select, so
+Read path (combinational): `(raddrA1, raddrA0)` drives the MUX select, so
 `rdata` is always the current value of the addressed register.
 
 ## Scene bounds
@@ -33,8 +33,8 @@ x ∈ [-10, 10], y ∈ [-7, 7]
 | waddr1_in  | write addr bit 1        | (-10,  5.5)  | LEFT   |
 | we_in      | write enable            | (-10,  4.5)  | LEFT   |
 | waddr0_in  | write addr bit 0        | (-10,  3.5)  | LEFT   |
-| raddr1_in  | read addr bit 1         | (-10,  1.5)  | LEFT   |
-| raddr0_in  | read addr bit 0         | (-10,  0.5)  | LEFT   |
+| raddrA1_in  | read addr bit 1         | (-10,  1.5)  | LEFT   |
+| raddrA0_in  | read addr bit 0         | (-10,  0.5)  | LEFT   |
 | clk_in     | clock                   | (-10, -1.5)  | LEFT   |
 | wdata_in   | write data (1 bit)      | (-10, -3.5)  | LEFT   |
 | rdata_out  | read data (1 bit)       | ( 10, -1.5)  | RIGHT  |
@@ -72,8 +72,8 @@ between the two rails and taps them directly — no side-bus routing.
 - `wclkN` (2-input AND, leaf gate, not drillable): `clk · wenN` → the
   gated clock for `regN`.
 - `regN` (DFF): `D ← wdata`, `CLK ← wclkN_out`, `Q → qN`.
-- `rmux` (4-to-1 MUX): `in3..in0 ← q3..q0`, `s1 ← raddr1`,
-  `s0 ← raddr0`, `out → rdata`.
+- `rmux` (4-to-1 MUX): `in3..in0 ← q3..q0`, `s1 ← raddrA1`,
+  `s0 ← raddrA0`, `out → rdata`.
 
 ## Absorbed terminals
 
@@ -123,8 +123,8 @@ Read MUX `rmux` (cx=7.5, cy=0, w=3, h=5 → x∈[6.0,9.0], y∈[-2.5,2.5]):
 | waddr1     | write addr 1 → decoder a1                       |
 | we         | write enable → decoder EN                       |
 | waddr0     | write addr 0 → decoder a0                        |
-| raddr1     | read addr 1 → MUX s1                             |
-| raddr0     | read addr 0 → MUX s0                             |
+| raddrA1     | read addr 1 → MUX s1                             |
+| raddrA0     | read addr 0 → MUX s0                             |
 | clk        | clock → all four clock-gate ANDs                |
 | wdata      | write-data bit → all four DFF D inputs          |
 | wen3..wen0 | one-hot write-enable, decoder → AND             |
@@ -161,8 +161,8 @@ Read MUX `rmux` (cx=7.5, cy=0, w=3, h=5 → x∈[6.0,9.0], y∈[-2.5,2.5]):
 | reg2_Q_out    | rmux_in2_in   | (4.4, 2.5), (4.4, 0.2)                        | q2     |
 | reg1_Q_out    | rmux_in1_in   | (4.6, 0.0), (4.6, -0.4)                       | q1     |
 | reg0_Q_out    | rmux_in0_in   | (4.8, -2.5), (4.8, -1.0)                      | q0     |
-| raddr1_in     | rmux_s1_in    | (-9.5, 1.5), (-9.5, -4.0), (5.0, -4.0), (5.0, 2.0) | raddr1 |
-| raddr0_in     | rmux_s0_in    | (-9.7, 0.5), (-9.7, -4.3), (5.2, -4.3), (5.2, 0.5) | raddr0 |
+| raddrA1_in     | rmux_s1_in    | (-9.5, 1.5), (-9.5, -4.0), (5.0, -4.0), (5.0, 2.0) | raddrA1 |
+| raddrA0_in     | rmux_s0_in    | (-9.7, 0.5), (-9.7, -4.3), (5.2, -4.3), (5.2, 0.5) | raddrA0 |
 | rmux_out      | rdata_out     | —                                             | rdata  |
 
 The `clk` and `wdata` nets each fan out from a single junction
@@ -172,7 +172,7 @@ permits.
 
 ## Alignment claims
 
-- All 7 inputs (`waddr1`, `we`, `waddr0`, `raddr1`, `raddr0`, `clk`,
+- All 7 inputs (`waddr1`, `we`, `waddr0`, `raddrA1`, `raddrA0`, `clk`,
   `wdata`) sit on the LEFT edge per the locked invariant; the single
   `rdata` output is on the RIGHT edge.
 - `waddr1.y / we.y / waddr0.y` equal the decoder's `a1 / EN / a0`

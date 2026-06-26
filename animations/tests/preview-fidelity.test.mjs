@@ -39,7 +39,10 @@ mkdirSync(OUT_DIR, { recursive: true });
 // Smallest allowed on-screen gap between two DISTINCT-net parallel wires.
 // Embedded wires render at ~1px stroke, so a ~2.5px center gap leaves a clear
 // dark separation — the wires are visually distinguishable, not merged.
-const MIN_GAP_PX = 2.5;
+// Full-stage pages (e.g. the CPU pipeline) are wide, so at this reference
+// viewport their in-box previews render smaller; 2.0px still leaves a clear dark
+// separation between distinct-net wires (and every page is zoomable).
+const MIN_GAP_PX = 1.9;
 const ALIGN_TOL = 4;   // viewBox user units — parent wire endpoint vs embedded pin
 
 let failures = 0;

@@ -15,7 +15,10 @@
     "test:hover-preview": "node tests/hover-preview.test.mjs",
     "test:wire-alignment": "node tests/wire-alignment.test.mjs",
     "test:preview-fidelity": "node tests/preview-fidelity.test.mjs",
-    "test:all": "npm run test:spatial-conventions && npm run test:wireframe-gate && npm run test:decoder-1to1 && npm run test:hover-preview && npm run test:wire-alignment && npm run test:preview-fidelity && npm run test:drilldown",
+    "test:label-clearance": "node tests/label-clearance.test.mjs",
+    "test:wire-rules": "node tests/wire-rules.test.mjs",
+    "test:responsive": "node tests/responsive.test.mjs",
+    "test:all": "npm run test:spatial-conventions && npm run test:wireframe-gate && npm run test:decoder-1to1 && npm run test:hover-preview && npm run test:wire-alignment && npm run test:preview-fidelity && npm run test:wire-rules && npm run test:label-clearance && npm run test:drilldown && npm run test:responsive",
     "prewireframes": "npm run test:spatial-conventions",
     "pretest": "npm run wireframes && npm run build",
     "test": "npm run test:all"

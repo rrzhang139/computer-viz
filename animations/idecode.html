@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / instruction decoder</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
+      .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step p.do { color: #eee; border-left: 2px solid var(--on); padding: 2px 0 2px 12px; }
+      .step p.do::before { content: "▸ "; color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .controls-row { display: flex; gap: 10px; align-items: center; }
+      .controls-row .label { color: #666; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; min-width: 50px; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 16px; cursor: pointer; min-width: 56px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 55vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .wire.bus { stroke-width: 7; }
+      .bustick { stroke: #9a9a9a; stroke-width: 2.4; }
+      .buslabel { fill: #9a9a9a; font-size: 18px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .field-box { fill: none; stroke: #5a5a5a; stroke-width: 2.4; }
+      .bitidx { fill: #666; font-size: 18px; font-family: ui-monospace, monospace; text-anchor: end; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .bitval { fill: #888; font-size: 30px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .bitval { fill: var(--on); }
+      .tlabel-val { fill: #cfcfcf; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: end; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel { fill: #777; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-small { fill: #888; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tlabel-field { fill: var(--on); font-size: 20px; font-family: ui-monospace, monospace; text-anchor: end; dominant-baseline: central; letter-spacing: 0.08em; pointer-events: none; user-select: none; }
+      .tlabel-group { fill: #666; font-size: 18px; font-family: ui-monospace, monospace; text-anchor: start; dominant-baseline: central; letter-spacing: 0.12em; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.18em; }
+      .out-readout .dec { color: #ddd; }
+      .out-readout .sep { color: #333; }
+      .canvas-col, .controls, .controls-row, .out-readout { min-width: 0; }
+      .controls-row { flex-wrap: wrap; row-gap: 6px; }
+      .out-readout { flex-wrap: wrap; row-gap: 6px; }
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn, .controls-row .btn, .step-nav .btn { min-height: 44px; padding: 10px 14px; font-size: 14px; }
+      }
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .step-panel { height: auto; min-height: 180px; padding: 12px 16px 14px; }
+        .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; }
+      }
+      @media (max-width: 600px) {
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn, .controls-row .btn { min-height: 44px; min-width: 52px; font-size: 13px; padding: 8px 10px; }
+        .controls-row .label { min-width: auto; font-size: 10px; }
+        .out-readout { font-size: 11px; padding: 8px 12px; }
+        .step-panel { height: auto; min-height: 0; padding: 12px 14px 14px; }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: 14px; }
+        .step p { font-size: 14px; }
+        .step-nav { position: static; margin: 8px 0 10px; justify-content: flex-end; gap: 6px; }
+        .step-nav .btn { min-height: 44px; min-width: 80px; }
+        svg { max-height: none; }
+      }
+      @media (max-width: 380px) {
+        .controls .btn, .controls-row .btn { min-width: 46px; padding: 8px 8px; font-size: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/idecode.html" aria-current="page">instruction decoder</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <div class="controls-row">
+            <span class="label">opcode</span>
+            <button class="btn" id="btnOp1" data-on="0">op1 0</button>
+            <button class="btn" id="btnOp0" data-on="0">op0 0</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">rs1</span>
+            <button class="btn" id="btnA1" data-on="0">rs1₁ 0</button>
+            <button class="btn" id="btnA0" data-on="0">rs1₀ 0</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">rs2</span>
+            <button class="btn" id="btnB1" data-on="0">rs2₁ 0</button>
+            <button class="btn" id="btnB0" data-on="0">rs2₀ 0</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">rd</span>
+            <button class="btn" id="btnW1" data-on="0">rd₁ 0</button>
+            <button class="btn" id="btnW0" data-on="0">rd₀ 0</button>
+          </div>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">instruction</span>
+          <span class="bits" id="instrBits">00·00·00·00</span>
+          <span class="sep">·</span>
+          <span class="label">op</span><span class="bits" id="opName">ADD</span>
+          <span class="sep">·</span>
+          <span class="label">read</span><span class="bits" id="readBits">A=00 B=00</span>
+          <span class="sep">·</span>
+          <span class="label">write</span><span class="bits" id="writeBits">00</span>
+        </div>
+
+        <!--
+          Instruction decoder = pure field extraction. The 8-bit instruction
+          word is shown as ONE contiguous vertical strip (bit 7 top → bit 0
+          bottom), bracketed into four 2-bit fields (opcode | rs1 | rs2 | rd).
+          Each field's decoded meaning sits to its left; each bit wires STRAIGHT
+          RIGHT to its datapath control output (no logic, no crossings) — outputs
+          ordered op→raddrA→raddrB→waddr to match the datapath's left-edge inputs.
+        -->
+        <svg id="idecode" viewBox="-20 -20 1500 720" role="img"
+             aria-label="instruction decoder: the instruction word sliced into datapath control fields"
+             preserveAspectRatio="xMidYMid meet">
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1480,0" />
+          <polyline class="wire" data-net="GND" points="0,686 1480,686" />
+
+          <text class="tlabel-small" x="515" y="44" text-anchor="middle">instruction word</text>
+
+          <!-- the 8-bit instruction arrives as one bus (/8) and lands on the strip -->
+          <circle class="pin" id="pinInstr" cx="300" cy="358" r="7" />
+          <text class="tlabel-small" x="290" y="358" text-anchor="end">instr</text>
+          <polyline class="wire bus" data-net="instr" points="300,358 440,358" />
+          <line class="bustick" x1="356" y1="346" x2="372" y2="370" />
+          <text class="buslabel" x="356" y="334">8</text>
+
+          <!-- field groups (decoded meaning on the left) -->
+          <rect class="field-box" x="440" y="70"  width="150" height="144" rx="8" />
+          <rect class="field-box" x="440" y="214" width="150" height="144" rx="8" />
+          <rect class="field-box" x="440" y="358" width="150" height="144" rx="8" />
+          <rect class="field-box" x="440" y="502" width="150" height="144" rx="8" />
+          <text class="tlabel-field" x="392" y="128">opcode</text>
+          <text class="tlabel-val"   x="392" y="160" id="fldOp">= ADD</text>
+          <text class="tlabel-field" x="392" y="272">rs1</text>
+          <text class="tlabel-val"   x="392" y="304" id="fldA">= r0</text>
+          <text class="tlabel-field" x="392" y="416">rs2</text>
+          <text class="tlabel-val"   x="392" y="448" id="fldB">= r0</text>
+          <text class="tlabel-field" x="392" y="560">rd</text>
+          <text class="tlabel-val"   x="392" y="592" id="fldW">= r0</text>
+
+          <!-- 8 instruction bit cells (one contiguous word, bit 7 → bit 0) -->
+          <text class="bitidx" x="428" y="106">7</text>
+          <rect class="tbody" id="gBitOp1" x="440" y="70"  width="150" height="72" /><text class="bitval" x="515" y="106">0</text>
+          <text class="bitidx" x="428" y="178">6</text>
+          <rect class="tbody" id="gBitOp0" x="440" y="142" width="150" height="72" /><text class="bitval" x="515" y="178">0</text>
+          <text class="bitidx" x="428" y="250">5</text>
+          <rect class="tbody" id="gBitA1"  x="440" y="214" width="150" height="72" /><text class="bitval" x="515" y="250">0</text>
+          <text class="bitidx" x="428" y="322">4</text>
+          <rect class="tbody" id="gBitA0"  x="440" y="286" width="150" height="72" /><text class="bitval" x="515" y="322">0</text>
+          <text class="bitidx" x="428" y="394">3</text>
+          <rect class="tbody" id="gBitB1"  x="440" y="358" width="150" height="72" /><text class="bitval" x="515" y="394">0</text>
+          <text class="bitidx" x="428" y="466">2</text>
+          <rect class="tbody" id="gBitB0"  x="440" y="430" width="150" height="72" /><text class="bitval" x="515" y="466">0</text>
+          <text class="bitidx" x="428" y="538">1</text>
+          <rect class="tbody" id="gBitW1"  x="440" y="502" width="150" height="72" /><text class="bitval" x="515" y="538">0</text>
+          <text class="bitidx" x="428" y="610">0</text>
+          <rect class="tbody" id="gBitW0"  x="440" y="574" width="150" height="72" /><text class="bitval" x="515" y="610">0</text>
+
+          <!-- Each field leaves as ONE 2-bit bus (/2) — the two cell-bits bundled
+               together — straight to its datapath control input. -->
+          <polyline class="wire bus" data-net="op"     points="590,142 1280,142" />
+          <polyline class="wire bus" data-net="raddrA" points="590,286 1280,286" />
+          <polyline class="wire bus" data-net="raddrB" points="590,430 1280,430" />
+          <polyline class="wire bus" data-net="waddr"  points="590,574 1280,574" />
+          <!-- /2 bus ticks -->
+          <line class="bustick" x1="694" y1="130" x2="710" y2="154" /><text class="buslabel" x="694" y="118">2</text>
+          <line class="bustick" x1="694" y1="274" x2="710" y2="298" /><text class="buslabel" x="694" y="262">2</text>
+          <line class="bustick" x1="694" y1="418" x2="710" y2="442" /><text class="buslabel" x="694" y="406">2</text>
+          <line class="bustick" x1="694" y1="562" x2="710" y2="586" /><text class="buslabel" x="694" y="550">2</text>
+
+          <!-- datapath control outputs (right) — one bundle per field -->
+          <circle class="pin" id="pinOp"     cx="1280" cy="142" r="7" />
+          <circle class="pin" id="pinRaddrA" cx="1280" cy="286" r="7" />
+          <circle class="pin" id="pinRaddrB" cx="1280" cy="430" r="7" />
+          <circle class="pin" id="pinWaddr"  cx="1280" cy="574" r="7" />
+          <text class="tlabel-small" x="1298" y="142" text-anchor="start">→ op</text>
+          <text class="tlabel-small" x="1298" y="286" text-anchor="start">→ raddrA</text>
+          <text class="tlabel-small" x="1298" y="430" text-anchor="start">→ raddrB</text>
+          <text class="tlabel-small" x="1298" y="574" text-anchor="start">→ waddr</text>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 4</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: the instruction IS the control</h3>
+            <p>On the datapath you set <kbd>op</kbd>, <kbd>raddrA</kbd>, <kbd>raddrB</kbd>, <kbd>waddr</kbd> by hand. A CPU sets them from the <em>instruction</em> — and here's the surprise: it barely does any work. A RISC-V instruction carries the register numbers and the operation as plain <em>bit-fields</em>, so "decoding" is mostly just <em>slicing the word and wiring each field to the block that uses it</em>.</p>
+            <p>The 8-bit instruction word on the left splits into four 2-bit fields — <kbd>opcode</kbd>, <kbd>rs1</kbd>, <kbd>rs2</kbd>, <kbd>rd</kbd>. Because we picked the opcode encoding to match the ALU's <kbd>op</kbd>, each field flows <em>straight across</em> to its datapath input with no logic in between. Toggle any bit and watch its wire light end to end.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>slice the word, name the fields</h3>
+            <p class="do">Set <kbd>rs1 = 10</kbd> (click <kbd>rs1₁</kbd>) and <kbd>rd = 11</kbd> (click <kbd>rd₁</kbd> and <kbd>rd₀</kbd>).</p>
+            <p>Follow the lit wires: the <kbd>rs1</kbd> field rides straight out to <kbd>raddrA</kbd> (the datapath's first read address), and <kbd>rd</kbd> rides out to <kbd>waddr</kbd> (the write address). The instruction literally said "read register 2, write register 3," and those numbers are now sitting on the exact wires the register file reads. Nothing computed them — they're just <em>bits of the instruction</em>, relabeled.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the gap where logic would go</h3>
+            <p class="do">Set <kbd>opcode = 10</kbd> (click <kbd>op1</kbd>). Read the <kbd>op</kbd> readout.</p>
+            <p>The opcode field flows straight to <kbd>op</kbd>, so <kbd>op = 10</kbd> → the ALU does <kbd>OR</kbd>. We chose the encodings to line up, so a bare wire suffices. <span class="accent">This straight run is exactly where a real decoder adds logic</span> — remapping a messy opcode to the ALU's control, deciding <kbd>RegWrite</kbd> from the opcode, sign-extending an immediate. We're leaving the gap empty on purpose; the point is that the <em>skeleton</em> of decode is just field wiring.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This little block is the bridge from "an instruction" to "the datapath running it." Its eight outputs are, top to bottom, the datapath's eight left-edge inputs in the same order — so the next page just drops this decoder beside the datapath and connects them with eight straight wires. Instruction in, control out, datapath obeys.</p>
+            <p>Widen everything to 32 bits, fix the field positions to the real RV32I layout, and add the bit of control logic this page leaves as bare wire, and you have an actual instruction decoder. What's still missing is <em>where the instruction comes from</em> — the program has to live somewhere and a program counter has to step through it. That's the next thing we build.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/idecode.ts"></script>
+  </body>
+</html>

@@ -25,6 +25,8 @@ import decoderRaw from '../decoder.html?raw';
 import muxRaw from '../mux.html?raw';
 import regfileRaw from '../regfile.html?raw';
 import alu1Raw from '../alu1.html?raw';
+import memRaw from '../mem.html?raw';
+import idecodeRaw from '../idecode.html?raw';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -44,6 +46,8 @@ export const PAGE_RAW: Record<string, string> = {
   '/mux.html': muxRaw,
   '/regfile.html': regfileRaw,
   '/alu1.html': alu1Raw,
+  '/mem.html': memRaw,
+  '/idecode.html': idecodeRaw,
 };
 
 // Some pages build their diagram at runtime from a shared scene module rather
@@ -173,10 +177,18 @@ function ensureEmbedStyle() {
     .embed .wire { stroke-width: 1.7; }
     .embed .wire:not([data-on="1"]) { stroke: #5e5e5e; }
     .embed .pin:not([data-on="1"]) { fill: #6f6f6f; }
-    /* Hide ALL text inside a preview — component names, pin labels and wire
-       labels just clutter the scaled-down structure. The shapes carry the
-       meaning; the full labels are there when you actually drill in. */
+    /* Keep the COMPONENT/BLOCK names inside a preview so the preview is
+       self-labeling and a walkthrough can reference its parts by name
+       (decoder, MUX, reg0..3, full adder, ...). These are the .tlabel /
+       .tlabel-mini class — across every page the block name uses it, while
+       the noisy pin/wire/sub labels use .tlabel-small / .tlabel-sub /
+       .tlabel-mini-tiny. Hide everything, then re-show only the names; the
+       small labels are there in full when you actually drill in. One place
+       governs every embed on every page. */
     .embed text { display: none; }
+    .embed text.tlabel, .embed text.tlabel-mini { display: inline; fill: #cbcbcb; }
+    .embed .tbody[data-on="1"] + text.tlabel,
+    .embed .tbody-mini[data-on="1"] + text.tlabel-mini { fill: var(--on); }
   `;
   document.head.appendChild(s);
 }

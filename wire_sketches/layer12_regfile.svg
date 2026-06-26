@@ -75,10 +75,10 @@
 <text x="-10.35" y="-3.5" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">waddr0_in</text>
 <text x="-10.35" y="-3.2199999999999998" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-10, 3.5)</text>
 <circle cx="-10" cy="-1.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
-<text x="-10.35" y="-1.5" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">raddr1_in</text>
+<text x="-10.35" y="-1.5" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">raddrA1_in</text>
 <text x="-10.35" y="-1.22" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-10, 1.5)</text>
 <circle cx="-10" cy="-0.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
-<text x="-10.35" y="-0.5" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">raddr0_in</text>
+<text x="-10.35" y="-0.5" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">raddrA0_in</text>
 <text x="-10.35" y="-0.21999999999999997" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-10, 0.5)</text>
 <circle cx="-10" cy="1.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
 <text x="-10.35" y="1.5" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">clk_in</text>

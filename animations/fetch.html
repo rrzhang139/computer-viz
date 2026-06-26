@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / fetch</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
+      .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step p.do { color: #eee; border-left: 2px solid var(--on); padding: 2px 0 2px 12px; }
+      .step p.do::before { content: "▸ "; color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .controls-row { display: flex; gap: 10px; align-items: center; }
+      .controls-row .label { color: #666; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; min-width: 50px; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 18px; cursor: pointer; min-width: 64px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      .btn-pulse { background: rgba(239, 159, 39, 0.12); color: var(--on); border-color: var(--on); }
+      .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 58vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #777; font-size: 26px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #888; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pc-count { fill: var(--on); font-size: 48px; font-family: ui-monospace, monospace; letter-spacing: 0.12em; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .loop { fill: none; stroke: #6a5526; stroke-width: 2.5; stroke-linecap: round; }
+      .loop-tag { fill: var(--on); font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+
+      /* Drillable memory block: hover swaps the box for the real /mem.html. */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot > .simple-body, .child-slot > .simple-label { transition: opacity 180ms; }
+      .child-slot:hover > .simple-body, .child-slot:focus-within > .simple-body,
+      .child-slot:hover > .simple-label, .child-slot:focus-within > .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      #memDetail .pulse { display: none; }
+      /* PC hover-preview mini (reg + +1 + feedback) */
+      .tbody-mini { fill: #111; stroke: #2a2a2a; stroke-width: 1.5; stroke-dasharray: 5 4; transition: fill 160ms, stroke 160ms; }
+      .tbody-mini[data-on="1"] { fill: rgba(239,159,39,0.22); stroke: var(--on); stroke-dasharray: none; }
+      .wire-mini { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms; }
+      .wire-mini[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 2.5px rgba(239,159,39,0.7)); }
+      .tlabel-mini { fill: #888; font-size: 24px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pc-count-mini { fill: var(--on); font-size: 40px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; letter-spacing: 0.1em; pointer-events: none; user-select: none; }
+
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.16em; }
+      .out-readout .dec { color: #ddd; }
+      .out-readout .sep { color: #333; }
+      .canvas-col, .controls, .controls-row, .out-readout { min-width: 0; }
+      .controls-row { flex-wrap: wrap; row-gap: 6px; }
+      .out-readout { flex-wrap: wrap; row-gap: 6px; }
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn, .controls-row .btn, .step-nav .btn { min-height: 44px; padding: 10px 14px; font-size: 14px; }
+      }
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .step-panel { height: auto; min-height: 180px; padding: 12px 16px 14px; }
+        .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; }
+      }
+      @media (max-width: 600px) {
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn, .controls-row .btn { min-height: 44px; min-width: 52px; font-size: 13px; padding: 8px 10px; }
+        .controls-row .label { min-width: auto; font-size: 10px; }
+        .out-readout { font-size: 11px; padding: 8px 12px; }
+        .step-panel { height: auto; min-height: 0; padding: 12px 14px 14px; }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: 14px; }
+        .step p { font-size: 14px; }
+        .step-nav { position: static; margin: 8px 0 10px; justify-content: flex-end; gap: 6px; }
+        .step-nav .btn { min-height: 44px; min-width: 80px; }
+        svg { max-height: none; }
+      }
+      @media (max-width: 380px) {
+        .controls .btn, .controls-row .btn { min-width: 46px; padding: 8px 8px; font-size: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/fetch.html" aria-current="page">fetch</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn btn-pulse" id="btnStep">↻ clock — fetch next</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">PC</span>
+          <span class="bits" id="pcBits">00</span><span class="dec" id="pcDec">(0)</span>
+          <span class="sep">·</span>
+          <span class="label">instruction</span>
+          <span class="bits" id="instrBits">00 00 01 10</span>
+          <span class="sep">·</span>
+          <span class="label">decoded</span>
+          <span class="bits" id="decodeBits">ADD r2,r0,r1</span>
+        </div>
+
+        <!--
+          Fetch: program counter (PC) addresses instruction memory; the
+          addressed word is the instruction; on each clock the PC advances +1.
+          The PC is a display block (its count + the +1 self-loop); the memory
+          is an exact-copy embed of /mem.html (drillable). Coordinates 1:1 with
+          wire_sketches/layer17_fetch.md (SVG_x = 80*(x+10), SVG_y = 80*(7-y)).
+          addr/rdata wires are routed onto the embedded mem's projected pins in
+          src/fetch.ts.
+        -->
+        <svg id="fetch" viewBox="-40 -40 1680 1200" role="img"
+             aria-label="fetch: the program counter addresses instruction memory; the word out is the instruction"
+             preserveAspectRatio="xMidYMid meet">
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1600,0" />
+          <polyline class="wire" data-net="GND" points="0,1120 1600,1120" />
+
+          <!-- External pins -->
+          <circle class="pin" id="pinClk"   cx="0"    cy="320" r="7" />
+          <circle class="pin" id="pinInstr" cx="1600" cy="560" r="7" />
+          <text class="tlabel-small" x="-18"  y="320">clk</text>
+          <text class="tlabel-small" x="1618" y="560">instr</text>
+
+          <!-- Wires (set in src/fetch.ts onto the embedded mem's projected pins) -->
+          <polyline class="wire" data-net="clk"   id="wClk"   points="0,320 80,320 80,440 160,440" />
+          <polyline class="wire" data-net="addr1" id="wAddr1" points="0,0 0,0" />
+          <polyline class="wire" data-net="addr0" id="wAddr0" points="0,0 0,0" />
+          <polyline class="wire" data-net="instr" id="wInstr" points="0,0 0,0" />
+
+          <!-- ── Program counter (drillable → /counter.html) ───────────── -->
+          <g class="child-slot" id="slot-pc" tabindex="0" role="button"
+             aria-label="program counter — click to drill into the counter">
+            <!-- simple view: PC box + count + +1 self-loop -->
+            <path class="loop simple-label" d="M 440 400 C 440 336 200 336 200 400" />
+            <path class="loop simple-label" d="M 200 400 l -10 -22 l 24 6 z" fill="#6a5526" stroke="none" />
+            <text class="loop-tag simple-label" x="320" y="332">+1</text>
+            <rect class="tbody simple-body" id="gPC" x="160" y="400" width="320" height="320" rx="14" />
+            <text class="tlabel simple-label" x="320" y="448">PC</text>
+            <text class="pc-count simple-label" id="pcCount" x="320" y="570">00</text>
+            <!-- hover preview: the counter's guts (register + +1 + feedback).
+                 Terminal stubs land on (160,440) clk, (480,520) addr1, (480,600) addr0. -->
+            <g class="detailed" id="pcDetail">
+              <rect class="tbody-mini" id="gPcReg" x="206" y="470" width="108" height="180" rx="8" />
+              <text class="tlabel-mini" x="260" y="500">reg</text>
+              <text class="pc-count-mini" id="pcCountMini" x="260" y="566">00</text>
+              <rect class="tbody-mini" id="gPcAdd" x="360" y="510" width="64" height="100" rx="8" />
+              <text class="tlabel-mini" x="392" y="560">+1</text>
+              <polyline class="wire-mini" data-net="clk"   points="160,440 206,440 206,470" />
+              <polyline class="wire-mini" data-net="cnt"   points="314,560 360,560" />
+              <polyline class="wire-mini" data-net="fb"    points="424,560 444,560 444,452 260,452 260,470" />
+              <polyline class="wire-mini" data-net="addr1" points="314,520 480,520" />
+              <polyline class="wire-mini" data-net="addr0" points="314,600 444,600 480,600" />
+            </g>
+          </g>
+          <circle class="pin" id="pinPcClk"   cx="160" cy="440" r="7" />
+          <circle class="pin" id="pinPcAddr1" cx="480" cy="520" r="7" />
+          <circle class="pin" id="pinPcAddr0" cx="480" cy="600" r="7" />
+          <text class="tlabel-small" x="500" y="520" text-anchor="start">addr1</text>
+          <text class="tlabel-small" x="500" y="600" text-anchor="start">addr0</text>
+
+          <!-- ── Instruction memory (exact-copy embed of /mem.html) ────── -->
+          <!-- Box 1:1 with the wireframe: world (4,0) 7×5 → SVG (840,360,560,400). -->
+          <g class="child-slot" id="slot-mem" tabindex="0" role="button"
+             aria-label="instruction memory — click to drill into the memory"
+             data-embed-page="/mem.html" data-embed-svg="mem">
+            <rect class="tbody simple-body" id="gMem" x="840" y="360" width="560" height="400" rx="14" />
+            <text class="tlabel simple-label" x="1120" y="560">instruction memory</text>
+            <g class="detailed" id="memDetail"></g>
+          </g>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 4</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: where instructions come from</h3>
+            <p>Every page so far built a part that does work <em>once</em>. This page builds the loop that makes a machine <em>run a program</em>: <span class="accent">fetch</span>. A <kbd>program counter</kbd> (PC) holds the address of the current instruction; the <kbd>instruction memory</kbd> hands back the word living there; and on every clock the PC steps <kbd>+1</kbd> so the next cycle fetches the next instruction.</p>
+            <p>The PC on the left is just a counter — a register with a <kbd>+1</kbd> self-loop (drill into the counter page to see its guts). Its value drives the memory's address. The memory is the <kbd>mem</kbd> block you just built (hover it for the real table; click to drill in). Press <kbd>↻ clock</kbd> and watch the PC advance and a new instruction come out.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>address out, instruction back</h3>
+            <p>At reset the PC is <kbd>00</kbd>, so it addresses row <kbd>0</kbd> of memory, and the word there — <kbd>00 00 01 10</kbd> — rides out as the instruction. The <kbd>decoded</kbd> readout reads it as <kbd>ADD r2, r0, r1</kbd>. The PC didn't compute anything; it just <em>pointed</em>, and memory <em>answered</em>. That's a fetch.</p>
+            <p class="do">Press <kbd>↻ clock — fetch next</kbd>.</p>
+            <p>Two things happen on the edge: the PC ticks <kbd>00 → 01</kbd> (its <kbd>+1</kbd> loop), and the address it now presents pulls a <em>different</em> word out of memory — the next instruction, <kbd>OR r3, r2, r0</kbd>. Read is instant and combinational; the only thing that waited for the clock was the PC advancing.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>run the program</h3>
+            <p class="do">Keep clocking. Watch the PC walk <kbd>00 → 01 → 10 → 11</kbd> and a different instruction appear each step.</p>
+            <p>That's a program executing — one fetch per clock, the PC marching through memory in order. After <kbd>11</kbd> it wraps back to <kbd>00</kbd> (our toy memory holds four instructions; a real PC just keeps counting up through a much larger memory). Hover the <kbd>instruction memory</kbd> to watch the addressed row light up inside as the PC moves.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This is the engine's idle: the smallest loop that makes a CPU <em>go</em>. Fetch hands a fresh instruction to the rest of the machine every cycle, forever. Everything you built below — the register file, the ALU, the datapath — sits downstream of this, executing whatever word fetch delivers.</p>
+            <p>One wiring step remains to close the circle: take this <kbd>instruction</kbd>, slice it into fields, and drive the datapath's control inputs with them (read these registers, do this op, write that register). That's the <em>decode</em>, and wiring fetch → decode → datapath is the single-cycle CPU — the capstone.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/fetch.ts"></script>
+  </body>
+</html>

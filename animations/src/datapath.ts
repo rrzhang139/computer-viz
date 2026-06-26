@@ -5,6 +5,22 @@ import {
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
 import { autoFillEmbeds } from "./embedPreview";
+import { initSteps } from "./steps";
+import { initCanvasZoom } from "./canvasZoom";
+import { applyWireColors } from "./wireColors";
+
+// Symbol → wire colour: tie each read port's address + operand to one hue, the
+// op select to another, the ALU result to its own — so the read→operate→write
+// loop is traceable at a glance.
+const WIRE_COLORS: Record<string, string> = {
+  clk: "#56ccf2",
+  we: "#ff6fae",
+  waddr0: "#6f8cff", waddr1: "#6f8cff",
+  raddrA0: "#57e08b", raddrA1: "#57e08b", rdata: "#57e08b",
+  raddrB0: "#2fcfc7", raddrB1: "#2fcfc7", rdataB: "#2fcfc7",
+  op0: "#ffcf3a", op1: "#ffcf3a",
+  Y: "#ff8a3d", result: "#ff8a3d",
+};
 
 // Datapath — register file (2 read ports + 1 write) wired to a 1-bit ALU as
 // the read→operate→write-back loop of `add x3, x1, x2`. Hovering a block shows
@@ -19,7 +35,7 @@ const svg = document.getElementById('datapath') as unknown as SVGSVGElement;
 
 type DpSnap = { mem: Bit[]; rA1: Bit; rA0: Bit; rB1: Bit; rB0: Bit; w1: Bit; w0: Bit; we: Bit; op1: Bit; op0: Bit };
 const SNAP_KEY = 'datapath';
-const SEED: Bit[] = [1, 0, 0, 1];
+const SEED: Bit[] = [1, 0, 0, 0];
 const _snap = loadSnapshot<DpSnap>(SNAP_KEY);
 const mem: Bit[] = [0, 1, 2, 3].map((i) => (_snap?.mem?.[i] ?? SEED[i]) as Bit);
 let rA1: Bit = readBitParam('raddrA1', _snap?.rA1 ?? 0);
@@ -27,7 +43,7 @@ let rA0: Bit = readBitParam('raddrA0', _snap?.rA0 ?? 0);
 let rB1: Bit = readBitParam('raddrB1', _snap?.rB1 ?? 0);
 let rB0: Bit = readBitParam('raddrB0', (_snap?.rB0 ?? 1) as Bit);
 let w1: Bit  = readBitParam('waddr1', (_snap?.w1 ?? 1) as Bit);
-let w0: Bit  = readBitParam('waddr0', (_snap?.w0 ?? 0) as Bit);
+let w0: Bit  = readBitParam('waddr0', (_snap?.w0 ?? 1) as Bit);
 let we: Bit  = readBitParam('we', _snap?.we ?? 0);
 let op1: Bit = readBitParam('op1', _snap?.op1 ?? 0);
 let op0: Bit = readBitParam('op0', _snap?.op0 ?? 0);
@@ -51,7 +67,7 @@ function placePin(id: string, x: number, y: number, side: 'L' | 'R') {
 // Regfile control inputs: external pin (LEFT) → lane → the embedded regfile's
 // real pin (its endpoint lands exactly on that pin).
 const RF_IN: [string, string, { x: number; y: number }, number, number][] = [
-  ['pinRaddr1', 'wRaddr1', RF.pinRaddr1, 210, 34], ['pinRaddr0', 'wRaddr0', RF.pinRaddr0, 252, 46],
+  ['pinRaddr1', 'wRaddr1', RF.pinRaddrA1, 210, 34], ['pinRaddr0', 'wRaddr0', RF.pinRaddrA0, 252, 46],
   ['pinRaddrB1', 'wRaddrB1', RF.pinRaddrB1, 312, 58], ['pinRaddrB0', 'wRaddrB0', RF.pinRaddrB0, 354, 70],
   ['pinWaddr1', 'wWaddr1', RF.pinWaddr1, 430, 82], ['pinWaddr0', 'wWaddr0', RF.pinWaddr0, 472, 94],
   ['pinWe', 'wWe', RF.pinWe, 538, 106], ['pinClk', 'wClk', RF.pinClk, 612, 118],
@@ -91,6 +107,7 @@ for (const w of wires) {
   w.insertAdjacentElement('afterend', p);
   pulseFor.set(w, p);
 }
+applyWireColors(svg, WIRE_COLORS);
 function setNet(net: string, on: Bit) {
   for (const w of wires) if (w.getAttribute('data-net') === net) {
     w.setAttribute('data-on', String(on));
@@ -140,7 +157,7 @@ function render() {
   // Light the embedded diagrams to match state (live exact copies).
   const wen = [0, 0, 0, 0]; if (we) wen[w1 * 2 + w0] = 1;
   lightEmbed('regfileDetail', {
-    raddr1: rA1, raddr0: rA0, raddrB1: rB1, raddrB0: rB0, waddr1: w1, waddr0: w0, we, clk, wdata: Y,
+    raddrA1: rA1, raddrA0: rA0, raddrB1: rB1, raddrB0: rB0, waddr1: w1, waddr0: w0, we, clk, wdata: Y,
     q0: mem[0], q1: mem[1], q2: mem[2], q3: mem[3], rdata: A, rdataB: B,
     wen0: wen[0], wen1: wen[1], wen2: wen[2], wen3: wen[3],
     gclk0: clk && wen[0], gclk1: clk && wen[1], gclk2: clk && wen[2], gclk3: clk && wen[3],
@@ -190,7 +207,7 @@ document.getElementById('btnOp0')!.addEventListener('click', toggle((v) => op0 =
 document.getElementById('btnStep')!.addEventListener('click', runCycle);
 document.getElementById('btnReset')!.addEventListener('click', () => {
   for (let i = 0; i < 4; i++) mem[i] = SEED[i];
-  rA1 = 0; rA0 = 0; rB1 = 0; rB0 = 1; w1 = 1; w0 = 0; we = 0; op1 = 0; op0 = 0; clk = 0;
+  rA1 = 0; rA0 = 0; rB1 = 0; rB0 = 1; w1 = 1; w0 = 1; we = 0; op1 = 0; op0 = 0; clk = 0;
   clearSnapshot(SNAP_KEY); render();
 });
 
@@ -198,7 +215,7 @@ document.getElementById('slot-regfile')?.addEventListener('click', () => {
   const Y = aluOut(mem[rA1 * 2 + rA0], mem[rB1 * 2 + rB0], op1 * 2 + op0);
   window.location.assign(buildDrillUrl('/regfile.html', {
     from: 'datapath', which: 'regfile',
-    raddr1: rA1, raddr0: rA0, raddrB1: rB1, raddrB0: rB0, waddr1: w1, waddr0: w0, we, wdata: Y,
+    raddrA1: rA1, raddrA0: rA0, raddrB1: rB1, raddrB0: rB0, waddr1: w1, waddr0: w0, we, wdata: Y,
   }));
 });
 document.getElementById('slot-alu')?.addEventListener('click', () => {
@@ -211,38 +228,8 @@ document.getElementById('slot-alu')?.addEventListener('click', () => {
 initDrillBreadcrumb();
 render();
 
-// ── Step walkthrough nav ─────────────────────────────────────────────
-const steps = Array.from(document.querySelectorAll<HTMLElement>('.step'));
-const stepPrev = document.getElementById('stepPrev') as HTMLButtonElement;
-const stepNext = document.getElementById('stepNext') as HTMLButtonElement;
-const stepNum = document.getElementById('stepNum')!;
-const stepCount = document.getElementById('stepCount')!;
-const stepPanel = document.querySelector('.step-panel') as HTMLElement;
-const stepBodies = document.querySelector('.step-bodies') as HTMLElement;
-stepCount.textContent = ` / ${steps.length}`;
-let currentStep = 0;
-function fitStep() {
-  if (!stepPanel || !stepBodies) return;
-  let scale = 1;
-  stepPanel.style.setProperty('--content-scale', '1');
-  const active = steps[currentStep];
-  for (let n = 0; n < 8 && active && active.scrollHeight > stepBodies.clientHeight && scale > 0.72; n++) {
-    scale -= 0.05;
-    stepPanel.style.setProperty('--content-scale', scale.toFixed(2));
-  }
-}
-function showStep(i: number) {
-  currentStep = Math.max(0, Math.min(steps.length - 1, i));
-  steps.forEach((s, idx) => s.toggleAttribute('hidden', idx !== currentStep));
-  stepNum.textContent = String(currentStep + 1);
-  stepPrev.disabled = currentStep === 0;
-  stepNext.disabled = currentStep === steps.length - 1;
-  fitStep();
-}
-window.addEventListener('resize', fitStep);
-stepPrev.addEventListener('click', () => showStep(currentStep - 1));
-stepNext.addEventListener('click', () => showStep(currentStep + 1));
-showStep(0);
+initCanvasZoom();
+initSteps();
 
 initPanel();
 initToc();

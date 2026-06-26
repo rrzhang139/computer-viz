@@ -11,10 +11,10 @@
       .nav { display: none; }
       .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
       .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
-      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; min-height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
       .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
       .step[hidden] { display: none; }
       .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
       .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
@@ -175,7 +175,7 @@
       </div>
 
       <aside class="step-panel">
-        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span></div>
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span></div>
         <div class="step-nav">
           <button class="btn" id="stepPrev">← prev</button>
           <button class="btn" id="stepNext">next →</button>
@@ -183,29 +183,38 @@
         <div class="step-bodies">
           <article class="step">
             <h3>where we are: where the math finally happens</h3>
-            <p>Every page so far built one capability. The adder learned to add; the bitwise gates learned to AND, OR, and XOR; the MUX learned to pick one wire out of many. None of them <em>chose</em> what to do — each just did its one thing. This page is where those capabilities get assembled into a single block that does <em>any</em> of them on demand.</p>
-            <p>That block is the <em>ALU</em> — the arithmetic-logic unit. It takes two operands <kbd>A</kbd> and <kbd>B</kbd>, a 2-bit operation select <kbd>op</kbd>, and produces one result <kbd>Y</kbd>. This is the <span class="accent">culmination of the combinational tower</span>: the 4-bit adder, the bitwise gate-arrays, and the MUX, wired into one thing that can be told what to compute. Below it is everything you built; above it is the instruction that drives it.</p>
-            <p>Inputs on the LEFT (<kbd>A</kbd>, <kbd>B</kbd>, <kbd>op</kbd>), result <kbd>Y</kbd> on the RIGHT. Toggle the <kbd>A</kbd> and <kbd>B</kbd> bits and the <kbd>op</kbd> bits and watch <kbd>Y</kbd> in the readout.</p>
+            <p>Every page so far built one fixed capability. The adder learned to add; the bitwise gates learned to AND, OR, and XOR; the MUX learned to pick one wire out of many. None of them ever <em>chose</em> what to do — each just did its single job, always. This page assembles those parts into one block that does <em>any</em> of them, on command.</p>
+            <p>That block is the <em>ALU</em>, the arithmetic-logic unit: two 4-bit operands <kbd>A</kbd> and <kbd>B</kbd>, a 2-bit operation select <kbd>op</kbd>, one 4-bit result <kbd>Y</kbd>. Inputs on the LEFT, result on the RIGHT. Press <kbd>↺ reset</kbd> so everything starts at <kbd>0000</kbd>, then keep an eye on the readout strip — it always shows the current <kbd>A</kbd>, <kbd>B</kbd>, <kbd>op</kbd>, and <kbd>Y</kbd> in both binary and decimal as you toggle bits.</p>
           </article>
           <article class="step" hidden>
-            <h3>everything computes at once</h3>
-            <p>Here is the part that surprises people. The four blocks on the left aren't waiting their turn — <em>they all run simultaneously, on every cycle</em>, on the same <kbd>A</kbd> and <kbd>B</kbd>. The 4-bit <kbd>adder</kbd> is computing <kbd>A + B</kbd>; the <kbd>AND</kbd>, <kbd>OR</kbd>, and <kbd>XOR</kbd> gate-arrays are each computing their bitwise result. Four answers, ready in parallel, whether you asked for them or not.</p>
-            <p>Set <kbd>A</kbd> and <kbd>B</kbd> to anything and you'll see all four blocks light up together. Hardware doesn't decide first and then compute — silicon is cheap and time is precious, so it <em>computes everything, then selects</em>. Click the <kbd>adder</kbd> to drill into <kbd>/adder4.html</kbd> with these operands loaded; it's the same ripple-carry chain you built, four full adders deep.</p>
+            <h3>load a number onto each operand bus</h3>
+            <p>Each operand is four buttons, one per bit, written most-significant-first: <kbd>A3 A2 A1 A0</kbd>. The bit's <em>place value</em> is <kbd>8 4 2 1</kbd>. So to put the number <em>3</em> on <kbd>A</kbd>, turn on <kbd>A1</kbd> and <kbd>A0</kbd> (2 + 1) — the readout should read <kbd>A 0011 (3)</kbd>.</p>
+            <p>Do the same on <kbd>B</kbd>: turn on just <kbd>B0</kbd> to load <em>1</em> (<kbd>B 0001 (1)</kbd>). Notice the operand buses are drawn as four side-by-side conductors, and only the lit ones carry a 1 — so you can literally read the binary value off the wires. This is the data the ALU will chew on for the rest of the page.</p>
           </article>
           <article class="step" hidden>
-            <h3>op is just an address into a MUX of answers</h3>
-            <p>So four results exist at once — how does one of them become <kbd>Y</kbd>? With the primitive from the MUX page. The 2-bit <kbd>op</kbd> drives the select of a 4-to-1 <kbd>MUX</kbd> sitting on the right: <kbd>00 → A+B</kbd>, <kbd>01 → AND</kbd>, <kbd>10 → OR</kbd>, <kbd>11 → XOR</kbd>. Whichever the select points at flows through to <kbd>Y</kbd>; the other three are simply not routed — computed, then dropped on the floor.</p>
-            <p>This is the quiet payoff of the decoder-and-MUX you built two pages ago. "Which operation should I do?" turns out to be the exact same question as "which input should the MUX forward?" — an <em>address</em>. The opcode field of a machine instruction is, quite literally, a select line into a bank of pre-computed answers. Click the MUX to drill into <kbd>/mux.html</kbd>.</p>
+            <h3>all four operations compute at once</h3>
+            <p>Here's the part that surprises people. The four blocks on the left don't take turns — <em>they all run simultaneously, every cycle, on the same <kbd>A</kbd> and <kbd>B</kbd></em>. The 4-bit <kbd>adder</kbd> is computing <kbd>A + B</kbd>; the <kbd>AND</kbd>, <kbd>OR</kbd>, and <kbd>XOR</kbd> arrays are each computing their bitwise result. With <kbd>A=0011</kbd> and <kbd>B=0001</kbd> loaded, all four light up together — four finished answers, whether you asked for them or not.</p>
+            <p>Hardware doesn't decide first and then compute; silicon is cheap and time is precious, so it <em>computes everything, then selects</em>. Click the <kbd>adder</kbd> to drill into <kbd>/adder4.html</kbd> with these exact operands loaded — it's the same ripple-carry chain you built, four full adders deep.</p>
           </article>
           <article class="step" hidden>
-            <h3>same operands, different op</h3>
-            <p>Watch the select do its work without touching the data. Set <kbd>A = 0011</kbd> (3) and <kbd>B = 0001</kbd> (1). With <kbd>op = 00</kbd>, the MUX forwards the adder: <kbd>Y = 0100</kbd> (4). Now flip <kbd>op0</kbd> so <kbd>op = 01</kbd> — <kbd>Y = 0001</kbd>, the bitwise AND of 0011 and 0001. Flip to <kbd>10</kbd> for OR (<kbd>0011</kbd>), <kbd>11</kbd> for XOR (<kbd>0010</kbd>).</p>
-            <p>The operands never moved. The adder kept computing 4 the whole time, ignored. <em>All you changed was which answer the MUX let through.</em> That single moving select is the difference between an <kbd>add</kbd> and an <kbd>and</kbd> instruction.</p>
+            <h3>op is just an address into a bank of answers</h3>
+            <p>Four results now exist at once — how does one become <kbd>Y</kbd>? With the primitive from the MUX page. The 2-bit <kbd>op</kbd> drives the select of the 4-to-1 <kbd>MUX</kbd> on the right: <kbd>00 → A+B</kbd>, <kbd>01 → AND</kbd>, <kbd>10 → OR</kbd>, <kbd>11 → XOR</kbd>. Whichever it points at flows through to <kbd>Y</kbd>; the other three are computed and then dropped on the floor.</p>
+            <p>That's the quiet payoff of the decoder-and-MUX you built earlier: "which operation should I do?" is the <em>same question</em> as "which input should the MUX forward?" — an address. The opcode field of a real instruction is literally a select line into this bank of pre-computed answers. Click the <kbd>MUX</kbd> to drill into <kbd>/mux.html</kbd>.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>same operands, four different answers</h3>
+            <p>Now watch the select do its job without ever touching the data. Keep <kbd>A = 0011</kbd> (3) and <kbd>B = 0001</kbd> (1) loaded and step <kbd>op</kbd> through all four values, reading <kbd>Y</kbd> each time:</p>
+            <p><kbd>op=00</kbd> ADD → <kbd>Y=0100</kbd> (4, since 3+1). Flip <kbd>op0</kbd> → <kbd>op=01</kbd> AND → <kbd>Y=0001</kbd> (only the bit both share). <kbd>op=10</kbd> OR → <kbd>Y=0011</kbd> (every bit either has). <kbd>op=11</kbd> XOR → <kbd>Y=0010</kbd> (bits that differ). The operands never moved — the adder kept producing 4 the entire time, ignored. <em>The single moving select is the whole difference between an <kbd>add</kbd> and an <kbd>and</kbd> instruction.</em></p>
+          </article>
+          <article class="step" hidden>
+            <h3>watch a carry fall off the edge</h3>
+            <p>One sharp edge worth seeing on purpose. This ALU is exactly 4 bits wide, so the biggest number it can hold is <kbd>1111</kbd> (15). Load <kbd>A = 1001</kbd> (9: <kbd>A3</kbd> and <kbd>A0</kbd>) and <kbd>B = 1000</kbd> (8: <kbd>B3</kbd>), leave <kbd>op = 00</kbd>. Honest arithmetic says 9 + 8 = 17 = <kbd>10001</kbd> — but that needs <em>five</em> bits.</p>
+            <p><kbd>Y</kbd> shows <kbd>0001</kbd> (1), not 17. The fifth bit — the carry out of the top adder — has nowhere to go on a 4-bit result, so it silently falls off the edge and the answer <em>wraps around</em>. There is no carry-out pin on this block to catch it. That's not a bug, it's what "fixed width" means; a real CPU keeps that escaping bit as a <em>carry flag</em> so software can notice the overflow.</p>
           </article>
           <article class="step" hidden>
             <h3>why this matters</h3>
-            <p>This is where <kbd>add x3, x1, x2</kbd> actually computes. The register file hands over the values in <kbd>x1</kbd> and <kbd>x2</kbd> as <kbd>A</kbd> and <kbd>B</kbd>, the instruction's opcode sets <kbd>op</kbd>, the ALU produces <kbd>Y</kbd>, and on the next clock edge that result is written back into <kbd>x3</kbd>. The ALU is the verb of every arithmetic and logic instruction in the machine.</p>
-            <p>Widen every wire to 32 bits and bolt on a few more blocks — a subtractor (the adder with <kbd>B</kbd> inverted and carry-in tied high, two's complement), a comparator, a shifter — and this is the literal RV32I ALU. Pair it with the register file (which holds the operands) and the program counter (which decides which instruction runs), and you are no longer looking at a primitive. You are looking at the working core of a CPU datapath.</p>
+            <p>This is where <kbd>add x3, x1, x2</kbd> actually computes. The register file hands the values in <kbd>x1</kbd> and <kbd>x2</kbd> to <kbd>A</kbd> and <kbd>B</kbd>, the instruction's opcode sets <kbd>op</kbd>, the ALU produces <kbd>Y</kbd>, and on the next clock edge that result is written back into <kbd>x3</kbd>. The ALU is the <em>verb</em> of every arithmetic and logic instruction.</p>
+            <p>Widen every wire to 32 bits and bolt on a few more answer-blocks — a subtractor (the adder with <kbd>B</kbd> inverted and carry-in tied high, i.e. two's complement), a comparator, a shifter — and this is the literal RV32I ALU. Pair it with the register file (which holds the operands) and the program counter (which picks the next instruction) and you're no longer looking at a primitive; you're looking at the working core of a CPU datapath.</p>
           </article>
         </div>
       </aside>

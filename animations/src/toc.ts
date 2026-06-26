@@ -3,7 +3,9 @@
 //   - combinational logic: NAND → half adder → full adder → 4-bit adder
 //   - memory components:   SR latch → D latch → DFF → register
 
-type Entry = { href: string; label: string; tag: string };
+import { initPinLabels } from './pinLabels';
+
+type Entry = { href: string; label: string; tag: string; children?: Entry[] };
 
 const COMBINATIONAL: Entry[] = [
   { href: "/",               label: "NAND gate",   tag: "1" },
@@ -28,6 +30,22 @@ const DATAPATH: Entry[] = [
   // stacking). The 4-bit /alu.html still builds but is unpinned from the tour.
   { href: "/alu1.html",     label: "ALU",             tag: "5" },
   { href: "/datapath.html", label: "datapath",        tag: "6" },
+  { href: "/mem.html",      label: "memory",          tag: "7" },
+  { href: "/fetch.html",    label: "fetch (PC + mem)", tag: "8" },
+  // The CPU page is a hub: every block on it is a live drill into the page that
+  // builds it. The dropdown lists those component subpages (each is also the
+  // block's hover preview), so you can jump straight to any stage.
+  {
+    href: "/cpu.html", label: "CPU (5-stage pipeline)", tag: "9", children: [
+      { href: "/cpu.html",     label: "overview",            tag: "·" },
+      { href: "/counter.html", label: "PC · program counter", tag: "a" },
+      { href: "/mem.html",     label: "instruction memory",   tag: "b" },
+      { href: "/idecode.html", label: "instruction decoder",  tag: "c" },
+      { href: "/regfile.html", label: "register file",        tag: "d" },
+      { href: "/alu1.html",    label: "ALU",                  tag: "e" },
+      { href: "/mux.html",     label: "write-back MUX",       tag: "f" },
+    ],
+  },
 ];
 
 const CSS = `
@@ -111,6 +129,20 @@ const CSS = `
 }
 .toc-list a[aria-current="page"] .toc-tag { color: var(--on, #EF9F27); }
 
+/* Expandable CPU dropdown */
+.toc-drop { margin: 0; }
+.toc-summary {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 8px 10px; color: #aaa; font-size: 13px;
+  border-radius: 6px; cursor: pointer; list-style: none;
+}
+.toc-summary::-webkit-details-marker { display: none; }
+.toc-summary::after { content: "▸"; margin-left: auto; color: #555; font-size: 10px; }
+details[open] > .toc-summary::after { content: "▾"; color: var(--on, #EF9F27); }
+.toc-summary:hover { color: #fff; background: #181818; }
+.toc-sublist { margin: 2px 0 6px 12px; padding-left: 8px; border-left: 1px solid #1f1f1f; }
+.toc-sublist a { font-size: 12.5px; }
+
 @media (max-width: 600px) {
   .toc-toggle { top: 10px; left: 10px; width: 40px; height: 40px; }
   .toc-sidebar { width: 260px; padding-top: 64px; }
@@ -122,14 +154,22 @@ function pathMatches(href: string, path: string): boolean {
   return path === href || path === href.replace(/\.html$/, "");
 }
 
+function renderEntry(e: Entry, currentPath: string): string {
+  const active = pathMatches(e.href, currentPath);
+  const aria = active ? ` aria-current="page"` : "";
+  const link = `<a href="${e.href}"${aria}><span class="toc-tag">${e.tag}.</span><span>${e.label}</span></a>`;
+  if (!e.children) return `<li>${link}</li>`;
+  // Expandable group: open when on this page or any of its subpages.
+  const childActive = e.children.some((c) => pathMatches(c.href, currentPath));
+  const open = active || childActive ? " open" : "";
+  const kids = e.children.map((c) => renderEntry(c, currentPath)).join("");
+  return `<li><details class="toc-drop"${open}>` +
+    `<summary class="toc-summary"><span class="toc-tag">${e.tag}.</span><span>${e.label}</span></summary>` +
+    `<ul class="toc-list toc-sublist">${kids}</ul></details></li>`;
+}
+
 function renderSection(title: string, entries: Entry[], currentPath: string): string {
-  const items = entries
-    .map((e) => {
-      const active = pathMatches(e.href, currentPath);
-      const aria = active ? ` aria-current="page"` : "";
-      return `<li><a href="${e.href}"${aria}><span class="toc-tag">${e.tag}.</span><span>${e.label}</span></a></li>`;
-    })
-    .join("");
+  const items = entries.map((e) => renderEntry(e, currentPath)).join("");
   return `
     <div class="toc-section">
       <div class="toc-section-head">${title}</div>
@@ -184,4 +224,8 @@ export function initToc() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && sidebar.classList.contains("is-open")) setOpen(false);
   });
+
+  // initToc is the one init every page calls, so it's the canonical hook for
+  // page-wide invariants: keep every terminal label clear of its pin + legible.
+  initPinLabels();
 }

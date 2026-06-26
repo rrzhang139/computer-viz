@@ -32,7 +32,7 @@
       }
       .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
       .step-meta .step-num { color: var(--on); margin-right: 8px; }
-      .step-bodies { flex: 0 0 auto; overflow: visible; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
       .step[hidden] { display: none; }
       .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
       .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
@@ -40,6 +40,8 @@
       .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
       .step em { color: #fff; font-style: normal; }
       .step .accent { color: var(--on); }
+      .step p.do { color: #eee; border-left: 2px solid var(--on); padding: 2px 0 2px 12px; }
+      .step p.do::before { content: "▸ "; color: var(--on); }
       .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
       .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
       .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
@@ -100,6 +102,39 @@
       .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.22em; }
       .out-readout .dec { color: #ddd; }
       .out-readout .sep { color: #333; }
+      /* Allow flex children to shrink below their content's intrinsic width */
+      .canvas-col, .controls, .controls-row, .out-readout { min-width: 0; }
+      .controls-row { flex-wrap: wrap; row-gap: 6px; }
+      .out-readout { flex-wrap: wrap; row-gap: 6px; }
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn, .controls-row .btn, .step-nav .btn {
+          min-height: 44px; padding: 10px 14px; font-size: 14px;
+        }
+      }
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .step-panel { height: auto; min-height: 180px; padding: 12px 16px 14px; }
+        .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; }
+      }
+      @media (max-width: 600px) {
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn, .controls-row .btn {
+          min-height: 44px; min-width: 52px; font-size: 13px; padding: 8px 10px;
+        }
+        .controls-row .label { min-width: auto; font-size: 10px; }
+        .out-readout { font-size: 11px; padding: 8px 12px; }
+        .step-panel { height: auto; min-height: 0; padding: 12px 14px 14px; }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: 14px; }
+        .step p { font-size: 14px; }
+        .step-nav { position: static; margin: 8px 0 10px; justify-content: flex-end; gap: 6px; }
+        .step-nav .btn { min-height: 44px; min-width: 80px; }
+        svg { max-height: none; }
+      }
+      @media (max-width: 380px) {
+        .controls .btn, .controls-row .btn { min-width: 46px; padding: 8px 8px; font-size: 12px; }
+      }
     </style>
   </head>
   <body>
@@ -119,8 +154,8 @@
           </div>
           <div class="controls-row">
             <span class="label">read A</span>
-            <button class="btn" id="btnRaddr1" data-on="0">raddr1 0</button>
-            <button class="btn" id="btnRaddr0" data-on="0">raddr0 0</button>
+            <button class="btn" id="btnRaddrA1" data-on="0">raddrA1 0</button>
+            <button class="btn" id="btnRaddrA0" data-on="0">raddrA0 0</button>
           </div>
           <div class="controls-row">
             <span class="label">read B</span>
@@ -147,7 +182,7 @@
           Register file (4 entries × 1 bit, 1 write port + 2 read ports):
           kept 1-bit-wide so every wire is a single bit and the line counts
           match each component's ports (a real register stacks 32 of these).
-            - LEFT edge: read address (raddr1/raddr0) on top, then the write
+            - LEFT edge: read address (raddrA1/raddrA0) on top, then the write
               address (waddr1/waddr0) + write-enable (we), shared clk, and the
               1-bit wdata at the bottom.
             - read address rides straight across the TOP and drops into the
@@ -165,7 +200,7 @@
               wire — is what selects which register actually latches.
             - TWO 4-to-1 read MUXes (port A → rdata, port B → rdataB). Both
               read the SAME four register bits; each uses its own read address
-              (raddr / raddrB) to forward one. Two ports because an instruction
+              (raddrA / raddrB) to forward one. Two ports because an instruction
               like `add x3, x1, x2` reads two source registers at once.
           Every MUX- and register-touching wire is routed in src/regfile.ts
           onto the child preview's PROJECTED terminals (D/CLK/Q for a register,
@@ -181,8 +216,8 @@
 
           <!-- ── External-terminal pins (ALL inputs LEFT, outputs RIGHT).
                Two read ports: A (raddr→rdata) and B (raddrB→rdataB). -->
-          <circle class="pin" id="pinRaddr1"  cx="0" cy="28"  r="7" />
-          <circle class="pin" id="pinRaddr0"  cx="0" cy="48"  r="7" />
+          <circle class="pin" id="pinRaddrA1" cx="0" cy="28"  r="7" />
+          <circle class="pin" id="pinRaddrA0" cx="0" cy="48"  r="7" />
           <circle class="pin" id="pinRaddrB1" cx="0" cy="92"  r="7" />
           <circle class="pin" id="pinRaddrB0" cx="0" cy="112" r="7" />
           <circle class="pin" id="pinWaddr1"  cx="0" cy="200" r="7" />
@@ -192,8 +227,8 @@
           <circle class="pin" id="pinWdata"   cx="0" cy="710" r="7" />
           <circle class="pin" id="pinRdata"   cx="1505" cy="255" r="7" />
           <circle class="pin" id="pinRdataB"  cx="1505" cy="615" r="7" />
-          <text class="tlabel-small" x="-16" y="28"  text-anchor="end">raddr1</text>
-          <text class="tlabel-small" x="-16" y="48"  text-anchor="end">raddr0</text>
+          <text class="tlabel-small" x="-16" y="28"  text-anchor="end">raddrA1</text>
+          <text class="tlabel-small" x="-16" y="48"  text-anchor="end">raddrA0</text>
           <text class="tlabel-small" x="-16" y="92"  text-anchor="end">raddrB1</text>
           <text class="tlabel-small" x="-16" y="112" text-anchor="end">raddrB0</text>
           <text class="tlabel-small" x="-16" y="200" text-anchor="end">waddr1</text>
@@ -206,8 +241,8 @@
 
           <!-- ── Wires (points set programmatically in src/regfile.ts) ────── -->
           <!-- read-port A address rides across the TOP into MUX-A selects -->
-          <polyline class="wire" data-net="raddr1" id="raddr1" points="0,28 990,28 990,181 1010,181" />
-          <polyline class="wire" data-net="raddr0" id="raddr0" points="0,48 1000,48 1000,195 1010,195" />
+          <polyline class="wire" data-net="raddrA1" id="raddrA1" points="0,28 990,28 990,181 1010,181" />
+          <polyline class="wire" data-net="raddrA0" id="raddrA0" points="0,48 1000,48 1000,195 1010,195" />
           <!-- read-port B address into MUX-B selects -->
           <polyline class="wire" data-net="raddrB1" id="raddrB1" points="0,92 974,92 974,481 1010,481" />
           <polyline class="wire" data-net="raddrB0" id="raddrB0" points="0,112 984,112 984,495 1010,495" />
@@ -341,34 +376,55 @@
 
       <aside class="step-panel">
         <div class="step-meta">
-          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span>
+          <span class="step-num" id="stepNum">1</span><span id="stepCount"> / 6</span>
         </div>
         <div class="step-nav">
           <button class="btn" id="stepPrev">← prev</button>
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
-          <article class="step">
+          <article class="step" data-focus="all">
             <h3>where we are: where the convergence happens</h3>
             <p>So far each page added <em>one</em> idea. This page adds none — it's a reunion. A <em>register file</em> is a small bank of registers the CPU names <em>by number</em>, and to pull that off it leans on three primitives you already built: the <kbd>decoder</kbd> that turns an address into a one-hot wire, the <kbd>DFF</kbd> cells that actually remember the bits, and the <kbd>MUX</kbd> that picks one stored bit back out.</p>
-            <p>This one is deliberately tiny — 4 registers of <em>one bit</em> each — so every wire is a single bit and the counts stay honest (a real register just stacks 32 of these bit-slices). But it is exactly where <kbd>x1</kbd>, <kbd>x2</kbd>, <kbd>x3</kbd> live in the demo program. Hand it an address, get that register's value; hand it an address plus data plus a clock edge, set it. Below this is silicon; above it is the datapath that runs <kbd>add x3, x1, x2</kbd>.</p>
+            <p>This one is deliberately tiny — 4 registers of <em>one bit</em> each — so every wire is a single bit and the counts stay honest (a real register just stacks 32 of these bit-slices). But it is exactly where <kbd>x1</kbd>, <kbd>x2</kbd>, <kbd>x3</kbd> live in the demo program. Over the next four steps you'll do the round trip every instruction's result takes: <em>store a bit into one register, prove the other three never budged, then read it back — on two ports at once</em>. Press <kbd>next →</kbd> to start.</p>
           </article>
-          <article class="step" hidden>
-            <h3>reading: a MUX you already met</h3>
-            <p>Start on the right, the easy half. A register <em>glows</em> when it's holding a 1 — so with the preloaded pattern (<kbd>reg0=1, reg1=0, reg2=0, reg3=1</kbd>) you'll see <kbd>reg0</kbd> and <kbd>reg3</kbd> lit and <kbd>reg1</kbd>, <kbd>reg2</kbd> dark. The 2-bit <kbd>raddr</kbd> is simply the register's <em>number written in binary</em>: <kbd>00 → reg0</kbd>, <kbd>01 → reg1</kbd>, <kbd>10 → reg2</kbd>, <kbd>11 → reg3</kbd> (read the two bits as a number, that's the register it picks). Toggle <kbd>raddr1</kbd>/<kbd>raddr0</kbd> and watch <kbd>rdata</kbd> become whatever bit the addressed register is glowing (or not). Those two bits drive the select of a 4-to-1 <kbd>MUX</kbd> — the very same one from the MUX page — which reaches into the four registers' stored bits and forwards just the addressed one.</p>
-            <p>There are <em>two</em> read ports: <kbd>MUX A</kbd> (<kbd>raddr → rdata</kbd>) and <kbd>MUX B</kbd> (<kbd>raddrB → rdataB</kbd>). Both reach into the <em>same</em> four registers; each picks independently. That's because one instruction reads two registers at once — <kbd>add x3, x1, x2</kbd> needs <kbd>x1</kbd> on one port and <kbd>x2</kbd> on the other. Toggle <kbd>read B</kbd> and watch <kbd>rdataB</kbd> change while <kbd>rdata</kbd> stays put. Reading is <em>purely combinational</em> — no clock; change an address and its output updates the instant the wires settle. Click either MUX to drill into <kbd>/mux.html</kbd> with these four values and that port's address loaded.</p>
+          <article class="step" hidden data-focus="#slot-decoder,#gAnd3,#gAnd0" data-gate="#btnWaddr1">
+            <h3>aim the write: turn a number into a target</h3>
+            <p>Mission: store a 1 into <kbd>reg2</kbd>, which is dark right now. (Check the <em>stored</em> readout above the canvas — it should say <kbd>r0=0 r1=0 r2=0 r3=1</kbd>; if not, press <kbd>↺ reset</kbd>.) Writing is the dangerous half of a register file — the failure mode is hitting the <em>wrong</em> register — so the first job is aiming.</p>
+            <p class="do">Click <kbd>we</kbd> so it reads <kbd>we 1</kbd>.</p>
+            <p>The <kbd>decoder</kbd> wakes up and exactly one line leaves it — <kbd>wen0</kbd>, running across to <kbd>reg0</kbd>'s AND gate. Why <kbd>reg0</kbd>? The write address is still <kbd>00</kbd>, and an address is just the register's number in binary: <kbd>00→reg0</kbd>, <kbd>01→reg1</kbd>, <kbd>10→reg2</kbd>, <kbd>11→reg3</kbd>. We're aimed at the wrong register.</p>
+            <p class="do">Click <kbd>waddr1</kbd> — but first, guess which AND gate the bright line will jump to.</p>
+            <p>The address became <kbd>10</kbd> — binary for 2 — and the lit line jumped to <kbd>reg2</kbd>'s gate. That's the decoder's whole job: turn a number into <em>one</em> raised wire. And the three dark <kbd>wen</kbd> lines are a promise: those three registers <em>cannot</em> change this cycle, no matter what.</p>
+            <p class="do">Hover the <kbd>decoder</kbd> and hold still — the box swaps for its real internals, lit with this exact address.</p>
+            <p>Inside, two inverters make the address bits' opposites (<kbd>ā1</kbd>, <kbd>ā0</kbd>), and each of the four AND gates listens for one exact combination. With <kbd>10</kbd> on the wires, only the gate watching for <kbd>a1·ā0</kbd> finds all its inputs high — and its output is the lit <kbd>wen2</kbd> line you just watched jump. Click to drill in with this address loaded.</p>
           </article>
-          <article class="step" hidden>
-            <h3>aiming the write: the decoder picks the target</h3>
-            <p>Writing is harder — the danger is hitting the <em>wrong</em> register. The 2-to-4 <kbd>decoder</kbd> raises exactly one of <kbd>wen0..wen3</kbd>, and <em>which</em> one is the same binary-number rule as reading: <kbd>00 → reg0</kbd>, <kbd>01 → reg1</kbd>, <kbd>10 → reg2</kbd>, <kbd>11 → reg3</kbd> — the write address is just the register's number.</p>
-            <p>Watch it: set <kbd>we = 1</kbd> and the <kbd>decoder</kbd> lights; set <kbd>waddr = 01</kbd> (<kbd>waddr0</kbd> on) and one line — <kbd>wen1</kbd> — turns on and runs across to <kbd>reg1</kbd>'s AND gate while the other three stay dark; toggle to <kbd>11</kbd> and the bright line jumps to <kbd>reg3</kbd>'s gate. That lit line answers a sharper question than it did on the decoder page — <em>which register is even allowed to change</em> — and the three dark lines are the three kept safe. Click the decoder to drill into <kbd>/decoder.html</kbd>.</p>
+          <article class="step" hidden data-focus="#slot-reg3,#slot-reg0" data-gate="#btnPulse">
+            <h3>fire the edge: data + clock = a stored bit</h3>
+            <p class="do">Click <kbd>wdata</kbd> so it reads <kbd>wdata 1</kbd>.</p>
+            <p>The wire from the bottom-left lights up, runs up the bus, and fans into <em>all four</em> registers' <kbd>D</kbd> inputs — every register is shown the new bit. And yet nothing happens: the readout still says <kbd>r2=0</kbd>. Data alone never writes. A register only looks at <kbd>D</kbd> on a clock edge, and no edge has arrived.</p>
+            <p class="do">Press <kbd>↻ clock write</kbd> and follow the pulse.</p>
+            <p>The edge races down the shared <kbd>clk</kbd> line into all four <kbd>AND</kbd> gates at once — but only <kbd>reg2</kbd>'s gate has its <kbd>wen</kbd> raised, so only the wire dropping into <kbd>reg2</kbd>'s clock fires. <kbd>reg2</kbd> latches the 1 and starts glowing, the readout flips to <kbd>r2=1</kbd>, and the other three never saw an edge at all. The decoder <em>chose</em>, the AND gate <em>delivered the edge</em>, the register <em>remembered</em>.</p>
+            <p class="do">Hover <kbd>reg2</kbd> to see where the bit actually lives.</p>
+            <p>The preview is the real D flip-flop: your <kbd>wdata</kbd> arriving on <kbd>D</kbd>, the gated clock landing on <kbd>CLK</kbd>, and the two latches inside — the master that sampled the 1, the slave now publishing it on <kbd>Q</kbd> — both glowing. A one-bit register <em>is</em> a DFF. Click to drill in.</p>
           </article>
-          <article class="step" hidden>
-            <h3>writing: the one-hot gates the clock</h3>
-            <p>Now the punchline that ties the decoder to the registers. Each <kbd>wen</kbd> line is ANDed with the clock (the four <kbd>AND</kbd> gates in the middle), and <em>that</em> gated signal — not the raw clock — becomes each register's clock. So a rising edge only reaches the one register whose <kbd>wen</kbd> is high. The other three never see an edge, so their registers hold their value, exactly as a register does when its clock stays quiet.</p>
-            <p>Now actually store something — go slowly and watch it happen. Set <kbd>we = 1</kbd> and <kbd>waddr = 10</kbd> (<kbd>waddr1</kbd> on); <kbd>10</kbd> is binary for 2, so by the same <kbd>00→reg0 … 11→reg3</kbd> rule this aims at <kbd>reg2</kbd> — which is dark right now. Set <kbd>wdata = 1</kbd>, then press <kbd>↻ clock write</kbd> and follow the pulse: it runs along the shared <kbd>clk</kbd> line into all four <kbd>AND</kbd> gates at once, but only <kbd>reg2</kbd>'s gate has its <kbd>wen</kbd> high, so only that one passes the edge through to <kbd>reg2</kbd>'s clock. <kbd>reg2</kbd> flips to 1 and starts glowing; the other three never saw an edge and hold. The decoder <em>chose</em>, the AND gate <em>delivered the edge</em>, the register <em>remembered</em>. Click any register to drill into its <kbd>/dff.html</kbd> — a one-bit register is exactly a D flip-flop.</p>
+          <article class="step" hidden data-focus="#slot-reg3,#slot-reg0" data-gate="#btnPulse">
+            <h3>try to wreck it: the master safety switch</h3>
+            <p>A CPU clocks its register file on <em>every</em> cycle of <em>every</em> program, so what keeps your bit alive for the thousands of cycles between writes is everything that <em>doesn't</em> happen. Let's attack the bit we just stored.</p>
+            <p class="do">Click <kbd>we</kbd> back to <kbd>we 0</kbd>, click <kbd>wdata</kbd> back to <kbd>wdata 0</kbd>, then press <kbd>↻ clock write</kbd> again.</p>
+            <p>The pulse runs exactly as before — and nothing changes. <kbd>r2</kbd> is still 1. With <kbd>we = 0</kbd> the decoder raises no <kbd>wen</kbd> line at all, so all four AND gates swallow the edge and not one gated clock fires. <kbd>we</kbd> (write-enable) is the master "may anything change this cycle?" switch: flip it off and the file is untouchable, no matter what the clock or the data wires are doing.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#slot-mux,#slot-muxB" data-gate="#btnRaddrB1">
+            <h3>read it back — on two ports at once</h3>
+            <p>Reading is the easy half: no clock, no enable, no danger. Each read port is the 4-to-1 <kbd>MUX</kbd> you already met, reaching into the same four stored bits, addressed by the same binary-number rule.</p>
+            <p class="do">Click <kbd>raddrA1</kbd> so read A's address is <kbd>10</kbd>.</p>
+            <p><kbd>rdata</kbd> flips from 0 to 1 the instant the wires settle — that's the bit you stored two steps ago, pulled back out through <kbd>MUX A</kbd>. No clock edge needed: reading is purely combinational, always live.</p>
+            <p class="do">Now click <kbd>raddrB1</kbd> so read B's address is <kbd>11</kbd>.</p>
+            <p><kbd>rdataB</kbd> shows 1 — <kbd>reg3</kbd>'s bit — while port A keeps reading <kbd>reg2</kbd>. Two different registers, read at the same instant, neither port disturbing storage. That's why there are two ports: an instruction like <kbd>add x3, x1, x2</kbd> needs <kbd>x1</kbd> and <kbd>x2</kbd> in the same cycle.</p>
+            <p class="do">Hover <kbd>MUX B</kbd> and you'll find an old friend inside.</p>
+            <p>Another <em>decoder</em> — the same trick as the write side, now aimed at reading. It takes <kbd>raddrB = 11</kbd> and raises its fourth select line, which opens the fourth AND gate — the one sitting on <kbd>reg3</kbd>'s wire. The stored 1 rides through that open gate, the OR funnels it out, and <em>that</em> is <kbd>rdataB</kbd>. A read is just: decode the address, open one gate, let the stored bit through. Click either MUX to drill in with these four bits and that port's address loaded.</p>
+            <p><span class="accent">Write on a clock edge, read whenever you like</span> — that split is the entire contract of a register file, and you've now done both ends of it by hand.</p>
+          </article>
+          <article class="step" hidden data-focus="all">
             <h3>why this matters</h3>
             <p>Every RISC-V instruction names registers. <kbd>add x3, x1, x2</kbd> says "read <kbd>x1</kbd>, read <kbd>x2</kbd>, write <kbd>x3</kbd>" — that's exactly the two read ports and one write port you see here, each addressed by a register number. The real one just isn't shy about size: 32 entries of 32 bits instead of 4 entries of 1 bit.</p>
             <p>Widen each register to 32 bits and grow the addresses to 5 bits (so the write side becomes a 5-to-32 decoder and each read port a 32-to-1 MUX) and you are looking at the literal heart of the CPU's datapath. The next page pairs this with the ALU — <kbd>rdata</kbd> and <kbd>rdataB</kbd> become the ALU's two operands — and the values stored here finally get something done to them.</p>

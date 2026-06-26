@@ -366,15 +366,14 @@ try {
   await page.goto(`${HOST}/regfile.html`);
   await clearSession();
   const readout = (id) => page.$eval(`#${id}`, (e) => e.textContent.trim());
-  // Registers preloaded with reg0=1,reg1=0,reg2=0,reg3=1 — a pattern where
-  // flipping EITHER read-address bit flips the bit read out, so toggling
-  // raddr must change rdata (the bug report: an all-zero file read 0 always).
-  expect('regfile: rdata reads reg0=1 at addr 00', await wireOn('rdata'), '1');
-  await page.click('#btnRaddr0'); await page.waitForTimeout(40);
-  expect('regfile: rdata=0 at addr 01 (reg1)', await wireOn('rdata'), '0');
-  await page.click('#btnRaddr1'); await page.waitForTimeout(40);
+  // Registers preloaded with only reg3=1: port A's power-on address (00)
+  // reads 0, so the walkthrough's "store into reg2, read the 0→1 flip back
+  // out" shows an actual change. Reading is still provably live: pointing
+  // port A at reg3 flips rdata 0→1 with no clock.
+  expect('regfile: rdata reads reg0=0 at addr 00', await wireOn('rdata'), '0');
+  await page.click('#btnRaddrA1'); await page.click('#btnRaddrA0'); await page.waitForTimeout(40);
   expect('regfile: rdata=1 at addr 11 (reg3)', await wireOn('rdata'), '1');
-  await page.click('#btnRaddr0'); await page.click('#btnRaddr1'); await page.waitForTimeout(40); // back to 00
+  await page.click('#btnRaddrA1'); await page.click('#btnRaddrA0'); await page.waitForTimeout(40); // back to 00
   // Write 1 into reg2 (seeded 0): waddr=10 (waddr1 on), wdata=1.
   await page.click('#btnWe');
   await page.click('#btnWaddr1');
@@ -391,12 +390,12 @@ try {
   await page.click('#btnPulse');
   await page.waitForTimeout(1300);
   // Only reg2 changed (0→1); the other three keep their preloaded bits.
-  expect('regfile: write hit only reg2', await readout('memBits'), 'r0=1 r1=0 r2=1 r3=1');
-  // Read it back: raddr=10 → rdata=1
-  await page.click('#btnRaddr1');
+  expect('regfile: write hit only reg2', await readout('memBits'), 'r0=0 r1=0 r2=1 r3=1');
+  // Read it back: raddrA=10 → rdata=1
+  await page.click('#btnRaddrA1');
   await page.waitForTimeout(40);
   expect('regfile: rdata=1 reading addr 10 (reg2)', await wireOn('rdata'), '1');
-  // (raddr1 on → MUX drill below carries s1=1.)
+  // (raddrA1 on → MUX drill below carries s1=1.)
 
   // Drill into the write decoder — carries waddr + we
   await drill('#slot-decoder');
@@ -421,7 +420,7 @@ try {
   await drill('#slot-mux');
   expect('regfile→muxA which=rmuxA', new URL(page.url()).searchParams.get('which'), 'rmuxA');
   expect('regfile→muxA in2=1 (reg2 stored)', new URL(page.url()).searchParams.get('in2'), '1');
-  expect('regfile→muxA s1=1 (raddr1)',       new URL(page.url()).searchParams.get('s1'), '1');
+  expect('regfile→muxA s1=1 (raddrA1)',      new URL(page.url()).searchParams.get('s1'), '1');
   await checkBreadcrumb('← back to regfile · rmuxA');
   await page.screenshot({ path: path.join(OUT_DIR, '10_regfile_to_mux.png') });
   await backAndExpectAlive('#slot-mux');
@@ -682,6 +681,9 @@ try {
     { page: '/alu.html',       slot: 'slot-mux',      expectedTitle: /MUX|computer-viz/i },
     { page: '/datapath.html',  slot: 'slot-regfile',  expectedTitle: /register file|computer-viz/i },
     { page: '/datapath.html',  slot: 'slot-alu',      expectedTitle: /ALU|computer-viz/i },
+    { page: '/mem.html',       slot: 'slot-readmux',  expectedTitle: /MUX|computer-viz/i },
+    { page: '/fetch.html',     slot: 'slot-mem',      expectedTitle: /memory|computer-viz/i },
+    { page: '/fetch.html',     slot: 'slot-pc',       expectedTitle: /counter|program|computer-viz/i },
   ];
 
   for (const { page: pagePath, slot, expectedTitle } of VALID_DRILLS) {

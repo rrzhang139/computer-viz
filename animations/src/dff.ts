@@ -5,6 +5,8 @@ import {
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
 import { autoFillEmbeds } from "./embedPreview";
+import { initSteps } from "./steps";
+import { initCanvasZoom } from "./canvasZoom";
 // DFF (master-slave D flip-flop):
 //   - master D latch is transparent when CLK = 0 (its EN = !CLK)
 //   - slave  D latch is transparent when CLK = 1 (its EN =  CLK)
@@ -188,24 +190,8 @@ initDrillBreadcrumb();
 
 render();
 
-// Step-through walkthrough nav
-const steps = Array.from(document.querySelectorAll<HTMLElement>('.step'));
-const stepPrev = document.getElementById('stepPrev') as HTMLButtonElement;
-const stepNext = document.getElementById('stepNext') as HTMLButtonElement;
-const stepNum  = document.getElementById('stepNum')!;
-const stepCount = document.getElementById('stepCount')!;
-stepCount.textContent = ` / ${steps.length}`;
-let currentStep = 0;
-function showStep(i: number) {
-  currentStep = Math.max(0, Math.min(steps.length - 1, i));
-  steps.forEach((s, idx) => s.toggleAttribute('hidden', idx !== currentStep));
-  stepNum.textContent = String(currentStep + 1);
-  stepPrev.disabled = currentStep === 0;
-  stepNext.disabled = currentStep === steps.length - 1;
-}
-stepPrev.addEventListener('click', () => showStep(currentStep - 1));
-stepNext.addEventListener('click', () => showStep(currentStep + 1));
-showStep(0);
+initCanvasZoom();
+initSteps();
 
 initPanel();
 initToc();

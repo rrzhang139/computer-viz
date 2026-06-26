@@ -5,6 +5,8 @@ import {
   loadSnapshot, saveSnapshot, clearSnapshot,
 } from "./drillContext";
 import { autoFillEmbeds } from "./embedPreview";
+import { initSteps } from "./steps";
+import { initCanvasZoom } from "./canvasZoom";
 // Same logic as src/latch.ts — only the SVG topology differs (v2 NAND with
 // both A and B on the LEFT edge, so the cross-coupled feedback forms an X
 // in the corridor between N1 and N2 rather than wrapping around the right).
@@ -150,24 +152,8 @@ btnReset?.addEventListener('click', () => {
 
 render();
 
-// Step-through walkthrough nav
-const steps = Array.from(document.querySelectorAll<HTMLElement>('.step'));
-const stepPrev = document.getElementById('stepPrev') as HTMLButtonElement;
-const stepNext = document.getElementById('stepNext') as HTMLButtonElement;
-const stepNum  = document.getElementById('stepNum')!;
-const stepCount = document.getElementById('stepCount')!;
-stepCount.textContent = ` / ${steps.length}`;
-let currentStep = 0;
-function showStep(i: number) {
-  currentStep = Math.max(0, Math.min(steps.length - 1, i));
-  steps.forEach((s, idx) => s.toggleAttribute('hidden', idx !== currentStep));
-  stepNum.textContent = String(currentStep + 1);
-  stepPrev.disabled = currentStep === 0;
-  stepNext.disabled = currentStep === steps.length - 1;
-}
-stepPrev.addEventListener('click', () => showStep(currentStep - 1));
-stepNext.addEventListener('click', () => showStep(currentStep + 1));
-showStep(0);
+initCanvasZoom();
+initSteps();
 
 // ── Drill-down: clicking a NAND inside the latch navigates to /index.html
 // with that NAND's current A and B baked into the URL. Hovering still
