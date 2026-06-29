@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>computer-viz / CPU — the primitive (R-type, single-cycle)</title>
+    <title>computer-viz / CPU — load/store (lw/sw, single-cycle)</title>
     <style>
       :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
       *, *::before, *::after { box-sizing: border-box; }
@@ -70,7 +70,7 @@
     </style>
   </head>
   <body>
-    <div class="nav"><a href="/cpu.html" aria-current="page">CPU</a></div>
+    <div class="nav"><a href="/cpu_ldst.html" aria-current="page">load/store CPU</a></div>
     <div class="page-layout">
       <div class="canvas-col">
         <div class="controls">
@@ -98,7 +98,7 @@
           1-bit data. Wireframe: wire_sketches/layer18_cpu.md.
         -->
         <svg id="cpu" viewBox="-120 -30 4360 1460" role="img"
-             aria-label="CPU single-cycle datapath: fetch, decode, execute, write-back"
+             aria-label="load/store CPU datapath: fetch, decode, execute, memory, write-back"
              preserveAspectRatio="xMidYMid meet">
           <polyline class="rail" data-net="Vdd" points="0,8 4100,8" />
           <polyline class="rail" data-net="GND" points="0,1400 4100,1400" />
@@ -107,7 +107,8 @@
           <text class="stage-head" x="260"  y="18">IF · fetch</text>
           <text class="stage-head" x="1020" y="18">ID · decode</text>
           <text class="stage-head" x="3600" y="18">EX · execute</text>
-          <text class="stage-head" x="3560" y="1080">WB · write-back</text>
+          <text class="stage-head" x="1000" y="1066">MEM · data memory</text>
+          <text class="stage-head" x="3560" y="1066">WB · write-back</text>
 
           <!-- ── source / sink terminals (CPU-level constants + clock) ─────── -->
           <circle class="pin" id="pinClk"  cx="-100" cy="1200" r="7" /><text class="tlabel-small" data-pin="pinClk"  text-anchor="end" x="-118" y="1200">clk</text>
@@ -115,6 +116,10 @@
           <circle class="pin" id="pinZero" cx="3090" cy="1080" r="7" /><text class="tlabel-small" data-pin="pinZero" text-anchor="middle" x="3090" y="1058">0</text>
           <!-- ALU carry-out (unused by 1-bit ops) -->
           <circle class="pin" id="coutTerm" cx="4090" cy="560" r="6" /><text class="tlabel-small" data-pin="coutTerm" text-anchor="start" x="4080" y="530">Cout</text>
+          <!-- control signals (decoded from the opcode) + a 0 for the memory high address bit -->
+          <circle class="pin" id="pinMemWrite" cx="540" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="522" y="1240">memWrite</text>
+          <circle class="pin" id="pinMemToReg" cx="3120" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3102" y="1330">memToReg</text>
+          <circle class="pin" id="pinZero2"    cx="560" cy="1120" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="542" y="1120">0</text>
 
 
           <!-- ── wires (geometry set in src/cpu.ts onto projected pins) ─────── -->
@@ -149,6 +154,20 @@
                an R-type result has one source). The ld/st page adds the MUX. -->
           <polyline class="wire" data-net="wb" id="wWdata" points="0,0 0,0" />
 
+          <!-- MEM + write-back MUX: ALU result → MUX in0 AND → data-memory address;
+               data-memory read → MUX in1; rs2 read → data-memory write data; the
+               write-back MUX picks ALU-result vs loaded-data (memToReg). -->
+          <polyline class="wire" data-net="aluY"     id="wAluY"    points="0,0 0,0" />
+          <polyline class="wire" data-net="memaddr"  id="wAluAddr" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"     id="wDmAddr1" points="0,0 0,0" />
+          <polyline class="wire" data-net="rdataB"   id="wDmWdata" points="0,0 0,0" />
+          <polyline class="wire" data-net="memwrite" id="wDmWe"    points="0,0 0,0" />
+          <polyline class="wire" data-net="clk"      id="wDmClk"   points="0,0 0,0" />
+          <polyline class="wire" data-net="memdata"  id="wDmRdata" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"     id="wMuxIn2"  points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"     id="wMuxIn3"  points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"     id="wMuxS1"   points="0,0 0,0" />
+          <polyline class="wire" data-net="memtoreg" id="wMuxS0"   points="0,0 0,0" />
           <!-- ── drillable blocks (each = exact embed of its page) ─────────── -->
           <!-- IF: program counter. The +1 adder sits on the LEFT and feeds the
                register on the RIGHT; the register's Q is the current PC, exposed
@@ -212,6 +231,20 @@
             <text class="tlabel simple-label" x="3600" y="740">ALU</text>
             <g class="detailed" id="aluDetail"></g>
           </g>
+          <!-- MEM: data memory (read + write) — exact embed of /dmem.html -->
+          <g class="child-slot" id="slot-dmem" tabindex="0" role="button" aria-label="data memory"
+             data-embed-page="/dmem.html" data-embed-svg="dmem">
+            <rect class="tbody simple-body" id="gDmem" x="700" y="1082" width="600" height="300" rx="12" />
+            <text class="tlabel simple-label" x="1000" y="1232">data memory</text>
+            <g class="detailed" id="dmemDetail"></g>
+          </g>
+          <!-- WB: write-back MUX — exact embed of /mux.html (ALU result vs loaded data) -->
+          <g class="child-slot" id="slot-wbmux" tabindex="0" role="button" aria-label="write-back MUX"
+             data-embed-page="/mux.html" data-embed-svg="mux">
+            <rect class="tbody simple-body" id="gWbmux" x="3200" y="1090" width="720" height="270" rx="12" />
+            <text class="tlabel simple-label" x="3560" y="1225">write-back</text>
+            <g class="detailed" id="wbmuxDetail"></g>
+          </g>
         </svg>
       </div>
 
@@ -222,67 +255,52 @@
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
-          <article class="step" data-stage="overview" data-focus="all" data-gate="#btnReset">
-            <h3>the most basic CPU — a register machine</h3>
-            <p data-hl="box:gPc box:gImem box:gIdecode box:gRegfile box:gAlu">This is the <em>simplest thing that earns the name CPU</em>: a pure <em>register machine</em>. Its entire repertoire is one move — <em>read two registers, combine them in the ALU, write the answer back to a register</em>. The four registers <kbd>r0…r3</kbd> start <em>preloaded</em>; each instruction names two of them and one operation (<kbd>ADD</kbd> / <kbd>AND</kbd> / <kbd>OR</kbd> / <kbd>XOR</kbd>) and stores the result. RISC-V calls these <em>R-type</em> instructions. <strong>No data memory, no branches, no jumps</strong> — values never leave the register file, and the program runs as one fixed straight line. (Adding memory turns this into the <em>load/store</em> CPU — open the contents menu.)</p>
-            <p data-hl="box:gPc box:gImem box:gIdecode box:gRegfile box:gAlu">It's a working datapath, assembled from pages you've already built. <em>Every block is a live door</em> — hover one (<kbd>PC</kbd>, <kbd>instruction memory</kbd>, <kbd>decode</kbd>, <kbd>register file</kbd>, <kbd>ALU</kbd>) to swap it for an exact copy of the page that builds it; click to drill to the transistors.</p>
-            <p data-hl="net:addr0 net:addr1 net:instr net:op0 net:op1 net:rdataA net:rdataB net:wb net:clk">There are a lot of wires, so each is <em>colored by what it carries</em> — and every step tells you the one or two colors to watch and to ignore the rest: <kbd class="wt-addr1">address</kbd>, <kbd class="wt-instr">instruction</kbd>, <kbd class="wt-op">op</kbd>, operands <kbd class="wt-rdataA">A</kbd> + <kbd class="wt-rdataB">B</kbd>, the <kbd class="wt-aluY">result</kbd>, the <kbd class="wt-wb">write-back</kbd> loop, the <kbd class="wt-clk">clock</kbd>.</p>
-            <p data-hl="box:gRegfile" class="do">Press <kbd>↺ reset</kbd>. The readout above should now read <kbd>PC 00</kbd> · <kbd>r0=1 r1=1 r2=0 r3=0</kbd>. We'll walk one stage at a time, parking the camera on each and pressing <kbd>↻ run instruction</kbd> to advance. <em>Tip: click any paragraph to spotlight the exact wires it names and pop open the blocks it describes</em> (click again or press <kbd>Esc</kbd> to clear).</p>
+          <article class="step" data-stage="overview" data-focus="all" data-gate="#btnReset" data-pc="0">
+            <h3>the load/store CPU — a round trip through memory</h3>
+            <p data-hl="box:gPc box:gImem box:gIdecode box:gRegfile box:gAlu box:gDmem box:gWbmux">This is the R-type core with two additions: a <kbd>data memory</kbd> beside the register file and a revived <kbd>write-back</kbd> MUX. Together they unlock the two instructions every program leans on — <kbd>SW</kbd> (store: <kbd>Mem[rs1] = rs2</kbd>) and <kbd>LW</kbd> (load: <kbd>rd = Mem[rs1]</kbd>).</p>
+            <p data-hl="net:memdata net:memwrite net:memtoreg open:gDmem">We'll trace one <strong>store</strong> end-to-end, run it, then trace one <strong>load</strong> that reads the value right back. Two new colors to watch: the light-blue <kbd class="wt-memdata">loaded-data</kbd> wire out of memory, and the amber control lines <kbd class="wt-memwrite">memWrite</kbd> / <kbd class="wt-memtoreg">memToReg</kbd> the decoder raises.</p>
+            <p class="do" data-hl="box:gRegfile box:gDmem">Press <kbd>↺ reset</kbd>: the readout should read <kbd>PC 00</kbd> · <kbd>r0=1 r1=1 r2=0 r3=0</kbd> · <kbd>M0=0 M1=0</kbd> (memory empty). <em>Tip: click any paragraph to spotlight the wires it names and open the blocks it describes</em> (click again or <kbd>Esc</kbd> clears).</p>
           </article>
-          <article class="step" hidden data-stage="fetch" data-focus="#gPc,#gImem" data-gate="#btnStep">
-            <h3>fetch: PC → instruction memory</h3>
-            <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr"><strong>Two colors carry this stage:</strong> <kbd class="wt-addr1">address</kbd> (blue) and <kbd class="wt-instr">instr</kbd> (violet). The <kbd>PC</kbd> is a counter holding the address of the current instruction. That address leaves its right edge, wraps down to the <kbd>instruction memory</kbd>, and selects one stored word — which comes back on the violet <kbd class="wt-instr">instr</kbd> bus. No arithmetic here; this stage only <em>locates</em> the next instruction.</p>
-            <p data-hl="open:gPc" class="do">Hover the <kbd>PC</kbd> and hold still.</p>
-            <p data-hl="open:gPc net:addr0 net:addr1">The box swaps for its internals: a <kbd>+1</kbd> adder and a register cell, wired in a loop. Right now <kbd>PC = 00</kbd>, so the register stores <kbd>0</kbd> and its two <kbd class="wt-addr1">address</kbd>-out wires sit <em>dark</em> — there's no <kbd>1</kbd> to light them yet. Beside it the <kbd>+1</kbd> adder glows, already computing <kbd>00 + 1 = 01</kbd> and holding that next address on its output, waiting for a clock edge.</p>
-            <p data-hl="open:gImem" class="do">Now hover <kbd>instruction memory</kbd>.</p>
-            <p data-hl="open:gImem net:instr">Address <kbd>00</kbd> lights exactly one of its four stored words — <em>word 0</em> — and the read MUX forwards that word onto the violet <kbd class="wt-instr">instr</kbd> bus. The readout names it: <kbd>INSTR ADD r2,r0,r1</kbd>. That's the word the rest of the pipeline will act on.</p>
-            <p data-hl="open:gPc net:addr0 net:addr1 net:clk" class="do">Press <kbd>↻ run instruction</kbd> once and watch the <kbd>PC</kbd>.</p>
-            <p data-hl="net:clk net:addr0 net:addr1 net:instr open:gImem">The clock edge latches the adder's <kbd>01</kbd> into the register: <kbd>PC</kbd> ticks <kbd>00 → 01</kbd>, the low <kbd class="wt-addr1">address</kbd> bit flips <em>0 → 1</em>, and the register cell lights for the first time. Instruction memory re-reads at the new address — a <em>different</em> word cell lights — and the <kbd>INSTR</kbd> readout flips <kbd>ADD r2,r0,r1 → AND r3,r0,r1</kbd>. One new word, and everything downstream changes with it.</p>
+          <article class="step" hidden data-stage="strace" data-focus="all" data-pc="0">
+            <h3>store — trace the whole path (before running)</h3>
+            <p>A <kbd>store</kbd> runs data <em>out</em> of the register file into memory. This instruction is <kbd>SW r1,(r0)</kbd>: write <kbd>r1</kbd>'s value into the memory cell addressed by <kbd>r0</kbd>. Click each numbered step to light its part of the path — nothing commits until you run it.</p>
+            <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr"><strong>1 · fetch.</strong> The <kbd>PC</kbd> (<kbd>00</kbd>) addresses <kbd>instruction memory</kbd>, which hands back the <kbd>SW</kbd> word on the violet <kbd class="wt-instr">instr</kbd> bus.</p>
+            <p data-hl="open:gIdecode net:instr net:op0 net:op1 net:rs1h net:rs1l net:rs2h net:rs2l net:memwrite"><strong>2 · decode.</strong> <kbd>decode</kbd> splits the word: <kbd class="wt-op">op</kbd>=SW, <kbd class="wt-rdataA">rs1</kbd>=r0 (the address), <kbd class="wt-rdataB">rs2</kbd>=r1 (the data) — and it raises the amber <kbd class="wt-memwrite">memWrite</kbd> control.</p>
+            <p data-hl="open:gRegfile net:rdataA net:rdataB"><strong>3 · register read.</strong> The <kbd>register file</kbd> reads both ports: <kbd class="wt-rdataA">r0</kbd>=1 heads for the address, <kbd class="wt-rdataB">r1</kbd>=1 is the value to store.</p>
+            <p data-hl="open:gAlu net:rdataA net:memaddr"><strong>4 · address.</strong> The <kbd>ALU</kbd> passes <kbd>r0</kbd> straight through as the effective address — <em>which</em> memory cell to write (cell 1).</p>
+            <p data-hl="open:gDmem net:memaddr net:rdataB net:memwrite net:clk"><strong>5 · data memory.</strong> The write port now has all three: address = 1, write-data = <kbd class="wt-rdataB">r1</kbd>=1, <kbd class="wt-memwrite">memWrite</kbd>=1. It's <em>armed</em> — but a write only commits on a <kbd class="wt-clk">clock</kbd> edge. Click <kbd>next →</kbd> to pulse it.</p>
           </article>
-          <article class="step" hidden data-stage="decode" data-focus="#gIdecode">
-            <h3>decode: split the instruction</h3>
-            <p data-hl="open:gIdecode net:instr net:rs1h net:rs1l net:rs2h net:rs2l net:rd0 net:rd1 net:op0 net:op1"><strong>The fetched word means nothing until it's taken apart.</strong> The 8-bit <kbd class="wt-instr">instr</kbd> bus (/8) enters the <kbd>decode</kbd> block, which slices it into four 2-bit fields and sends each out its own bus (/2): <kbd class="wt-rdataA">rs1</kbd> → the <kbd>register file</kbd>'s read-A address, <kbd class="wt-rdataB">rs2</kbd> → read-B, <kbd>rd</kbd> → the write address, and the amber <kbd class="wt-op">op</kbd> → the <kbd>ALU</kbd>. No logic, no clock — just wires fanning the bits to where each is needed; the outputs change the instant the input word does.</p>
-            <p data-hl="open:gIdecode" class="do">Hover <kbd>decode</kbd> and read the bits.</p>
-            <p data-hl="open:gIdecode net:op0 net:rs2l net:rd0 net:rd1">The word for <kbd>AND r3,r0,r1</kbd> is <kbd>01 00 01 11</kbd> — <kbd class="wt-op">op</kbd>=<kbd>01</kbd>, <kbd class="wt-rdataA">rs1</kbd>=<kbd>00</kbd>, <kbd class="wt-rdataB">rs2</kbd>=<kbd>01</kbd>, <kbd>rd</kbd>=<kbd>11</kbd>. Each bit lands in its own cell, and only the cells holding a <kbd>1</kbd> light: <kbd class="wt-op">op</kbd> lights its low bit, <kbd class="wt-rdataB">rs2</kbd> its low bit, <kbd>rd</kbd> lights <em>both</em>, while <kbd class="wt-rdataA">rs1</kbd>=<kbd>00</kbd> stays fully dark. Follow each field bus leaving the block: <kbd class="wt-op">op</kbd>, <kbd class="wt-rdataB">rs2</kbd>, and <kbd>rd</kbd> are lit; the <kbd class="wt-rdataA">rs1</kbd> bus is dark only because <kbd>r0</kbd>'s address is <em>0</em>.</p>
-            <p data-hl="net:op0 net:op1 net:rs2h net:rs2l net:rd0 net:rd1 net:rs1h net:rs1l">That bit-pattern <em>is</em> the instruction. A different word would light a different set of cells the same instant it arrived — no clock, no waiting. These four field buses now feed the next two stages. Press <kbd>next →</kbd>.</p>
+          <article class="step" hidden data-stage="srun" data-focus="#gDmem" data-gate="#btnStep" data-pc="0">
+            <h3>store — run it</h3>
+            <p data-hl="open:gDmem net:clk net:memwrite">Everything was staged in the last step. Now we pulse the clock and the write commits.</p>
+            <p class="do" data-hl="open:gDmem net:clk">Press <kbd>↻ run instruction</kbd> once and watch cell <kbd>M1</kbd>.</p>
+            <p data-hl="open:gDmem">On the clock edge the write port stores <kbd>1</kbd> into cell <kbd>1</kbd>: the <kbd>M1</kbd> readout flips <em>0 → 1</em> (hover the <kbd>data memory</kbd> — that cell now glows). No register changed: a store touches memory only. <kbd>PC</kbd> ticks <kbd>00 → 01</kbd>.</p>
           </article>
-          <article class="step" hidden data-stage="regread" data-focus="#gRegfile" data-gate="#btnStep">
-            <h3>register read: fetch the two operands</h3>
-            <p data-hl="open:gRegfile net:rs1h net:rs1l net:rs2h net:rs2l net:rdataA net:rdataB"><strong>Now the addresses become values.</strong> Inside the <kbd>register file</kbd>, a 2-to-4 address decoder turns each read address into a one-hot select: <kbd class="wt-rdataA">rs1</kbd>=<kbd>00</kbd> selects <kbd>r0</kbd>, <kbd class="wt-rdataB">rs2</kbd>=<kbd>01</kbd> selects <kbd>r1</kbd>. The selected cell drives its stored bit into a read MUX, which forwards it out — green <kbd class="wt-rdataA">A</kbd> from read port A, teal <kbd class="wt-rdataB">B</kbd> from read port B — across the gap toward the <kbd>ALU</kbd>. Both reads happen in the same instant, with no clock.</p>
-            <p data-hl="open:gRegfile" class="do">Hover the <kbd>register file</kbd> and hold still.</p>
-            <p data-hl="open:gRegfile net:rdataA net:rdataB net:rd0 net:rd1">Each of the four cells glows by the bit it stores: <kbd>r0</kbd> and <kbd>r1</kbd> hold <kbd>1</kbd> (lit), <kbd>r2</kbd> and <kbd>r3</kbd> hold <kbd>0</kbd> (dark). The two read MUXes are already forwarding <kbd>r0</kbd> and <kbd>r1</kbd>, so operands read <kbd class="wt-rdataA">A</kbd>=1 and <kbd class="wt-rdataB">B</kbd>=1 — confirmed in the readout. The pink <kbd class="wt-rd1">rd</kbd>=<kbd>11</kbd> aims the write port at <kbd>r3</kbd>, but nothing writes yet: that needs a clock edge.</p>
-            <p data-hl="open:gRegfile net:clk net:wb" class="do">Press <kbd>↻ run instruction</kbd> once and watch <kbd>r3</kbd>.</p>
-            <p data-hl="net:clk open:gRegfile net:wb">The clock edge commits <kbd>AND</kbd>'s result (<kbd>1 AND 1 = 1</kbd>) into <kbd>r3</kbd>. Hover the <kbd>register file</kbd> again: <kbd>r3</kbd>'s cell flips <em>dark → lit</em> and the <kbd>regs</kbd> readout updates <kbd>r3=0 → r3=1</kbd>. The other three cells are untouched — only the one the write port aimed at changed. <kbd>PC</kbd> ticks <kbd>01 → 10</kbd>; you've just stored a computed value.</p>
+          <article class="step" hidden data-stage="ltrace" data-focus="all" data-pc="1">
+            <h3>load — trace the whole path (before running)</h3>
+            <p>A <kbd>load</kbd> is the reverse trip: read a memory cell back into a register. This instruction is <kbd>LW r2,(r0)</kbd>: read the cell addressed by <kbd>r0</kbd> into <kbd>r2</kbd> — and that cell holds the <kbd>1</kbd> you just stored.</p>
+            <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr"><strong>1 · fetch.</strong> The <kbd>PC</kbd> (<kbd>01</kbd>) fetches the <kbd>LW</kbd> word on the violet <kbd class="wt-instr">instr</kbd> bus.</p>
+            <p data-hl="open:gIdecode net:instr net:op0 net:op1 net:rs1h net:rs1l net:rd0 net:rd1 net:memtoreg"><strong>2 · decode.</strong> <kbd class="wt-op">op</kbd>=LW, <kbd class="wt-rdataA">rs1</kbd>=r0 (the address), <kbd>rd</kbd>=r2 (the destination); it raises <kbd class="wt-memtoreg">memToReg</kbd> so the write-back comes from memory, not the ALU.</p>
+            <p data-hl="open:gRegfile net:rdataA open:gAlu net:memaddr"><strong>3 · read + address.</strong> <kbd class="wt-rdataA">r0</kbd>=1 is read, and the <kbd>ALU</kbd> passes it as the address — cell 1.</p>
+            <p data-hl="open:gDmem net:memaddr net:memdata"><strong>4 · data memory read.</strong> Address 1 selects cell <kbd>M1</kbd>; its stored <kbd>1</kbd> rides out on the light-blue <kbd class="wt-memdata">loaded-data</kbd> wire toward the write-back MUX.</p>
+            <p data-hl="open:gWbmux net:memdata net:memtoreg net:wb"><strong>5 · write-back MUX.</strong> With <kbd class="wt-memtoreg">memToReg</kbd>=1 the MUX takes its <kbd>in1</kbd> (loaded data) instead of <kbd>in0</kbd> (the ALU result), and routes it to <kbd>r2</kbd>'s write port. Click <kbd>next →</kbd> to commit it.</p>
           </article>
-          <article class="step" hidden data-stage="execute" data-focus="#gAlu" data-gate="#btnStep">
-            <h3>execute: the ALU computes</h3>
-            <p data-hl="open:gAlu net:rdataA net:rdataB net:op0 net:op1 net:wb"><strong>The two operands cross the central gap into the <kbd>ALU</kbd>:</strong> green <kbd class="wt-rdataA">A</kbd> and teal <kbd class="wt-rdataB">B</kbd>. The ALU does <em>not</em> pick one operation and run it — it computes ADD, AND, OR, and XOR of <kbd class="wt-rdataA">A</kbd> and <kbd class="wt-rdataB">B</kbd> all at once, then an op-MUX forwards just one to the orange <kbd class="wt-aluY">result</kbd>. The amber <kbd class="wt-op">op</kbd> bus is the selector: <kbd>00→ADD</kbd>, <kbd>01→AND</kbd>, <kbd>10→OR</kbd>, <kbd>11→XOR</kbd>.</p>
-            <p data-hl="open:gAlu" class="do">Hover the <kbd>ALU</kbd> and hold still.</p>
-            <p data-hl="open:gAlu net:op0 net:op1 net:wb">We're on <kbd>OR r2,r0,r1</kbd> with <kbd class="wt-rdataA">A</kbd>=1, <kbd class="wt-rdataB">B</kbd>=1. Every operator's output is live at once: <kbd>AND</kbd>=1 and <kbd>OR</kbd>=1 glow, while <kbd>XOR</kbd>=0 and the adder's sum bit stay dark — they computed too, they just produced <em>0</em>. The op-MUX, told <kbd class="wt-op">op</kbd>=<kbd>10</kbd>, forwards the <kbd>OR</kbd> line, so the <kbd class="wt-aluY">result</kbd> reads <em>1</em>.</p>
-            <p data-hl="open:gAlu net:wb" class="do">Press <kbd>↻ run instruction</kbd> once and watch the <kbd class="wt-aluY">result</kbd>.</p>
-            <p data-hl="net:wb net:op0 net:op1">This press stores OR's <kbd>1</kbd> into <kbd>r2</kbd> (the <kbd>regs</kbd> readout ticks <kbd>r2=0 → r2=1</kbd>) and advances to the next instruction, <kbd>XOR r3,r0,r1</kbd>. Watch the <kbd class="wt-aluY">result</kbd> drop <em>1 → 0</em>: the operands never moved — both are still <kbd>1</kbd> — but <kbd class="wt-op">op</kbd> is now <kbd>11</kbd>, so the op-MUX stops forwarding <kbd>OR</kbd> and forwards the <kbd>XOR</kbd> gate instead, and <kbd>1 XOR 1 = 0</kbd>. That's the ALU's whole trick: compute every operation in parallel, then let <kbd class="wt-op">op</kbd> pick which precomputed answer survives. <kbd>PC</kbd> ticks <kbd>10 → 11</kbd>.</p>
+          <article class="step" hidden data-stage="lrun" data-focus="#gWbmux,#gRegfile" data-gate="#btnStep" data-pc="1">
+            <h3>load — run it</h3>
+            <p data-hl="open:gWbmux net:memdata net:memtoreg">The loaded value is staged at the MUX, routed to <kbd>r2</kbd>. The clock edge latches it.</p>
+            <p class="do" data-hl="open:gRegfile net:wb net:clk">Press <kbd>↻ run instruction</kbd> once and watch <kbd>r2</kbd>.</p>
+            <p data-hl="open:gRegfile net:wb">The clock writes the loaded <kbd>1</kbd> into <kbd>r2</kbd>: the <kbd>regs</kbd> readout ticks <kbd>r2=0 → r2=1</kbd>. The round trip is complete — you stored a value to memory, then read it straight back into a register. <kbd>PC</kbd> ticks <kbd>01 → 10</kbd>.</p>
           </article>
-          <article class="step" hidden data-stage="writeback" data-focus="#gAlu,#gRegfile" data-gate="#btnStep">
-            <h3>write-back: the result returns to storage</h3>
-            <p data-hl="net:wb open:gAlu open:gRegfile net:clk"><strong>The answer has to get home.</strong> In this R-type CPU a result has exactly one source — the <kbd>ALU</kbd> — so there's nothing to choose between: the orange <kbd class="wt-aluY">result</kbd> simply turns the corner and runs along the bottom as the pink <kbd class="wt-wb">write-back</kbd> wire, straight back to the register file's write-data port. That return path is the <span class="accent">feedback loop</span> — the reason one instruction's output can become a later one's input. But the value only <em>commits</em> on a <kbd class="wt-clk">clock</kbd> edge.</p>
-            <p data-hl="open:gRegfile net:rd0 net:rd1" class="do">Hover the <kbd>register file</kbd> and find the write port.</p>
-            <p data-hl="open:gRegfile net:wb net:rd0 net:rd1">The pink <kbd class="wt-rd1">rd</kbd> address aims the write decoder at one register — here <kbd>r3</kbd> — and the returning <kbd class="wt-aluY">result</kbd> sits on its write-data input. But nothing has changed yet: a write needs the address, the write-enable, <em>and</em> a clock edge to line up at once.</p>
-            <p data-hl="net:clk net:wb open:gRegfile" class="do">Press <kbd>↻ run instruction</kbd> once and watch <kbd>r3</kbd>.</p>
-            <p data-hl="net:clk net:wb open:gRegfile net:addr0 net:addr1">We're on <kbd>XOR r3,r0,r1</kbd>, and <kbd>1 XOR 1 = 0</kbd>. On the clock edge that <kbd>0</kbd> commits to <kbd>r3</kbd>: its cell flips <em>lit → dark</em> and the <kbd>regs</kbd> readout updates <kbd>r3=1 → r3=0</kbd>. <kbd>PC</kbd> wraps <kbd>11 → 00</kbd> and the program loops back to instruction 0. You've watched the whole loop — fetch, decode, read, execute, write-back. (A real CPU adds a second write-back source — data loaded from memory — and a MUX to pick between them; that's the load/store page.)</p>
+          <article class="step" hidden data-stage="why" data-focus="all" data-pc="1">
+            <h3>why this matters — the memory stage</h3>
+            <p>You've added the classic <em>memory stage</em>: <em>fetch → decode → execute → MEM → write-back</em>. Two pieces did it — a <kbd>data memory</kbd> with a write port, and a <kbd>write-back</kbd> MUX so a register can be fed by either the ALU or memory.</p>
+            <p data-hl="open:gWbmux net:memtoreg"><strong>The MUX is the whole idea.</strong> Adding a capability to a CPU usually means adding a <em>source</em> and a MUX to choose it: branches add a PC-source MUX, immediates add an ALU-input MUX. Same move every time.</p>
+            <p><strong>Toy → real.</strong> Widen the data to 32 bits, give memory real address bits, and compute the address as <kbd>base + offset</kbd> in the ALU (here it just passes <kbd class="wt-rdataA">rs1</kbd>). The store/load/MUX shape is exactly what RV32I runs.</p>
           </article>
-          <article class="step" hidden data-stage="why" data-focus="all">
-            <h3>ground zero — what it does, and what it leaves out</h3>
-            <p>You've watched a complete CPU loop — <em>fetch → decode → execute → write-back</em> — and every block opens into the real circuit underneath, down to transistors. This is the <em>primitive</em>: the smallest machine that already deserves the name "processor." Everything bigger is this same datapath with more <em>sources</em> feeding a few extra MUXes.</p>
-            <p>It is deliberately stripped down. The caveats, and the pages that will lift each one:</p>
-            <p><strong>No data memory.</strong> It can't <kbd>load</kbd> or <kbd>store</kbd> — values only live in the four registers, so the ALU result is the <em>only</em> thing that can be written back. That's why there's no write-back MUX here: with a single source, the result wires straight to the register write port. Add a data-memory block and a <kbd>load</kbd> instruction and a MUX appears at that port to choose <em>ALU-result vs. loaded-data</em> — the classic <em>memory stage</em>. Open the <strong>load/store</strong> page to watch exactly that.</p>
-            <p><strong>No control flow.</strong> The <kbd>PC</kbd> just counts up, so the program is a straight line — no <kbd>branch</kbd>, no <kbd>jump</kbd>, no loops. Add a PC-select MUX and a comparison in front of the counter and you get <kbd>if</kbd> and <kbd>while</kbd>.</p>
-            <p><strong>Toy width.</strong> 1-bit data, 4 registers, 4 operations. Widen the wires to 32 bits, the file to 32 registers, and the op set to full RV32I — the <em>shape</em> doesn't change — and it runs real programs.</p>
-            <p><strong>No overlap.</strong> This single-cycle view runs one instruction at a time. A pipeline inserts registers between the stages so several instructions are in flight at once — the timing layer built on top of exactly this datapath.</p>
-            <p>So treat this as the trunk. The memory page, the branch page, and the pipeline page all graft onto it — same blocks, more doors.</p>
-          </article>
+
         </div>
       </aside>
     </div>
-    <script type="module" src="/src/cpu.ts"></script>
+    <script type="module" src="/src/cpu_ldst.ts"></script>
   </body>
 </html>

@@ -24,7 +24,7 @@ import { getZoomController } from './canvasZoom';
 //
 //  • data-stage="fetch" + ?stage=fetch (or ?step=N) — deep-link straight to a
 //    step. Powers /cpu/<stage> sub-views that reuse this same prose, focused.
-export function initSteps() {
+export function initSteps(opts: { onStepShow?: (step: HTMLElement) => void } = {}) {
   const steps = Array.from(document.querySelectorAll<HTMLElement>('.step'));
   if (steps.length === 0) return;
   const stepPrev = document.getElementById('stepPrev') as HTMLButtonElement;
@@ -118,6 +118,7 @@ export function initSteps() {
     const active = steps[currentStep];
     applyGate(active, currentStep);   // owns stepNext.disabled (gate + last-step)
     applyFocus(active);
+    opts.onStepShow?.(active);        // page hook (e.g. set the matching instruction)
     fitStep();
     saveSnapshot<number>(STEP_KEY, currentStep);
   }

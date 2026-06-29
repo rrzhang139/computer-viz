@@ -3,16 +3,18 @@
 The top of the tower: every block built so far, wired into a processor you can
 open. A program lives in instruction memory; the **program counter** points at
 one word; that word is **decoded** into register addresses and an operation; the
-**register file** supplies operands; the **ALU** computes; the result rides
-through the **write-back** MUX back into the register file. Four jobs — **fetch,
+**register file** supplies operands; the **ALU** computes; the result loops
+straight back into the register file's write port. Four jobs — **fetch,
 decode, execute, write-back** — wired in one combinational pass per clock.
 
 What's new on this layer isn't a new primitive — it's the *assembly*. Every
-block here is a block from an earlier page (PC = a `register`, instruction/data
-memory = `mem`, control = a `decoder`, the register file, the 1-bit `alu`, the
-write-back `mux`), and on the animation page each one is a live drill into that
-exact page, with the datapath's wires landing on the embedded component's real
-pins.
+block here is a block from an earlier page (PC = a `register`, instruction
+memory = `mem`, control = a `decoder`, the register file, the 1-bit `alu`), and
+on the animation page each one is a live drill into that exact page, with the
+datapath's wires landing on the embedded component's real pins. This R-type core
+has no data memory, so the ALU result is the only write-back source — it wires
+straight to the register file's write port, no MUX. (The load/store layer adds a
+data-memory block and a write-back MUX to choose ALU-result vs. loaded-data.)
 
 Kept 1-bit-wide and toy-ISA (`opcode|rs1|rs2|rd`, op `00 ADD / 01 AND / 10 OR /
 11 XOR`), exactly like `datapath`/`mem`/`fetch`. Widen every block to 32 bits,
@@ -41,7 +43,7 @@ between the rails and taps them directly; power distribution is implicit.
 
 ## Embedded children
 
-Six abstract boxes (the `*box` layer suffix keeps them un-resolved at this level
+Five abstract boxes (the `*box` layer suffix keeps them un-resolved at this level
 — this page shows the architecture; each box is a live drill into its own page).
 
 | child id | child layer | center (cx, cy) | box (w × h) |
@@ -51,12 +53,12 @@ Six abstract boxes (the `*box` layer suffix keeps them un-resolved at this level
 | control  | ctrlbox     | ( -3.0,  7.5)   | 5.0 × 3.0   |
 | regfile  | rfbox       | ( -3.0,  0.0)   | 6.0 × 9.0   |
 | alu      | alubox      | (  8.0,  1.0)   | 4.0 × 5.0   |
-| wbmux    | wbmuxbox    | (  8.0, -6.0)   | 4.0 × 3.0   |
 
 - `pc` program counter + `imem` instruction memory — the **fetch** stage.
 - `control` (a decoder of the opcode) + `regfile` (2 read ports, 1 write) — **decode**.
 - `alu` 1-bit ALU slice — **execute**.
-- `wbmux` write-back select — **write-back**; its output loops back to `regfile`.
+- **write-back**: the `alu` result loops straight back to `regfile`'s write port
+  — one source, so no select MUX (the load/store layer adds one).
 
 ## Absorbed terminals
 
@@ -91,11 +93,6 @@ ALU `alu` (x∈[6,10], y∈[-1.5,3.5]):
 - `alu_op_in`  (6.0,  3.0)  ← LEFT
 - `alu_y_out`  (10.0, 1.0)  ← RIGHT
 
-Write-back MUX `wbmux` (x∈[6,10], y∈[-7.5,-4.5]):
-
-- `wbmux_in`   (10.0, -6.0)  ← RIGHT
-- `wbmux_out`  (8.0, -7.5)   ← BOTTOM
-
 ## Internal nets
 
 | net    | carries                                              |
@@ -105,8 +102,7 @@ Write-back MUX `wbmux` (x∈[6,10], y∈[-7.5,-4.5]):
 | instr  | fetched instruction → register file + control         |
 | op     | control unit's decoded operation → ALU                |
 | rdata  | register-file read port → ALU operand                 |
-| aluY   | ALU result → write-back MUX                            |
-| wb     | write-back result → register-file write port (loop)   |
+| wb     | ALU result → register-file write port (loop)          |
 
 ## Wires
 
@@ -119,16 +115,15 @@ Write-back MUX `wbmux` (x∈[6,10], y∈[-7.5,-4.5]):
 | imem_instr_out | ctrl_op_in    | (-12.0, -3.0), (-12.0, 7.5)                  | instr |
 | ctrl_out       | alu_op_in     | (2.0, 7.5), (2.0, 3.0)                       | op    |
 | rf_rdata_out   | alu_a_in      | (3.0, 0.0), (3.0, 1.0)                       | rdata |
-| alu_y_out      | wbmux_in      | (11.5, 1.0), (11.5, -6.0)                    | aluY  |
-| wbmux_out      | rf_wb_in      | (8.0, -9.0), (-1.5, -9.0)                    | wb    |
+| alu_y_out      | rf_wb_in      | (11.5, 1.0), (11.5, -9.0), (-1.5, -9.0)      | wb    |
 
 The fetch front sits at the far left: the PC's value drops into the instruction
 memory's address, the fetched word leaves on the right and fans to both the
 register file (read addresses) and the control unit (opcode, over the top). The
 register file's read output crosses the central gap into the ALU; the control
 unit's decoded op drops in beside it. The ALU result wraps around the right edge
-down into the write-back MUX, whose output loops along the bottom — below every
-block — back into the register file's write port.
+and loops along the bottom — below every block — straight back into the register
+file's write port (one source, so no write-back MUX).
 
 ## Alignment claims
 

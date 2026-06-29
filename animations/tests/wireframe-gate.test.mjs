@@ -58,8 +58,10 @@ const LAYER_TO_PAGE = {
   datapath:   'datapath.html',
   idecode:    'idecode.html',
   mem:        'mem.html',
+  dmem:       'dmem.html',
   fetch:      'fetch.html',
   cpu:        'cpu.html',
+  cpuldst:    'cpu_ldst.html',
 };
 
 // Terminals that don't appear as data-net wires because they're

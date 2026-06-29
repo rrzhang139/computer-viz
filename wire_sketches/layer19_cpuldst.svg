@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-28.52 -12.4 57.04 24.8" width="900" height="391">
-<rect x="-23" y="-10" width="46" height="20" fill="#f7efde" stroke="#c5b69a" stroke-width="0.04"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-28.28 -12.4 54.56 24.8" width="900" height="409">
+<rect x="-23" y="-10" width="44" height="20" fill="#f7efde" stroke="#c5b69a" stroke-width="0.04"/>
 <line x1="0" y1="10" x2="0" y2="-10" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
-<line x1="-23" y1="0" x2="23" y2="0" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
+<line x1="-23" y1="0" x2="21" y2="0" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
 <text x="-23" y="10.96" font-size="0.25" fill="#8a7864" font-family="serif">LEFT (data in)</text>
-<text x="23" y="10.96" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="end">RIGHT (data out)</text>
-<text x="0" y="-10.6" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">TOP (control)</text>
-<text x="0" y="11.68" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">BOTTOM (power/ground)</text>
+<text x="21" y="10.96" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="end">RIGHT (data out)</text>
+<text x="-1" y="-10.6" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">TOP (control)</text>
+<text x="-1" y="11.68" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">BOTTOM (power/ground)</text>
 <rect x="-21" y="-5.5" width="4" height="3" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
 <text x="-19" y="-4" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">pc</text>
 <text x="-19" y="-2.55" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">pcbox</text>
@@ -22,21 +22,34 @@
 <rect x="6" y="-3.5" width="4" height="5" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
 <text x="8" y="-1" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">alu</text>
 <text x="8" y="1.45" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">alubox</text>
+<rect x="5.5" y="4.5" width="5" height="3" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
+<text x="8" y="6" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">dmem</text>
+<text x="8" y="7.45" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">dmembox</text>
+<rect x="14.5" y="4" width="3" height="4" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
+<text x="16" y="6" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">wbmux</text>
+<text x="16" y="7.95" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">wbmuxbox</text>
 <polyline points="-23.000,8.000 -22.400,8.000 -22.400,-1.500 -19.000,-1.500 -19.000,-2.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-23.000,8.000 -3.000,8.000 -3.000,4.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-23.000,8.000 4.500,8.000 4.500,7.200 5.500,7.200" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-17.000,-4.000 -14.250,-4.000 -14.250,-0.500 -19.000,-0.500 -19.000,1.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-17.000,3.000 -8.750,3.000 -8.750,-2.000 -6.000,-2.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-17.000,3.000 -11.500,3.000 -11.500,-7.500 -5.500,-7.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-0.500,-7.500 2.000,-7.500 2.000,-3.000 6.000,-3.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-0.500,-6.500 16.000,-6.500 16.000,4.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-0.500,-6.500 3.667,-6.500 3.667,6.800 5.500,6.800" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="0.000,0.000 3.000,0.000 3.000,-1.000 6.000,-1.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="10.000,-1.000 11.500,-1.000 11.500,9.000 -1.500,9.000 -1.500,4.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="0.000,2.000 1.833,2.000 1.833,6.000 5.500,6.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="10.000,-1.000 11.500,-1.000 11.500,3.500 8.000,3.500 8.000,4.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="10.000,-1.000 13.000,-1.000 13.000,5.000 14.500,5.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="10.500,6.000 12.500,6.000 12.500,6.500 14.500,6.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="17.500,6.000 19.500,6.000 19.500,9.000 -1.500,9.000 -1.500,4.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <circle cx="-23" cy="8" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
 <text x="-23.35" y="8" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">clk_in</text>
 <text x="-23.35" y="8.28" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-23, -8)</text>
-<line x1="-23" y1="-10" x2="23" y2="-10" stroke="#3a7d34" stroke-width="0.10" stroke-linecap="round"/>
+<line x1="-23" y1="-10" x2="21" y2="-10" stroke="#3a7d34" stroke-width="0.10" stroke-linecap="round"/>
 <text x="-23" y="-10.25" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3a7d34" font-family="serif" font-weight="700">Vdd</text>
-<text x="23" y="-10.25" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=10</text>
-<line x1="-23" y1="10" x2="23" y2="10" stroke="#3b2718" stroke-width="0.10" stroke-linecap="round"/>
+<text x="21" y="-10.25" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=10</text>
+<line x1="-23" y1="10" x2="21" y2="10" stroke="#3b2718" stroke-width="0.10" stroke-linecap="round"/>
 <text x="-23" y="10.45" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3b2718" font-family="serif" font-weight="700">GND</text>
-<text x="23" y="10.45" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=-10</text>
+<text x="21" y="10.45" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=-10</text>
 </svg>

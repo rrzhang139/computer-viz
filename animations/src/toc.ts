@@ -36,14 +36,27 @@ const DATAPATH: Entry[] = [
   // builds it. The dropdown lists those component subpages (each is also the
   // block's hover preview), so you can jump straight to any stage.
   {
-    href: "/cpu.html", label: "CPU (5-stage pipeline)", tag: "9", children: [
+    href: "/cpu.html", label: "CPU · R-type (registers only)", tag: "9", children: [
       { href: "/cpu.html",     label: "overview",            tag: "·" },
       { href: "/counter.html", label: "PC · program counter", tag: "a" },
       { href: "/mem.html",     label: "instruction memory",   tag: "b" },
       { href: "/idecode.html", label: "instruction decoder",  tag: "c" },
       { href: "/regfile.html", label: "register file",        tag: "d" },
       { href: "/alu1.html",    label: "ALU",                  tag: "e" },
-      { href: "/mux.html",     label: "write-back MUX",       tag: "f" },
+    ],
+  },
+  // The load/store CPU = the R-type core plus a data memory and a revived
+  // write-back MUX (it now chooses ALU-result vs. loaded data).
+  {
+    href: "/cpu_ldst.html", label: "CPU · load/store (lw/sw)", tag: "10", children: [
+      { href: "/cpu_ldst.html", label: "overview",            tag: "·" },
+      { href: "/counter.html",  label: "PC · program counter", tag: "a" },
+      { href: "/mem.html",      label: "instruction memory",   tag: "b" },
+      { href: "/idecode.html",  label: "instruction decoder",  tag: "c" },
+      { href: "/regfile.html",  label: "register file",        tag: "d" },
+      { href: "/alu1.html",     label: "ALU",                  tag: "e" },
+      { href: "/dmem.html",     label: "data memory",          tag: "f" },
+      { href: "/mux.html",      label: "write-back MUX",       tag: "g" },
     ],
   },
 ];

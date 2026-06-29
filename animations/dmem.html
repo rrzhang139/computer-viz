@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / data memory</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1; overflow: hidden; min-height: 0; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
+      .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step p.do { color: #eee; border-left: 2px solid var(--on); padding: 2px 0 2px 12px; }
+      .step p.do::before { content: "▸ "; color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .controls-row { display: flex; gap: 10px; align-items: center; }
+      .controls-row .label { color: #666; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; min-width: 50px; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 18px; cursor: pointer; min-width: 64px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-pulse { background: rgba(239, 159, 39, 0.12); color: var(--on); border-color: var(--on); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 62vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #777; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #888; font-size: 22px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .word-val { fill: #999; font-size: 30px; font-family: ui-monospace, monospace; letter-spacing: 0.12em; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] ~ .word-val, .tbody[data-on="1"] + .word-val { fill: var(--on); }
+      .addr-tag { fill: #666; font-size: 20px; font-family: ui-monospace, monospace; text-anchor: end; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+
+      /* Drillable read-MUX: hover swaps the box for the real /mux.html scene. */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot > .simple-body, .child-slot > .simple-label { transition: opacity 180ms; }
+      .child-slot:hover > .simple-body, .child-slot:focus-within > .simple-body,
+      .child-slot:hover > .simple-label, .child-slot:focus-within > .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      #readmuxDetail .tbody { stroke-width: 0.8; }
+      #readmuxDetail .wire { stroke-width: 1.5; }
+      #readmuxDetail .pulse { display: none; }
+      #readmuxDetail .tlabel-small { font-size: 9px; }
+
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.16em; }
+      .out-readout .dec { color: #ddd; }
+      .out-readout .sep { color: #333; }
+      .canvas-col, .controls, .controls-row, .out-readout { min-width: 0; }
+      .controls-row { flex-wrap: wrap; row-gap: 6px; }
+      .out-readout { flex-wrap: wrap; row-gap: 6px; }
+      @media (hover: none), (pointer: coarse) {
+        .controls .btn, .controls-row .btn, .step-nav .btn { min-height: 44px; padding: 10px 14px; font-size: 14px; }
+      }
+      @media (max-width: 900px) {
+        .page-layout { padding: 10px 10px 16px; gap: 10px; }
+        .step-panel { height: auto; min-height: 180px; padding: 12px 16px 14px; }
+        .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; }
+      }
+      @media (max-width: 600px) {
+        .page-layout { padding: 8px 8px 16px; gap: 10px; }
+        .controls { flex-wrap: wrap; justify-content: center; row-gap: 8px; }
+        .controls .btn, .controls-row .btn { min-height: 44px; min-width: 52px; font-size: 13px; padding: 8px 10px; }
+        .controls-row .label { min-width: auto; font-size: 10px; }
+        .out-readout { font-size: 11px; padding: 8px 12px; }
+        .step-panel { height: auto; min-height: 0; padding: 12px 14px 14px; }
+        .step-bodies { overflow: visible; }
+        .step h3 { font-size: 14px; }
+        .step p { font-size: 14px; }
+        .step-nav { position: static; margin: 8px 0 10px; justify-content: flex-end; gap: 6px; }
+        .step-nav .btn { min-height: 44px; min-width: 80px; }
+        svg { max-height: none; }
+      }
+      @media (max-width: 380px) {
+        .controls .btn, .controls-row .btn { min-width: 46px; padding: 8px 8px; font-size: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/dmem.html" aria-current="page">data memory</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <div class="controls-row">
+            <span class="label">address</span>
+            <button class="btn" id="btnAddr1" data-on="0">addr1 0</button>
+            <button class="btn" id="btnAddr0" data-on="0">addr0 0</button>
+          </div>
+          <div class="controls-row">
+            <span class="label">write</span>
+            <button class="btn" id="btnWdata" data-on="0">wdata 0</button>
+            <button class="btn" id="btnWe" data-on="0">we 0</button>
+            <button class="btn btn-pulse" id="btnStep">↻ clock</button>
+          </div>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">address</span>
+          <span class="bits" id="addrBits">00</span><span class="dec" id="addrDec">(0)</span>
+          <span class="sep">·</span>
+          <span class="label">read out</span>
+          <span class="bits" id="rdataBits">0</span>
+          <span class="sep">·</span>
+          <span class="label">cells</span>
+          <span class="bits" id="cellBits">m0=0 m1=0 m2=0 m3=0</span>
+        </div>
+
+        <!--
+          Data memory (addressable read+write store). The read path is identical
+          to /mem.html: a 2-bit address selects one of four 1-bit cells; the read
+          MUX forwards it as rdata (combinational, drillable into /mux.html). The
+          NEW write path (lower band): on a clock edge with we=1, wdata is stored
+          into the addressed cell (an address decoder gates the clock to one
+          cell). Read coords reuse mem's exact layout; the write band sits below.
+          Wires routed onto the embedded MUX pins in src/dmem.ts.
+        -->
+        <svg id="dmem" viewBox="-40 -40 1680 1120" role="img"
+             aria-label="data memory: a 2-bit address reads one cell; a clock edge with write-enable stores into it"
+             preserveAspectRatio="xMidYMid meet">
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1600,0" />
+          <polyline class="wire" data-net="GND" points="0,1040 1600,1040" />
+
+          <!-- External pins: read address + write controls LEFT, rdata RIGHT -->
+          <circle class="pin" id="pinAddr1" cx="0"    cy="100" r="7" />
+          <circle class="pin" id="pinAddr0" cx="0"    cy="180" r="7" />
+          <circle class="pin" id="pinWdata" cx="0"    cy="800" r="7" />
+          <circle class="pin" id="pinWe"    cx="0"    cy="880" r="7" />
+          <circle class="pin" id="pinClk"   cx="0"    cy="960" r="7" />
+          <circle class="pin" id="pinRdata" cx="1600" cy="480" r="7" />
+          <text class="tlabel-small" x="-18"  y="100">addr1</text>
+          <text class="tlabel-small" x="-18"  y="180">addr0</text>
+          <text class="tlabel-small" x="-18"  y="800">wdata</text>
+          <text class="tlabel-small" x="-18"  y="880">we</text>
+          <text class="tlabel-small" x="-18"  y="960">clk</text>
+          <text class="tlabel-small" x="1618" y="480">rdata</text>
+
+          <!-- Read-path wires (routed in src/dmem.ts onto the embedded MUX pins) -->
+          <polyline class="wire" data-net="addr1" id="wAddr1" points="0,100 0,50 840,50 840,320" />
+          <polyline class="wire" data-net="addr0" id="wAddr0" points="0,180 20,180 20,30 1080,30 1080,320" />
+          <polyline class="wire" data-net="word3" id="wWord3" points="480,160 860,160 860,360 920,360" />
+          <polyline class="wire" data-net="word2" id="wWord2" points="480,340 880,340 880,420 920,420" />
+          <polyline class="wire" data-net="word1" id="wWord1" points="480,520 880,520 880,480 920,480" />
+          <polyline class="wire" data-net="word0" id="wWord0" points="480,700 860,700 860,540 920,540" />
+          <polyline class="wire" data-net="rdata" id="wRdata" points="1400,480 1600,480" />
+
+          <!-- Write-path wires (routed in src/dmem.ts onto cell write edges) -->
+          <polyline class="wire" data-net="wdata" id="wWdata" points="0,800 120,800" />
+          <polyline class="wire" data-net="we"    id="wWe"    points="0,880 120,880" />
+          <polyline class="wire" data-net="clk"   id="wClk"   points="0,960 120,960" />
+          <polyline class="wire" data-net="wsel0" id="wWsel0" points="30,780 30,700 160,700" />
+          <polyline class="wire" data-net="wsel1" id="wWsel1" points="90,780 90,520 160,520" />
+          <polyline class="wire" data-net="wsel2" id="wWsel2" points="120,780 120,340 160,340" />
+          <polyline class="wire" data-net="wsel3" id="wWsel3" points="150,780 150,160 160,160" />
+
+          <!-- Memory table: four stored 1-bit cells. word0 = addr 00 (bottom). -->
+          <text class="addr-tag" x="150" y="160">11</text>
+          <rect class="tbody" id="gWord3" x="160" y="100" width="320" height="120" rx="10" /><text class="tlabel" x="262" y="160">M3</text><text class="word-val" id="vWord3" x="402" y="160">0</text>
+          <text class="addr-tag" x="150" y="340">10</text>
+          <rect class="tbody" id="gWord2" x="160" y="280" width="320" height="120" rx="10" /><text class="tlabel" x="262" y="340">M2</text><text class="word-val" id="vWord2" x="402" y="340">0</text>
+          <text class="addr-tag" x="150" y="520">01</text>
+          <rect class="tbody" id="gWord1" x="160" y="460" width="320" height="120" rx="10" /><text class="tlabel" x="262" y="520">M1</text><text class="word-val" id="vWord1" x="402" y="520">0</text>
+          <text class="addr-tag" x="150" y="700">00</text>
+          <rect class="tbody" id="gWord0" x="160" y="640" width="320" height="120" rx="10" /><text class="tlabel" x="262" y="700">M0</text><text class="word-val" id="vWord0" x="402" y="700">0</text>
+
+          <!-- Write port: address decoder + write-enable gating the clock to one
+               cell. wdata/we/clk + addr enter on the left; the selected cell's
+               write line goes up into that cell on a clock edge with we=1. -->
+          <rect class="tbody" id="gWritePort" x="20" y="780" width="460" height="220" rx="12" />
+          <text class="tlabel" x="250" y="890">write port</text>
+
+          <!-- Read MUX: drillable exact-copy embed of /mux.html. -->
+          <g class="child-slot" id="slot-readmux" tabindex="0" role="button"
+             aria-label="read MUX — address selects one stored cell; click to drill in"
+             data-embed-page="/mux.html" data-embed-svg="mux">
+            <rect class="tbody simple-body" id="gReadmux" x="920" y="320" width="480" height="320" rx="12" />
+            <text class="tlabel simple-label" x="1160" y="480">read MUX</text>
+            <g class="detailed" id="readmuxDetail"></g>
+          </g>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 4</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: memory you can write</h3>
+            <p>This is <kbd>mem</kbd> with a second door. The <em>read</em> path is exactly the page you already built — a 2-bit <kbd>address</kbd> picks one of four cells and the <kbd>read MUX</kbd> forwards it as <kbd>rdata</kbd>, no clock. What's new is the <em>write</em> path along the bottom: a <kbd>write port</kbd> that, on a clock edge, stores a value into one cell.</p>
+            <p>That's the difference between instruction memory (read-only, on the fetch path) and <span class="accent">data memory</span> (read <em>and</em> write, on the load/store path). A <kbd>load</kbd> reads a cell; a <kbd>store</kbd> writes one.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>read a cell (load)</h3>
+            <p class="do">Walk the <kbd>address</kbd> through <kbd>00, 01, 10, 11</kbd>.</p>
+            <p>The addressed cell lights and its bit rides through the <kbd>read MUX</kbd> out as <kbd>rdata</kbd> — instantly, no clock. This is the load path: give the address, get the stored value back. The other three cells sit untouched.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>write a cell (store)</h3>
+            <p class="do">Set <kbd>wdata 1</kbd>, point the <kbd>address</kbd> at <kbd>01</kbd>, turn <kbd>we 1</kbd>, then press <kbd>↻ clock</kbd>.</p>
+            <p>On the clock edge the <kbd>write port</kbd>'s decoder routes <kbd>wdata</kbd> into the one addressed cell and it flips to <kbd>1</kbd> — and stays, even after you drop <kbd>we</kbd>. Storing needs all three to line up: an address, <kbd>we = 1</kbd>, and a clock edge. With <kbd>we = 0</kbd> the clock does nothing — that's how a load leaves memory unchanged.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>One block, two ports. The read port makes data available the instant you address it; the write port commits a new value on a clock edge. Address it with an <kbd>ALU result</kbd> and this is the data memory a <kbd>load</kbd> reads and a <kbd>store</kbd> writes.</p>
+            <p>Widen the cell from 1 bit to a 32-bit word and add address bits and this is real RAM. Next we wire it onto the datapath, beside the register file, so loads and stores have somewhere to go.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/dmem.ts"></script>
+  </body>
+</html>

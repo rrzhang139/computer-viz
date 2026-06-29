@@ -46,9 +46,9 @@ function ensureCss() {
   const s = document.createElement('style');
   s.id = 'cv-wirecolor-css';
   s.textContent = `
-.wire.wire-colored { stroke: var(--wire-col); stroke-opacity: 0.4; }
-.wire.wire-colored[data-on="1"] { stroke: var(--wire-col); stroke-opacity: 1; filter: drop-shadow(0 0 5px var(--wire-col)); }
-.pulse.wire-colored { stroke: var(--wire-col); }
+.wire.wire-colored { stroke: var(--wire-col); stroke-opacity: 0.15; }
+.wire.wire-colored[data-on="1"] { stroke: var(--wire-col); stroke-opacity: 1; filter: drop-shadow(0 0 4px var(--wire-col)) drop-shadow(0 0 11px var(--wire-col)); }
+.pulse.wire-colored { stroke: var(--wire-col); stroke-width: 4.5; filter: drop-shadow(0 0 5px var(--wire-col)); }
 `;
   document.head.appendChild(s);
 }

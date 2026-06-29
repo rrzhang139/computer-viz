@@ -26,6 +26,7 @@ import muxRaw from '../mux.html?raw';
 import regfileRaw from '../regfile.html?raw';
 import alu1Raw from '../alu1.html?raw';
 import memRaw from '../mem.html?raw';
+import dmemRaw from '../dmem.html?raw';
 import idecodeRaw from '../idecode.html?raw';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -47,6 +48,7 @@ export const PAGE_RAW: Record<string, string> = {
   '/regfile.html': regfileRaw,
   '/alu1.html': alu1Raw,
   '/mem.html': memRaw,
+  '/dmem.html': dmemRaw,
   '/idecode.html': idecodeRaw,
 };
 
