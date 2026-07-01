@@ -42,6 +42,13 @@
       .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
       .pulse[data-on="1"] { opacity: 0.95; }
       @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      /* Control signals (decoded from the opcode): dotted "logical connection"
+         lines from the decode block to their consumer. They are free to cross
+         other components — they're schematic, not routed datapath wires. Faint
+         when idle, bright + glowing when the control fires. */
+      .ctrl-wire { fill: none; stroke: #ffcf3a; stroke-width: 2.5; stroke-dasharray: 1 12; stroke-linecap: round; opacity: 0.28; pointer-events: none; transition: opacity 150ms, filter 150ms, stroke-width 150ms; }
+      .ctrl-wire[data-on="1"] { opacity: 1; stroke-width: 3.5; filter: drop-shadow(0 0 5px #ffcf3a) drop-shadow(0 0 10px #ffcf3a); animation: ctrl-flow 1.1s linear infinite; }
+      @keyframes ctrl-flow { from { stroke-dashoffset: 26; } to { stroke-dashoffset: 0; } }
       /* Supply rails — quiet background framing, not signal wires. */
       .rail { fill: none; stroke: #1d1d1d; stroke-width: 2; stroke-linecap: round; }
 
@@ -120,6 +127,11 @@
           <circle class="pin" id="pinMemWrite" cx="540" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="522" y="1240">memWrite</text>
           <circle class="pin" id="pinMemToReg" cx="3120" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3102" y="1330">memToReg</text>
           <circle class="pin" id="pinZero2"    cx="560" cy="1120" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="542" y="1120">0</text>
+          <!-- control origin: decode emits memWrite/memToReg from its bottom edge -->
+          <circle class="pin" id="pinCtrl" cx="1100" cy="1060" r="6" /><text class="tlabel-small" data-pin="pinCtrl" text-anchor="middle" x="1100" y="1036">control</text>
+          <!-- dotted control lines (decode → consumer); free to cross components -->
+          <polyline class="ctrl-wire" data-net="memwrite" id="ctrlMemWrite" points="0,0 0,0" />
+          <polyline class="ctrl-wire" data-net="memtoreg" id="ctrlMemToReg" points="0,0 0,0" />
 
 
           <!-- ── wires (geometry set in src/cpu.ts onto projected pins) ─────── -->

@@ -29,6 +29,7 @@ function ensureCss() {
 
     /* Spotlight: dim everything not flagged, on the active canvas. */
     svg.ph-active .wire:not(.ph-on), svg.ph-active .pulse:not(.ph-on),
+    svg.ph-active .ctrl-wire:not(.ph-on),
     svg.ph-active .tbody:not(.ph-on), svg.ph-active .pin:not(.ph-on),
     svg.ph-active .rail, svg.ph-active .stage-head,
     svg.ph-active .tlabel:not(.ph-on), svg.ph-active .tlabel-small:not(.ph-on) {
@@ -36,11 +37,12 @@ function ensureCss() {
     }
     /* Flagged wires/blocks: keep their colour, but go bright, bold + flashing. */
     svg.ph-active .wire.ph-on { stroke-width: 7 !important; stroke-opacity: 1 !important; }
+    svg.ph-active .ctrl-wire.ph-on { opacity: 1 !important; stroke-width: 4 !important; }
     svg.ph-active .wire.bus.ph-on { stroke-width: 11 !important; }
     svg.ph-active .pulse.ph-on { opacity: 0.95 !important; }
     svg.ph-active .tbody.ph-on { stroke-opacity: 1; }
     svg.ph-active .tlabel.ph-on, svg.ph-active .tlabel-small.ph-on { opacity: 1; fill: var(--on, #EF9F27); }
-    svg.ph-active .wire.ph-on, svg.ph-active .tbody.ph-on, svg.ph-active .pin.ph-on {
+    svg.ph-active .wire.ph-on, svg.ph-active .ctrl-wire.ph-on, svg.ph-active .tbody.ph-on, svg.ph-active .pin.ph-on {
       animation: ph-flash 0.85s ease-in-out infinite;
     }
     @keyframes ph-flash {
@@ -82,7 +84,7 @@ export function initProseHighlight(svg: SVGSVGElement) {
       const [kind, name] = tok.split(":");
       if (!name) continue;
       if (kind === "net") {
-        svg.querySelectorAll(`.wire[data-net="${name}"], .pulse[data-net="${name}"]`)
+        svg.querySelectorAll(`.wire[data-net="${name}"], .pulse[data-net="${name}"], .ctrl-wire[data-net="${name}"]`)
           .forEach((e) => { if (!e.closest(".detailed")) mark(e); });
       } else if (kind === "open") {
         const slot = svg.querySelector(`#${name}`)?.closest(".child-slot");

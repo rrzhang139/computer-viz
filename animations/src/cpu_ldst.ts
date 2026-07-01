@@ -82,6 +82,7 @@ const MX: Record<string, Pt> = embeds.get("slot-wbmux") || {};
 const CLK = { x: -100, y: 1200 }, ONE = { x: 1460, y: 410 }, ZERO = { x: 3090, y: 1080 };
 const ZERO2 = { x: 560, y: 1120 }, COUT = { x: 4090, y: 560 };
 const MEMWRITE = { x: 540, y: 1240 }, MEMTOREG = { x: 3120, y: 1330 };
+const DECODE_CTRL = { x: 1100, y: 1060 };   // control origin on the decode block's bottom edge
 const PC_CLK = { x: 360, y: 130 }, PC_A1 = { x: 480, y: 250 }, PC_A0 = { x: 480, y: 350 };
 
 // ── fetch + decode + read + execute (identical to the R-type page) ──────────
@@ -128,11 +129,19 @@ stub("wMuxIn2", MX.pinIn2, "0", 3150);
 stub("wMuxIn3", MX.pinIn3, "0", 3150);
 stub("wMuxS1", MX.pinS1, "0", 3150);
 R("wMuxS0", [MEMTOREG, x(3120, MX.pinS0), MX.pinS0], [MX.pinS0]);
+// dotted control lines from the decode block to each control consumer — they
+// emanate from decode (where the opcode is decoded) and cross components freely.
+R("ctrlMemWrite", [DECODE_CTRL, MEMWRITE]);
+R("ctrlMemToReg", [DECODE_CTRL, MEMTOREG]);
 // write-back MUX out → register-file write-data port (loop home, below the MUX).
 R("wWdata", [MX.pinOut, x(3960, MX.pinOut), { x: 3960, y: 1376 }, y(1376, { x: 1478, y: 0 }), x(1478, RF.pinWdata), RF.pinWdata], [MX.pinOut, RF.pinWdata]);
 
 setupPulses();
 applyWireColors(svg, WIRE_COLORS);
+
+// dotted control lines aren't `.wire`, so light them directly.
+const setCtrl = (net: string, on: number) =>
+  svg.querySelectorAll<SVGElement>(`.ctrl-wire[data-net="${net}"]`).forEach((e) => e.setAttribute("data-on", String(on)));
 
 const T = (id: string) => document.getElementById(id) as HTMLElement;
 const reg = (b: number) => `r${b}`;
@@ -166,6 +175,8 @@ function render() {
   setNet("memdata", c.memRead ? memData : 0);
   setNet("memwrite", c.memWrite); setPin("pinMemWrite", c.memWrite);
   setNet("memtoreg", c.memToReg); setPin("pinMemToReg", c.memToReg);
+  setCtrl("memwrite", c.memWrite); setCtrl("memtoreg", c.memToReg);
+  setPin("pinCtrl", (c.memWrite || c.memToReg) as Bit);
   setNet("wb", wbVal);
   setNet("instr", 1);
 
