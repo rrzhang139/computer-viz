@@ -9,16 +9,24 @@
 <text x="0" y="7.008" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">BOTTOM (power/ground)</text>
 <polyline points="-9.000,-6.000 9.000,-6.000" fill="none" stroke="#3a7d34" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-9.000,6.000 9.000,6.000" fill="none" stroke="#3b2718" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
-<polyline points="-9.000,0.000 -4.000,0.000 -4.000,-4.500 9.000,-4.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-9.000,0.000 -4.000,0.000 -4.000,-4.000 9.000,-4.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-9.000,0.000 -3.000,0.000 -3.000,-1.500 9.000,-1.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-9.000,0.000 -2.000,0.000 -2.000,1.500 9.000,1.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <polyline points="-9.000,0.000 -1.000,0.000 -1.000,4.500 9.000,4.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-9.000,0.000 -5.000,0.000 -5.000,-5.500 9.000,-5.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-9.000,0.000 -4.500,0.000 -4.500,-4.800 9.000,-4.800" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
 <circle cx="-9" cy="0" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
 <text x="-9.35" y="0" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">instr_in</text>
 <text x="-9.35" y="0.28" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-9, 0)</text>
-<circle cx="9" cy="-4.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
-<text x="9.35" y="-4.5" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">op_out</text>
-<text x="9.35" y="-4.22" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(9, 4.5)</text>
+<circle cx="9" cy="-5.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="9.35" y="-5.5" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">memtoreg_out</text>
+<text x="9.35" y="-5.22" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(9, 5.5)</text>
+<circle cx="9" cy="-4.8" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="9.35" y="-4.8" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">memwrite_out</text>
+<text x="9.35" y="-4.52" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(9, 4.8)</text>
+<circle cx="9" cy="-4" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="9.35" y="-4" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">op_out</text>
+<text x="9.35" y="-3.7199999999999998" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(9, 4)</text>
 <circle cx="9" cy="-1.5" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
 <text x="9.35" y="-1.5" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">raddrA_out</text>
 <text x="9.35" y="-1.22" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(9, 1.5)</text>

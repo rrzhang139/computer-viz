@@ -127,9 +127,12 @@
           <circle class="pin" id="pinMemWrite" cx="540" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="522" y="1240">memWrite</text>
           <circle class="pin" id="pinMemToReg" cx="3120" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3102" y="1330">memToReg</text>
           <circle class="pin" id="pinZero2"    cx="560" cy="1120" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="542" y="1120">0</text>
-          <!-- control origin: decode emits memWrite/memToReg from its bottom edge -->
-          <circle class="pin" id="pinCtrl" cx="1100" cy="1060" r="6" /><text class="tlabel-small" data-pin="pinCtrl" text-anchor="middle" x="1100" y="1036">control</text>
-          <!-- dotted control lines (decode → consumer); free to cross components -->
+          <!-- dotted control lines (decoder's control-unit pins → consumer);
+               schematic, free to cross components. Solid stubs leave the
+               embedded decoder's real memWrite/memToReg pins (src/cpu_ldst.ts
+               routes both onto the projected pin positions). -->
+          <polyline class="wire" data-net="memwrite" id="wCtlMemWrite" points="0,0 0,0" />
+          <polyline class="wire" data-net="memtoreg" id="wCtlMemToReg" points="0,0 0,0" />
           <polyline class="ctrl-wire" data-net="memwrite" id="ctrlMemWrite" points="0,0 0,0" />
           <polyline class="ctrl-wire" data-net="memtoreg" id="ctrlMemToReg" points="0,0 0,0" />
 

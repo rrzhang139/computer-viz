@@ -34,9 +34,10 @@ const svg = document.getElementById("cpu") as unknown as SVGSVGElement;
 const tk = datapath(svg);
 const { R, setupPulses, setNet, setPin } = tk;
 
-// ── ISA + demo program (hazard-free: every instr reads only r0/r1) ──────────
+// ── ISA + demo program (hazard-free: every instr reads only r0/r1).
+// 10-bit words, opcode 00 = R-type (see cpuShared for the opcode|func split). ──
 const OP_NAMES = ["ADD", "AND", "OR", "XOR"];
-const PROGRAM = ["00000110", "01000111", "10000110", "11000111"]; // ADD r2 / AND r3 / OR r2 / XOR r3 (all r0,r1)
+const PROGRAM = ["0000000110", "0001000111", "0010000110", "0011000111"]; // ADD r2 / AND r3 / OR r2 / XOR r3 (all r0,r1)
 const aluOp = (a: Bit, b: Bit, op: number): Bit =>
   [(a ^ b) as Bit, (a & b) as Bit, (a | b) as Bit, (a ^ b) as Bit][op];
 
@@ -56,6 +57,16 @@ const RF: Record<string, Pt> = embeds.get("slot-regfile") || {};
 const AL: Record<string, Pt> = embeds.get("slot-alu") || {};
 
 routeCpuTrunk(R, { IM, IDEC, RF, AL });
+// The decoder's control outputs (memToReg / memWrite) leave the embedded
+// decoder but land on n/c dots: an R-type core has no data memory, so nothing
+// consumes them yet — the load/store page is where they get their consumers.
+if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
+  const mw = IDEC.pinMemWrite, mr = IDEC.pinMemToReg;
+  R("wCtlMemWrite", [mw, { x: 1408, y: mw.y }, { x: 1408, y: 1104 }]);
+  R("wCtlMemToReg", [mr, { x: 1424, y: mr.y }, { x: 1424, y: 1140 }]);
+  tk.srcTerm({ x: 1408, y: 1104 }, "memWrite — n/c");
+  tk.srcTerm({ x: 1424, y: 1140 }, "memToReg — n/c");
+}
 // write-back: ALU result → register-file write-data port, DIRECT (no MUX).
 // An R-type result has one source, so it just turns the corner and loops back
 // along the bottom: out the ALU's right, down to the bottom lane, left to the

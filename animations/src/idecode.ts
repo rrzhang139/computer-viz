@@ -4,11 +4,11 @@ import { readBitParam, initDrillBreadcrumb, loadSnapshot, saveSnapshot, clearSna
 import { initSteps } from "./steps";
 import { initCanvasZoom } from "./canvasZoom";
 
-// Instruction decoder — pure field extraction. The 8-bit instruction word
-// (opcode | rs1 | rs2 | rd) is sliced into four 2-bit fields, each wired
-// STRAIGHT to its datapath control input. No logic, no crossings:
-//   opcode → op,  rs1 → raddrA,  rs2 → raddrB,  rd → waddr
-// (Opcode encoding == ALU op encoding by construction, so op needs no remap.)
+// Instruction decoder — field extraction + the control unit. The 10-bit word
+// (opcode | func | rs1 | rs2 | rd) slices into fields wired STRAIGHT to their
+// datapath outputs; the opcode bundle feeds the CONTROL UNIT, whose rows are
+// truth-table lines (textbook: opcode → Control → named signal lines):
+//   opcode 10 (LW) → memToReg   opcode 11 (SW) → memWrite   00 (R) → neither
 
 type Bit = 0 | 1;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -17,8 +17,10 @@ const svg = document.getElementById('idecode') as unknown as SVGSVGElement;
 // Each bit: button id, svg cell id, output pin id, wire net, state key.
 type BitDef = { btn: string; cell: string; pin: string; net: string; label: string };
 const BITS: BitDef[] = [
-  { btn: 'btnOp1', cell: 'gBitOp1', pin: 'pinOp1',     net: 'op1',     label: 'op1' },
-  { btn: 'btnOp0', cell: 'gBitOp0', pin: 'pinOp0',     net: 'op0',     label: 'op0' },
+  { btn: 'btnOc1', cell: 'gBitOc1', pin: 'pinOc1',     net: 'oc1',     label: 'oc₁' },
+  { btn: 'btnOc0', cell: 'gBitOc0', pin: 'pinOc0',     net: 'oc0',     label: 'oc₀' },
+  { btn: 'btnOp1', cell: 'gBitOp1', pin: 'pinOp1',     net: 'op1',     label: 'f₁' },
+  { btn: 'btnOp0', cell: 'gBitOp0', pin: 'pinOp0',     net: 'op0',     label: 'f₀' },
   { btn: 'btnA1',  cell: 'gBitA1',  pin: 'pinRaddrA1', net: 'raddrA1', label: 'rs1₁' },
   { btn: 'btnA0',  cell: 'gBitA0',  pin: 'pinRaddrA0', net: 'raddrA0', label: 'rs1₀' },
   { btn: 'btnB1',  cell: 'gBitB1',  pin: 'pinRaddrB1', net: 'raddrB1', label: 'rs2₁' },
@@ -74,30 +76,42 @@ function render() {
     setBtn(b.btn, b.label, on);
   });
 
-  const op = v[0] * 2 + v[1];
-  const rs1 = v[2] * 2 + v[3], rs2 = v[4] * 2 + v[5], rd = v[6] * 2 + v[7];
+  const oc = v[0] * 2 + v[1], op = v[2] * 2 + v[3];
+  const rs1 = v[4] * 2 + v[5], rs2 = v[6] * 2 + v[7], rd = v[8] * 2 + v[9];
+  // the control unit: truth-table rows keyed on the opcode pattern
+  const memToReg = (oc === 2 ? 1 : 0) as Bit;   // 10 = LW
+  const memWrite = (oc === 3 ? 1 : 0) as Bit;   // 11 = SW
 
-  // Field output buses (/2) + the incoming instruction bus (/8). A bus lights
+  // Field output buses (/2) + the incoming instruction bus (/10). A bus lights
   // when its field carries a non-zero value (0 = dim, as everywhere else).
   const on = (n: number): Bit => (n ? 1 : 0);
-  setNet('instr', on(op | rs1 | rs2 | rd));
+  setNet('instr', on(oc | op | rs1 | rs2 | rd));
+  setNet('opcode', on(oc));
   setNet('op', on(op)); setNet('raddrA', on(rs1)); setNet('raddrB', on(rs2)); setNet('waddr', on(rd));
-  document.getElementById('pinInstr')?.setAttribute('data-on', String(on(op | rs1 | rs2 | rd)));
+  setNet('memtoreg', memToReg); setNet('memwrite', memWrite);
+  document.getElementById('gCtlMemToReg')?.setAttribute('data-on', String(memToReg));
+  document.getElementById('gCtlMemWrite')?.setAttribute('data-on', String(memWrite));
+  document.getElementById('pinInstr')?.setAttribute('data-on', String(on(oc | op | rs1 | rs2 | rd)));
   document.getElementById('pinOp')?.setAttribute('data-on', String(on(op)));
   document.getElementById('pinRaddrA')?.setAttribute('data-on', String(on(rs1)));
   document.getElementById('pinRaddrB')?.setAttribute('data-on', String(on(rs2)));
   document.getElementById('pinWaddr')?.setAttribute('data-on', String(on(rd)));
+  document.getElementById('pinMemToReg')?.setAttribute('data-on', String(memToReg));
+  document.getElementById('pinMemWrite')?.setAttribute('data-on', String(memWrite));
 
   // per-field decoded meaning, shown in the diagram beside each field
+  const kindName = oc === 2 ? 'LW' : oc === 3 ? 'SW' : oc === 1 ? '—' : 'R';
+  T('fldOc').textContent = `= ${kindName}`;
   T('fldOp').textContent = `= ${OP_NAMES[op]}`;
   T('fldA').textContent = `= r${rs1}`;
   T('fldB').textContent = `= r${rs2}`;
   T('fldW').textContent = `= r${rd}`;
 
-  T('instrBits').textContent = `${v[0]}${v[1]}·${v[2]}${v[3]}·${v[4]}${v[5]}·${v[6]}${v[7]}`;
-  T('opName').textContent = `${v[0]}${v[1]} (${OP_NAMES[op]})`;
-  T('readBits').textContent = `A=${v[2]}${v[3]} B=${v[4]}${v[5]}`;
-  T('writeBits').textContent = `${v[6]}${v[7]}`;
+  T('instrBits').textContent = `${v[0]}${v[1]}·${v[2]}${v[3]}·${v[4]}${v[5]}·${v[6]}${v[7]}·${v[8]}${v[9]}`;
+  T('opName').textContent = `${v[0]}${v[1]} (${kindName === 'R' ? OP_NAMES[op] : kindName})`;
+  T('readBits').textContent = `A=${v[4]}${v[5]} B=${v[6]}${v[7]}`;
+  T('writeBits').textContent = `${v[8]}${v[9]}`;
+  T('ctlBits').textContent = `memToReg=${memToReg} memWrite=${memWrite}`;
 }
 
 function persist() { saveSnapshot<Snap>(SNAP_KEY, { v: [...v] as Bit[] }); }

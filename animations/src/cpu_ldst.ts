@@ -8,8 +8,9 @@ import { applyWireColors } from "./wireColors";
 import { initProseHighlight } from "./proseHighlight";
 import { datapath, x, y, type Bit, type Pt } from "./lib/datapath";
 import {
-  CPU_BASE_COLORS, CPU_TERMS, SEED, asBits4, decodeInstr,
+  CPU_BASE_COLORS, CPU_TERMS, SEED, asBits4, ctrlOf, decodeInstr,
   routeCpuTrunk, renderCpuTrunk, renderReadout, bindCpuControls, bindTrunkDrills,
+  type Instr,
 } from "./lib/cpuShared";
 
 // CPU (load/store) — the R-type datapath PLUS a data memory and a revived
@@ -27,23 +28,22 @@ const svg = document.getElementById("cpu") as unknown as SVGSVGElement;
 const tk = datapath(svg);
 const { R, stub, setupPulses, setNet, setPin, setBody, lightEmbed } = tk;
 
-// ── ISA + demo program ──────────────────────────────────────────────────────
-const OP_NAMES = ["ADD", "AND", "LW", "SW"];
-const LW = 2, SW = 3;
+// ── ISA + demo program (10-bit words; opcode 10 = LW, 11 = SW) ─────────────
+const OP_NAMES = ["ADD", "AND", "OR", "XOR"];
 // SW r1,(r0) → Mem[1]=1 ; LW r2,(r0) → r2=Mem[1]=1 ; AND r3,r2,r1 → r3=1 ; AND r2,r0,r0 → r2=1
-const PROGRAM = ["11000100", "10000010", "01100111", "01000010"];
+// Mem ops' func drives the ALU preview: LW uses ADD (base+0, the real thing);
+// SW uses AND so the lit op-row equals the pass-through address in this demo.
+const PROGRAM = ["1101000100", "1000001010", "0001100111", "0001000010"];
 const rtype = (a: Bit, b: Bit, op: number): Bit =>
-  [(a ^ b) as Bit, (a & b) as Bit, 0 as Bit, 0 as Bit][op];   // only ADD/AND are R-type ops here
+  [(a ^ b) as Bit, (a & b) as Bit, (a | b) as Bit, (a ^ b) as Bit][op];
 
-// control signals decoded from the opcode
-const ctrl = (op: number) => ({
-  memRead: (op === LW ? 1 : 0) as Bit,
-  memWrite: (op === SW ? 1 : 0) as Bit,
-  memToReg: (op === LW ? 1 : 0) as Bit,
-  regWrite: (op === SW ? 0 : 1) as Bit,
-});
+// control signals — the decoder's control unit (ctrlOf) plus the derived pair
+const ctrl = (i: Instr) => {
+  const c = ctrlOf(i);
+  return { ...c, memRead: c.memToReg, regWrite: (c.memWrite ? 0 : 1) as Bit };
+};
 // effective address (mem ops) = base register rs1's value; the ALU passes it.
-const aluResult = (a: Bit, b: Bit, op: number): Bit => (op < 2 ? rtype(a, b, op) : a);
+const aluResult = (a: Bit, b: Bit, i: Instr): Bit => (i.opc >= 2 ? a : rtype(a, b, i.op));
 
 // ── State ───────────────────────────────────────────────────────────────────
 type Snap = { pc: number; regs: Bit[]; mem: Bit[] };
@@ -67,7 +67,6 @@ const MX: Record<string, Pt> = embeds.get("slot-wbmux") || {};
 const { CLK } = CPU_TERMS;
 const ZERO2 = { x: 560, y: 1120 };
 const MEMWRITE = { x: 540, y: 1240 }, MEMTOREG = { x: 3120, y: 1330 };
-const DECODE_CTRL = { x: 1100, y: 1060 };   // control origin on the decode block's bottom edge
 
 routeCpuTrunk(R, { IM, IDEC, RF, AL });
 
@@ -95,10 +94,16 @@ stub("wMuxIn2", MX.pinIn2, "0", 3150);
 stub("wMuxIn3", MX.pinIn3, "0", 3150);
 stub("wMuxS1", MX.pinS1, "0", 3150);
 R("wMuxS0", [MEMTOREG, x(3120, MX.pinS0), MX.pinS0], [MX.pinS0]);
-// dotted control lines from the decode block to each control consumer — they
-// emanate from decode (where the opcode is decoded) and cross components freely.
-R("ctrlMemWrite", [DECODE_CTRL, MEMWRITE]);
-R("ctrlMemToReg", [DECODE_CTRL, MEMTOREG]);
+// Control lines are BORN in the decoder (its control unit decodes type+f0):
+// a short solid stub leaves each embedded control pin, then a dotted schematic
+// line runs from the stub to its consumer terminal, free to cross components.
+if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
+  const mw = { x: 1408, y: IDEC.pinMemWrite.y }, mr = { x: 1424, y: IDEC.pinMemToReg.y };
+  R("wCtlMemWrite", [IDEC.pinMemWrite, mw]);
+  R("wCtlMemToReg", [IDEC.pinMemToReg, mr]);
+  R("ctrlMemWrite", [mw, MEMWRITE]);
+  R("ctrlMemToReg", [mr, MEMTOREG]);
+}
 // write-back MUX out → register-file write-data port (loop home, below the MUX).
 R("wWdata", [MX.pinOut, x(3960, MX.pinOut), { x: 3960, y: 1376 }, y(1376, { x: 1478, y: 0 }), x(1478, RF.pinWdata), RF.pinWdata], [MX.pinOut, RF.pinWdata]);
 
@@ -115,16 +120,16 @@ applyWireColors(svg, {
 const setCtrl = (net: string, on: number) =>
   svg.querySelectorAll<SVGElement>(`.ctrl-wire[data-net="${net}"]`).forEach((e) => e.setAttribute("data-on", String(on)));
 
-const asmText = (i: { op: number; rs1: number; rs2: number; rd: number }) =>
-  i.op === LW ? `LW r${i.rd},(r${i.rs1})`
-  : i.op === SW ? `SW r${i.rs2},(r${i.rs1})`
+const asmText = (i: Instr) =>
+  i.opc === 2 ? `LW r${i.rd},(r${i.rs1})`
+  : i.opc === 3 ? `SW r${i.rs2},(r${i.rs1})`
   : `${OP_NAMES[i.op]} r${i.rd},r${i.rs1},r${i.rs2}`;
 
 function render() {
   const i = decodeInstr(PROGRAM[pc]);
-  const c = ctrl(i.op);
+  const c = ctrl(i);
   const A = regs[i.rs1], B = regs[i.rs2];
-  const Y = aluResult(A, B, i.op);          // R-type result, or the mem address
+  const Y = aluResult(A, B, i);             // R-type result, or the mem address
   const memData = mem[Y] as Bit;            // value read from data memory
   const wbVal = (c.memToReg ? memData : Y) as Bit;
 
@@ -137,7 +142,6 @@ function render() {
   setNet("memwrite", c.memWrite); setPin("pinMemWrite", c.memWrite);
   setNet("memtoreg", c.memToReg); setPin("pinMemToReg", c.memToReg);
   setCtrl("memwrite", c.memWrite); setCtrl("memtoreg", c.memToReg);
-  setPin("pinCtrl", (c.memWrite || c.memToReg) as Bit);
   setNet("wb", wbVal);
 
   setBody("gDmem", (c.memRead || c.memWrite) as Bit); setBody("gWbmux", 1);
@@ -167,9 +171,9 @@ bindCpuControls({
   setClk: (b) => { clk = b; },
   commit: () => {
     const i = decodeInstr(PROGRAM[pc]);
-    const c = ctrl(i.op);
+    const c = ctrl(i);
     const A = regs[i.rs1], B = regs[i.rs2];
-    const Y = aluResult(A, B, i.op);
+    const Y = aluResult(A, B, i);
     if (c.memWrite) mem[Y] = B;                                       // store
     if (c.regWrite) regs[i.rd] = (c.memToReg ? mem[Y] : Y) as Bit;    // R-type / load
     pc = (pc + 1) & 0b11;
@@ -185,14 +189,14 @@ bindCpuControls({
 // ── Drill-downs ─────────────────────────────────────────────────────────────
 const go = (href: string, params: Record<string, string | number>) =>
   window.location.assign(buildDrillUrl(href, { from: "cpu_ldst", ...params }));
-bindTrunkDrills(go, () => ({ pc, i: decodeInstr(PROGRAM[pc]), regs, we: ctrl(decodeInstr(PROGRAM[pc]).op).regWrite }));
+bindTrunkDrills(go, () => ({ pc, i: decodeInstr(PROGRAM[pc]), regs, we: ctrl(decodeInstr(PROGRAM[pc])).regWrite }));
 document.getElementById("slot-dmem")!.addEventListener("click", () => {
   const i = decodeInstr(PROGRAM[pc]); const A = regs[i.rs1];
-  go("/dmem.html", { which: "data-memory", addr1: 0, addr0: A, wdata: regs[i.rs2], we: ctrl(i.op).memWrite });
+  go("/dmem.html", { which: "data-memory", addr1: 0, addr0: A, wdata: regs[i.rs2], we: ctrl(i).memWrite });
 });
 document.getElementById("slot-wbmux")!.addEventListener("click", () => {
   const i = decodeInstr(PROGRAM[pc]);
-  go("/mux.html", { which: "write-back", s1: 0, s0: ctrl(i.op).memToReg });
+  go("/mux.html", { which: "write-back", s1: 0, s0: ctrl(i).memToReg });
 });
 
 initDrillBreadcrumb();

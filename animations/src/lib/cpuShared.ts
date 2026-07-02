@@ -7,11 +7,19 @@
 
 import { x, type Bit, type Pt } from "./datapath";
 
-// ── ISA (toy, 8-bit word: op|rs1|rs2|rd, 2 bits each) ───────────────────────
-export type Instr = { op: number; rs1: number; rs2: number; rd: number };
+// ── ISA (toy, 10-bit word: opcode|func|rs1|rs2|rd — 2 bits each). ──────────
+// opcode = the instruction KIND: 00 R-type, 10 LW, 11 SW (01 reserved: branch).
+// func = the ALU operation (00 ADD, 01 AND, 10 OR, 11 XOR) — RISC-V's funct.
+// Like a real machine, the opcode never leaves the decoder as data — its
+// control unit decodes it, truth-table style, into memToReg / memWrite.
+export type Instr = { opc: number; op: number; rs1: number; rs2: number; rd: number };
 export const decodeInstr = (w: string): Instr => ({
-  op: parseInt(w.slice(0, 2), 2), rs1: parseInt(w.slice(2, 4), 2),
-  rs2: parseInt(w.slice(4, 6), 2), rd: parseInt(w.slice(6, 8), 2),
+  opc: parseInt(w.slice(0, 2), 2), op: parseInt(w.slice(2, 4), 2),
+  rs1: parseInt(w.slice(4, 6), 2), rs2: parseInt(w.slice(6, 8), 2), rd: parseInt(w.slice(8, 10), 2),
+});
+export const ctrlOf = (i: Instr) => ({
+  memToReg: (i.opc === 2 ? 1 : 0) as Bit,   // LW: write-back comes from memory
+  memWrite: (i.opc === 3 ? 1 : 0) as Bit,   // SW: arm the memory write port
 });
 export const hiLo = (v: number): [Bit, Bit] => [((v >> 1) & 1) as Bit, (v & 1) as Bit];
 export const SEED: Bit[] = [1, 1, 0, 0];
@@ -37,6 +45,7 @@ export const CPU_BASE_COLORS: Record<string, string> = {
   rdataB: "#2fcfc7",                                           // read operand B — teal
   aluY: "#ff8a3d",                                             // ALU result — orange
   wb: "#ff6fae",                                               // write-back return — pink
+  memwrite: "#ffcf3a", memtoreg: "#ffcf3a",                    // control lines — amber
 };
 
 // ── Fixed CPU-level terminals (drawn in both pages' HTML at these coords) ───
@@ -118,9 +127,16 @@ export function renderCpuTrunk(tk: Toolkit, s: TrunkState) {
   }, {
     gWord0: (s.pc === 0 ? 1 : 0), gWord1: (s.pc === 1 ? 1 : 0), gWord2: (s.pc === 2 ? 1 : 0), gWord3: (s.pc === 3 ? 1 : 0), gReadmux: 1,
   });
-  lightEmbed("idecodeDetail",
-    { instr: 1, op: (op1 || op0) as Bit, raddrA: (rs1h || rs1l) as Bit, raddrB: (rs2h || rs2l) as Bit, waddr: (rd1 || rd0) as Bit },
-    { gBitOp1: op1, gBitOp0: op0, gBitA1: rs1h, gBitA0: rs1l, gBitB1: rs2h, gBitB0: rs2l, gBitW1: rd1, gBitW0: rd0 });
+  const ctl = ctrlOf(s.i);
+  const [oc1, oc0] = hiLo(s.i.opc);
+  lightEmbed("idecodeDetail", {
+    instr: 1, opcode: (oc1 || oc0) as Bit, op: (op1 || op0) as Bit,
+    raddrA: (rs1h || rs1l) as Bit, raddrB: (rs2h || rs2l) as Bit, waddr: (rd1 || rd0) as Bit,
+    memtoreg: ctl.memToReg, memwrite: ctl.memWrite,
+  }, {
+    gBitOc1: oc1, gBitOc0: oc0, gBitOp1: op1, gBitOp0: op0, gBitA1: rs1h, gBitA0: rs1l, gBitB1: rs2h, gBitB0: rs2l, gBitW1: rd1, gBitW0: rd0,
+    gCtlMemToReg: ctl.memToReg, gCtlMemWrite: ctl.memWrite,
+  });
   lightEmbed("regfileDetail", {
     raddrA1: rs1h, raddrA0: rs1l, raddrB1: rs2h, raddrB0: rs2l,
     waddr1: rd1, waddr0: rd0, we: s.we, clk: s.clk, wdata: s.wdata,
@@ -174,7 +190,7 @@ export function bindTrunkDrills(go: (href: string, params: Record<string, string
   });
   document.getElementById("slot-idecode")!.addEventListener("click", () => {
     const { i } = cur();
-    go("/idecode.html", { which: "decode", op1: (i.op >> 1) & 1, op0: i.op & 1, raddrA1: (i.rs1 >> 1) & 1, raddrA0: i.rs1 & 1, raddrB1: (i.rs2 >> 1) & 1, raddrB0: i.rs2 & 1, waddr1: (i.rd >> 1) & 1, waddr0: i.rd & 1 });
+    go("/idecode.html", { which: "decode", oc1: (i.opc >> 1) & 1, oc0: i.opc & 1, op1: (i.op >> 1) & 1, op0: i.op & 1, raddrA1: (i.rs1 >> 1) & 1, raddrA0: i.rs1 & 1, raddrB1: (i.rs2 >> 1) & 1, raddrB0: i.rs2 & 1, waddr1: (i.rd >> 1) & 1, waddr0: i.rd & 1 });
   });
   document.getElementById("slot-regfile")!.addEventListener("click", () => {
     const { i, we } = cur();
