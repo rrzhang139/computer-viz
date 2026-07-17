@@ -160,11 +160,33 @@ details[open] > .toc-summary::after { content: "▾"; color: var(--on, #EF9F27);
   .toc-toggle { top: 10px; left: 10px; width: 40px; height: 40px; }
   .toc-sidebar { width: 260px; padding-top: 64px; }
 }
+
+/* Page name injected into the bottom panel's step-meta bar ("D LATCH · 1 / 6"). */
+.step-meta .step-page-name { color: var(--on, #EF9F27); }
+.step-meta .step-page-sep { color: #444; margin: 0 2px; }
 `;
 
 function pathMatches(href: string, path: string): boolean {
   if (href === "/") return path === "/" || path === "/index.html" || path === "";
   return path === href || path === href.replace(/\.html$/, "");
+}
+
+// Canonical display name for a page, resolved from the same labels the TOC
+// shows. Top-level entries win over dropdown children (e.g. /counter.html is
+// "program counter", not the CPU dropdown's "PC · program counter").
+export function pageTitle(path: string): string {
+  const sections = [COMBINATIONAL, MEMORY, DATAPATH];
+  for (const entries of sections) {
+    for (const e of entries) if (pathMatches(e.href, path)) return e.label;
+  }
+  for (const entries of sections) {
+    for (const e of entries) {
+      for (const c of e.children ?? []) {
+        if (c.label !== "overview" && pathMatches(c.href, path)) return c.label;
+      }
+    }
+  }
+  return path.replace(/^\//, "").replace(/\.html$/, "") || "index";
 }
 
 function renderEntry(e: Entry, currentPath: string): string {
@@ -237,6 +259,22 @@ export function initToc() {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && sidebar.classList.contains("is-open")) setOpen(false);
   });
+
+  // Every page's bottom panel opens with the step counter ("1 / 6") but never
+  // said WHICH page you're on. Prepend the page's canonical name so the bar
+  // reads "D LATCH · 1 / 6" (step-meta CSS uppercases it). initToc is the one
+  // init every page calls, so injecting here covers every page.
+  const meta = document.querySelector(".step-meta");
+  if (meta && !meta.querySelector(".step-page-name")) {
+    const name = document.createElement("span");
+    name.className = "step-page-name";
+    name.textContent = pageTitle(path);
+    const sep = document.createElement("span");
+    sep.className = "step-page-sep";
+    sep.textContent = " · ";
+    meta.insertBefore(sep, meta.firstChild);
+    meta.insertBefore(name, sep);
+  }
 
   // initToc is the one init every page calls, so it's the canonical hook for
   // page-wide invariants: keep every terminal label clear of its pin + legible.
