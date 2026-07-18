@@ -157,7 +157,6 @@ function render() {
   const A = regs[i.rs1], B = regs[i.rs2];
   const Y = aluResult(A, B, i);
   const pcsrc = pcsrcOf(i, Y);
-  const target = (pc + i.imm) & 0b11;
   const [t1, t0] = hiLo(i.imm < 0 ? i.imm + 4 : i.imm);   // raw imm field bits
   const memData = mem[Y] as Bit;
   const wbVal = (c.memToReg ? memData : Y) as Bit;
@@ -173,9 +172,9 @@ function render() {
   setNet("pcsrc", pcsrc);
   lightEmbed("pcDetail", {
     clk, pcsrc, imm1: (c.branch ? t1 : 0), imm0: (c.branch ? t0 : 0),
-    tgt1: (c.branch ? (target >> 1) & 1 : 0), tgt0: (c.branch ? target & 1 : 0),
-    pcnext: 1, pcsel: 1, addr1: (pc >> 1) & 1, addr0: pc & 1, zero: 0,
-  }, { gAdd: 1, gTAdd: c.branch, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1, gMux1: 1 });
+    target: c.branch, pcnext: 1, pcsel: 1,
+    addr1: (pc >> 1) & 1, addr0: pc & 1, zero: 0,
+  }, { gAdd: 1, gTAdd: c.branch, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1 });
   setCtrl("branch", c.branch); setCtrl("pcsrc", pcsrc);
   setBody("gPcsrc", pcsrc);
   setNet("pcsel", 1);
