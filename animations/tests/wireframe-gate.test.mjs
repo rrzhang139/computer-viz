@@ -63,6 +63,8 @@ const LAYER_TO_PAGE = {
   cpu:        'cpu.html',
   cpuldst:    'cpu_ldst.html',
   cpubranch:  'cpu_branch.html',
+  pcsrc:      'pcsrc.html',
+  branchpc:   'branchpc.html',
 };
 
 // Terminals that don't appear as data-net wires because they're

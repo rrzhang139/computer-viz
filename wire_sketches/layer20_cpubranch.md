@@ -9,7 +9,7 @@ inside the instruction — and a **PC-source MUX** to choose between them.
 What changed from `cpuldst` is the fetch front. There the +1 loop lived sealed
 inside the PC; here the loop is opened by a MUX: input-0 is the incremented PC
 (the sequential future), input-1 is the **branch target** field decoded out of
-the instruction, and the select is **taken** — computed beside the ALU as
+the instruction, and the select is **PCSrc** — computed beside the ALU as
 `branch AND (rs1 == rs2)`. The decoder's control unit raises **branch** for a
 `BEQ` opcode; the ALU's XOR compares the two register reads (equal ⇔ result 0);
 a small taken-block ANDs them. When taken fires, the PC loads the target and
@@ -57,7 +57,7 @@ own page).
 | control  | ctrlbox     | ( -3.0,  7.5)   | 5.0 × 3.0   |
 | regfile  | rfbox       | ( -3.0,  0.0)   | 6.0 × 9.0   |
 | alu      | alubox      | (  8.0,  1.0)   | 4.0 × 5.0   |
-| taken    | takenbox    | ( 13.0,  4.0)   | 2.0 × 2.0   |
+| pcsrc    | pcsrcbox    | ( 13.0,  4.0)   | 2.0 × 2.0   |
 | dmem     | dmembox     | (  8.0, -6.0)   | 5.0 × 3.0   |
 | wbmux    | wbmuxbox    | ( 16.0, -6.0)   | 3.0 × 4.0   |
 
@@ -65,7 +65,7 @@ own page).
   instruction memory — the **fetch** stage.
 - `control` (a decoder of the opcode; raises **branch** for BEQ) + `regfile` — **decode**.
 - `alu` 1-bit ALU slice — **execute**; its XOR result doubles as the equality test.
-- `taken` — ANDs the branch control with the ALU's zero test; steers the PC MUX.
+- `pcsrc` — PCSrc = Branch AND Zero (the standard P&H name): the decision; steers the PC MUX.
 - `dmem` data memory + `wbmux` write-back MUX — **MEM / write-back** (unchanged).
 
 ## Absorbed terminals
@@ -77,7 +77,7 @@ Program counter `pc` (x∈[-21,-17], y∈[2.5,5.5]):
 
 - `pc_clk_in`    (-19.0,  2.5)  ← BOTTOM
 - `pc_target_in` (-21.0,  3.0)  ← LEFT
-- `pc_taken_in`  (-21.0,  5.0)  ← LEFT
+- `pc_pcsrc_in`  (-21.0,  5.0)  ← LEFT
 - `pc_addr_out`  (-17.0,  4.0)  ← RIGHT
 
 Instruction memory `imem` (x∈[-21,-17], y∈[-5,-1]):
@@ -106,11 +106,11 @@ ALU `alu` (x∈[6,10], y∈[-1.5,3.5]):
 - `alu_op_in`  (6.0,  3.0)  ← LEFT
 - `alu_y_out`  (10.0, 1.0)  ← RIGHT
 
-Taken `taken` (x∈[12,14], y∈[3,5]):
+PCSrc `pcsrc` (x∈[12,14], y∈[3,5]):
 
-- `taken_y_in`  (12.0, 3.5)  ← LEFT
-- `taken_br_in` (12.0, 4.5)  ← LEFT
-- `taken_out`   (14.0, 4.0)  ← RIGHT
+- `pcsrc_y_in`  (12.0, 3.5)  ← LEFT
+- `pcsrc_br_in` (12.0, 4.5)  ← LEFT
+- `pcsrc_out`   (14.0, 4.0)  ← RIGHT
 
 Data memory `dmem` (x∈[5.5,10.5], y∈[-7.5,-4.5]):
 
@@ -136,12 +136,12 @@ Write-back MUX `wbmux` (x∈[14.5,17.5], y∈[-8,-4]):
 | instr    | fetched instruction → register file + control               |
 | target   | instruction's target field → PC-source MUX input-1          |
 | op1      | control unit's decoded operation → ALU                      |
-| branch   | control unit's branch line → taken block                    |
-| taken    | branch AND equal → PC-source MUX select (the decision)      |
+| branch   | control unit's branch line → PCSrc block                    |
+| pcsrc    | PCSrc = Branch AND Zero → PC-source MUX select (P&H name)   |
 | memtoreg | control unit's mem-to-reg select → write-back MUX           |
 | rdataA   | register-file read port A → ALU operand                     |
 | rdataB   | register-file read port B → data-memory write data          |
-| aluY     | ALU result (= the equality test for BEQ) → taken block, mem |
+| aluY     | ALU result (= the equality test for BEQ) → PCSrc block, mem |
 | memaddr  | ALU result as effective address → data memory               |
 | memdata  | data-memory read port → write-back MUX in1 (loaded data)    |
 | memwrite | control unit's write-enable → data-memory write port        |
@@ -159,15 +159,15 @@ Write-back MUX `wbmux` (x∈[14.5,17.5], y∈[-8,-4]):
 | imem_instr_out | ctrl_op_in    | (-12.0, -3.0), (-12.0, 7.5)                          | instr    |
 | imem_instr_out | pc_target_in  | (-13.0, -3.0), (-13.0, 1.8), (-22.8, 1.8), (-22.8, 3.0) | target |
 | ctrl_out       | alu_op_in     | (2.0, 7.5), (2.0, 3.0)                               | op1      |
-| ctrl_branch_out| taken_br_in   | (11.0, 8.5), (11.0, 4.5)                             | branch   |
+| ctrl_branch_out| pcsrc_br_in   | (11.0, 8.5), (11.0, 4.5)                             | branch   |
 | ctrl_mem_out   | wbmux_sel_in  | (3.5, 6.5), (3.5, -3.0), (16.0, -3.0)                | memtoreg |
 | ctrl_mem_out   | dmem_we_in    | (4.0, 6.5), (4.0, -6.8)                              | memwrite |
 | rf_rdata_out   | alu_a_in      | (3.0, 0.0), (3.0, 1.0)                               | rdataA   |
 | rf_wdata_out   | dmem_wdata_in | (1.5, -2.0), (1.5, -6.0)                             | rdataB   |
-| alu_y_out      | taken_y_in    | (10.8, 1.0), (10.8, 3.5)                             | aluY     |
+| alu_y_out      | pcsrc_y_in    | (10.8, 1.0), (10.8, 3.5)                             | aluY     |
 | alu_y_out      | dmem_addr_in  | (11.5, 1.0), (11.5, -3.5), (8.0, -3.5)               | aluY     |
 | alu_y_out      | wbmux_in0_in  | (13.0, 1.0), (13.0, -5.0)                            | aluY     |
-| taken_out      | pc_taken_in   | (14.5, 4.0), (14.5, 9.5), (-22.0, 9.5), (-22.0, 5.0) | taken    |
+| pcsrc_out      | pc_pcsrc_in   | (14.5, 4.0), (14.5, 9.5), (-22.0, 9.5), (-22.0, 5.0) | pcsrc    |
 | dmem_rdata_out | wbmux_in1_in  | (12.5, -6.0), (12.5, -6.5)                           | memdata  |
 | wbmux_out      | rf_wb_in      | (19.5, -6.0), (19.5, -9.0), (-1.5, -9.0)             | wb       |
 
@@ -175,12 +175,12 @@ The fetch front is where the story is. The PC still drops its value into the
 instruction memory's address — but the PC box now hides an opened loop: +1
 adder → **PC-source MUX** → register. Two new wires arrive at its left edge:
 the **target** field peeled off the fetched instruction (it loops back left
-under the PC), and **taken**, the decision, arriving over the top from the far
-right. When taken is 0 the MUX picks +1 and the machine walks sequentially;
+under the PC), and **PCSrc**, the decision, arriving over the top from the far
+right. When PCSrc is 0 the MUX picks +1 and the machine walks sequentially;
 when taken is 1 it loads the target and the next sequential cell is skipped.
 
 The decision itself is built beside the ALU: the control unit's **branch**
-line drops into the taken block from the top lane, the ALU's result (for BEQ
+line drops into the PCSrc block from the top lane, the ALU's result (for BEQ
 the XOR of the two register reads — 0 exactly when they're equal) enters
 beside it, and the block's AND fires only for a taken branch. Its output rides
 the top lane (y=9.5) all the way back to the PC — the longest wire on the
@@ -194,7 +194,7 @@ page, and the point of the lesson: *execute reaches back into fetch.*
   block back to the PC's left edge; the target field rides the y=1.8 lane
   below the PC box. Neither crosses a foreign box interior.
 - The ALU result fans right of the ALU (x≥10.8) into three vertical runs —
-  the taken block, the data memory's address, and the MUX's in0 — so no wire
+  the PCSrc block, the data memory's address, and the MUX's in0 — so no wire
   crosses a foreign box's interior.
 
 ## Embedding contract

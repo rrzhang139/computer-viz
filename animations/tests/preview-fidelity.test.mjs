@@ -56,7 +56,7 @@ const pages = readdirSync(ROOT).filter((f) => f.endsWith('.html') && !f.startsWi
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'],
   { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-function killServer() { try { server.kill('SIGTERM'); } catch {} }
+function killServer() { try { process.kill(-server.pid, 'SIGTERM'); } catch {} try { server.kill('SIGTERM'); } catch {} }
 process.on('exit', killServer);
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error('vite preview timeout')), 15000);

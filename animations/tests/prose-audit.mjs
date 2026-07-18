@@ -23,8 +23,8 @@ mkdirSync(OUT, { recursive: true });
 const PAGES = process.argv.slice(2).length ? process.argv.slice(2) : ['cpu.html', 'cpu_ldst.html'];
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'],
-  { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-const killServer = () => { try { server.kill('SIGTERM'); } catch {} };
+  { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+const killServer = () => { try { process.kill(-server.pid, 'SIGTERM'); } catch {} try { server.kill('SIGTERM'); } catch {} };
 process.on('exit', killServer);
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error('vite preview timeout')), 15000);

@@ -15,13 +15,13 @@ import {
 
 // CPU (branch) — the load/store datapath PLUS the branch: opcode 01 = BEQ
 // (if regs[rs1] == regs[rs2], next PC = the rd field, used as the target).
-// The PC's +1 loop is opened by a PC-source MUX (in0 = pc+1, in1 = target,
-// sel = taken); `taken` = branch AND (rs1 == rs2) is computed in the taken
-// block beside the ALU (for BEQ the ALU op is XOR — equal ⇔ result 0).
-//   op 00 R-type(func), 01 BEQ (func=11 XOR compare), 10 LW, 11 SW.
+// Textbook single-cycle shape (P&H): the decoder's control unit raises Branch
+// and FORCES the ALU op to the compare (ALUOp; 1-bit subtract = XOR), the
+// PCSrc block computes PCSrc = Branch AND Zero, and the PC-source MUX picks
+// pc+1 vs. the target.  op 00 R-type(func), 01 BEQ, 10 LW, 11 SW.
 //
 // The fetch→execute trunk is shared via src/lib/cpuShared.ts; this file owns
-// the branch pieces (target wires, taken logic, PC-source MUX preview) plus
+// the branch pieces (target wires, PCSrc logic, PC-source MUX preview) plus
 // the memory stage carried over from cpu_ldst.
 
 const svg = document.getElementById("cpu") as unknown as SVGSVGElement;
@@ -32,7 +32,7 @@ const { R, stub, setupPulses, setNet, setPin, setBody, lightEmbed } = tk;
 // AND r3,r0,r1 → r3=1 ; BEQ r0,r1,→3 (r0==r1 → TAKEN, skips pc2) ;
 // ADD r2,r0,r1 → the victim: never runs, r2 stays 0 ; XOR r3,r0,r1 → r3=0.
 const OP_NAMES = ["ADD", "AND", "OR", "XOR"];
-const PROGRAM = ["0001000111", "0111000111", "0000000110", "0011000111"];
+const PROGRAM = ["0001000111", "0100000111", "0000000110", "0011000111"];
 const rtype = (a: Bit, b: Bit, op: number): Bit =>
   [(a ^ b) as Bit, (a & b) as Bit, (a | b) as Bit, (a ^ b) as Bit][op];
 
@@ -40,12 +40,12 @@ const rtype = (a: Bit, b: Bit, op: number): Bit =>
 // A branch writes nothing: no register, no memory — only the PC.
 const ctrl = (i: Instr) => {
   const c = ctrlOf(i);
-  const branch = (i.opc === 1 ? 1 : 0) as Bit;
-  return { ...c, branch, memRead: c.memToReg, regWrite: (c.memWrite || branch ? 0 : 1) as Bit };
+  return { ...c, memRead: c.memToReg, regWrite: (c.memWrite || c.branch ? 0 : 1) as Bit };
 };
-const aluResult = (a: Bit, b: Bit, i: Instr): Bit => (i.opc >= 2 ? a : rtype(a, b, i.op));
-// taken = branch AND equal; for BEQ the ALU runs XOR, so equal ⇔ Y == 0.
-const takenOf = (i: Instr, Y: Bit): Bit => (i.opc === 1 && Y === 0 ? 1 : 0);
+const aluResult = (a: Bit, b: Bit, i: Instr): Bit =>
+  i.opc >= 2 ? a : rtype(a, b, i.opc === 1 ? 3 : i.op);
+// PCSrc = Branch AND Zero; for BEQ the ALU runs XOR, so Zero ⇔ Y == 0.
+const pcsrcOf = (i: Instr, Y: Bit): Bit => (i.opc === 1 && Y === 0 ? 1 : 0);
 
 // ── State ───────────────────────────────────────────────────────────────────
 // `skipped` remembers the cell a taken branch jumped over (−1 = none), so the
@@ -68,25 +68,44 @@ const RF: Record<string, Pt> = embeds.get("slot-regfile") || {};
 const AL: Record<string, Pt> = embeds.get("slot-alu") || {};
 const DM: Record<string, Pt> = embeds.get("slot-dmem") || {};
 const MX: Record<string, Pt> = embeds.get("slot-wbmux") || {};
+const PS: Record<string, Pt> = embeds.get("slot-pcsrc") || {};
+const PC: Record<string, Pt> = embeds.get("slot-pc") || {};
 
 const { CLK } = CPU_TERMS;
 const ZERO2 = { x: 560, y: 1120 };
 const MEMWRITE = { x: 540, y: 1240 }, MEMTOREG = { x: 3120, y: 1330 };
-// branch-page terminals (fixed in cpu_branch.html)
-const TAKEN_Y = { x: 3300, y: 200 };
-const PC_T1 = { x: 40, y: 290 }, PC_T0 = { x: 40, y: 330 };
 
-routeCpuTrunk(R, { IM, IDEC, RF, AL });
+routeCpuTrunk(R, { IM, IDEC, RF, AL, PC });
 
 // ── Branch stage ────────────────────────────────────────────────────────────
-// ALU result → the taken block (over the ALU's top; for BEQ this wire IS the
-// equality test: XOR of the two reads, 0 ⇔ equal).
-R("wTakenY", [AL.pinY, x(4100, AL.pinY), { x: 4100, y: 110 }, { x: 3260, y: 110 }, y(200, { x: 3260, y: 0 }), TAKEN_Y], [AL.pinY, TAKEN_Y]);
+// ALU result → the PCSrc block's Zero detector (over the ALU's top; for BEQ
+// this wire IS the comparison: XOR of the two reads, 0 ⇔ equal).
+if (PS.pinResult) {
+  R("wResultY", [AL.pinY, x(4100, AL.pinY), { x: 4100, y: 110 }, { x: 3230, y: 110 }, y(PS.pinResult.y, { x: 3230, y: 0 }), PS.pinResult], [AL.pinY, PS.pinResult]);
+}
+// Branch control: born at the embedded decoder's real pin (01·beq row), solid
+// stub off the pin, dotted schematic run across the datapath, solid stub onto
+// the embedded PCSrc block's Branch pin.
+if (IDEC.pinBranch && PS.pinBranch) {
+  const bStub = { x: 1440, y: IDEC.pinBranch.y };
+  const bIn = { x: 3230, y: PS.pinBranch.y };
+  R("wCtlBranch", [IDEC.pinBranch, bStub]);
+  R("ctrlBranch", [bStub, { x: 3200, y: bStub.y }, { x: 3200, y: bIn.y }, bIn]);
+  R("wPcsrcBr", [bIn, PS.pinBranch], [PS.pinBranch]);
+}
+// The decision: solid stub off the embedded PCSrc output pin, dotted run over
+// the top of the datapath, solid drop onto the PC MUX's select pin.
+if (PS.pinPcsrc && PC.pinPcsrc) {
+  const pOut = { x: 3760, y: PS.pinPcsrc.y };
+  R("wPcsrcOut", [PS.pinPcsrc, pOut], [PS.pinPcsrc]);
+  R("ctrlPcsrc", [pOut, { x: 3790, y: pOut.y }, { x: 3790, y: 70 }, { x: PC.pinPcsrc.x - 30, y: 70 }]);
+  R("wPcsrcIn", [{ x: PC.pinPcsrc.x - 30, y: 70 }, x(PC.pinPcsrc.x - 30, PC.pinPcsrc), PC.pinPcsrc], [PC.pinPcsrc]);
+}
 // Branch target: the rd field loops BACK into fetch — the wire that makes a
 // branch a branch. Rides the y=500/512 lanes above the decoder, then climbs
 // the far-left edge into the PC MUX's in1.
-R("wTgt1", [IDEC.pinWaddr, x(1486, IDEC.pinWaddr), { x: 1486, y: 500 }, { x: 20, y: 500 }, y(290, { x: 20, y: 0 }), PC_T1], [PC_T1]);
-R("wTgt0", [{ x: 1486, y: 512 }, { x: 8, y: 512 }, y(330, { x: 8, y: 0 }), PC_T0], [PC_T0]);
+R("wTgt1", [IDEC.pinWaddr, x(1486, IDEC.pinWaddr), { x: 1486, y: 500 }, { x: 20, y: 500 }, PC.pinT1 && y(PC.pinT1.y, { x: 20, y: 0 }), PC.pinT1], [PC.pinT1]);
+R("wTgt0", [{ x: 1486, y: 512 }, { x: 8, y: 512 }, PC.pinT0 && y(PC.pinT0.y, { x: 8, y: 0 }), PC.pinT0], [PC.pinT0]);
 
 // ── MEM (data memory) + write-back MUX — carried over from cpu_ldst ────────
 R("wAluY", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1368 }, { x: 3160, y: 1368 }, x(3160, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
@@ -115,8 +134,8 @@ applyWireColors(svg, {
   aluY: "#ff8a3d", memaddr: "#ff8a3d",
   memdata: "#7ee0ff",
   memwrite: "#ffcf3a", memtoreg: "#ffcf3a",
-  branch: "#ffcf3a", taken: "#ffcf3a",          // control — amber
-  tgt1: "#6f8cff", tgt0: "#6f8cff",             // branch target = a PC value — blue
+  branch: "#ffcf3a", pcsrc: "#ffcf3a",          // control — amber
+  tgt1: "#ff6fae", tgt0: "#ff6fae",             // branch target = the rd field — pink
   pcnext: "#6f8cff", pcsel: "#6f8cff",
 });
 
@@ -134,22 +153,30 @@ function render() {
   const c = ctrl(i);
   const A = regs[i.rs1], B = regs[i.rs2];
   const Y = aluResult(A, B, i);
-  const taken = takenOf(i, Y);
+  const pcsrc = pcsrcOf(i, Y);
   const [t1, t0] = hiLo(i.rd);
   const memData = mem[Y] as Bit;
   const wbVal = (c.memToReg ? memData : Y) as Bit;
 
-  const { a1, a0 } = renderCpuTrunk(tk, { clk, pc, i, A, B, Y, regs, we: c.regWrite, wdata: wbVal });
+  // The control unit forces the ALU op to XOR for a branch (P&H ALUOp) — the
+  // trunk renders the op the ALU actually receives, not the raw func field.
+  const iEff = c.branch ? { ...i, op: 3 } : i;
+  const { a1, a0 } = renderCpuTrunk(tk, { clk, pc, i: iEff, A, B, Y, regs, we: c.regWrite, wdata: wbVal });
 
-  // branch stage: target bus, control lines, taken decision, PC MUX preview
+  // branch stage: target bus, control lines, the PCSrc decision, PC MUX preview
   setNet("tgt1", (c.branch ? t1 : 0) as Bit); setNet("tgt0", (c.branch ? t0 : 0) as Bit);
-  setNet("branch", c.branch); setPin("pinBranch", c.branch);
-  setNet("taken", taken);
-  setPin("pinTakenY", Y); setPin("pinTakenBr", c.branch); setPin("pinTakenOut", taken);
-  setPin("pinPcTaken", taken); setPin("pinPcT1", (c.branch ? t1 : 0) as Bit); setPin("pinPcT0", (c.branch ? t0 : 0) as Bit);
-  setCtrl("branch", c.branch); setCtrl("taken", taken);
-  setBody("gTaken", taken);
+  setNet("branch", c.branch);
+  setNet("pcsrc", pcsrc);
+  lightEmbed("pcDetail", {
+    clk, pcsrc, tgt1: (c.branch ? t1 : 0), tgt0: (c.branch ? t0 : 0),
+    pcnext: 1, pcsel: 1, addr1: (pc >> 1) & 1, addr0: pc & 1, zero: 0,
+  }, { gAdd: 1, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1 });
+  setCtrl("branch", c.branch); setCtrl("pcsrc", pcsrc);
+  setBody("gPcsrc", pcsrc);
   setNet("pcsel", 1);
+  // PCSrc embed: result → Zero detector → AND with Branch
+  lightEmbed("pcsrcDetail", { branch: c.branch, result: Y, zero: (Y === 0 ? 1 : 0), pcsrc },
+    { gZero: (Y === 0 ? 1 : 0), gAnd: pcsrc });
 
   setPin("pinZero2", 0);
   setNet("cout", 0); setPin("coutTerm", 0);
@@ -161,9 +188,6 @@ function render() {
   setNet("wb", wbVal);
 
   setBody("gDmem", (c.memRead || c.memWrite) as Bit); setBody("gWbmux", 1);
-  // PC preview bodies: the MUX lights whenever it's choosing (always); the
-  // register lights once the PC has left 0.
-  setBody("gPcMux", 1);
 
   lightEmbed("dmemDetail", {
     addr1: 0, addr0: Y, rdata: memData, wdata: B, we: c.memWrite, clk,
@@ -186,7 +210,7 @@ function render() {
   }
 
   renderReadout({
-    a1, a0, instr: asmText(i), A, B, result: (c.branch ? taken : wbVal) as Bit,
+    a1, a0, instr: asmText(i), A, B, result: (c.branch ? pcsrc : wbVal) as Bit,
     regs: `r0=${regs[0]} r1=${regs[1]} r2=${regs[2]} r3=${regs[3]}  ·  M0=${mem[0]} M1=${mem[1]}`,
   });
 }
@@ -198,11 +222,11 @@ bindCpuControls({
     const c = ctrl(i);
     const A = regs[i.rs1], B = regs[i.rs2];
     const Y = aluResult(A, B, i);
-    const taken = takenOf(i, Y);
+    const pcsrc = pcsrcOf(i, Y);
     if (c.memWrite) mem[Y] = B;
     if (c.regWrite) regs[i.rd] = (c.memToReg ? mem[Y] : Y) as Bit;
-    skipped = taken ? (pc + 1) & 0b11 : -1;
-    pc = taken ? i.rd & 0b11 : (pc + 1) & 0b11;
+    skipped = pcsrc ? (pc + 1) & 0b11 : -1;
+    pc = pcsrc ? i.rd & 0b11 : (pc + 1) & 0b11;
   },
   reset: () => {
     pc = 0; skipped = -1;
@@ -216,7 +240,12 @@ bindCpuControls({
 // ── Drill-downs ─────────────────────────────────────────────────────────────
 const go = (href: string, params: Record<string, string | number>) =>
   window.location.assign(buildDrillUrl(href, { from: "cpu_branch", ...params }));
-bindTrunkDrills(go, () => ({ pc, i: decodeInstr(PROGRAM[pc]), regs, we: ctrl(decodeInstr(PROGRAM[pc])).regWrite }));
+bindTrunkDrills(go, () => ({ pc, i: decodeInstr(PROGRAM[pc]), regs, we: ctrl(decodeInstr(PROGRAM[pc])).regWrite }), "/branchpc.html");
+document.getElementById("slot-pcsrc")!.addEventListener("click", () => {
+  const i = decodeInstr(PROGRAM[pc]);
+  const A = regs[i.rs1], B = regs[i.rs2];
+  go("/pcsrc.html", { which: "pcsrc", branch: ctrl(i).branch, result: aluResult(A, B, i) });
+});
 document.getElementById("slot-dmem")!.addEventListener("click", () => {
   const i = decodeInstr(PROGRAM[pc]); const A = regs[i.rs1];
   go("/dmem.html", { which: "data-memory", addr1: 0, addr0: A, wdata: regs[i.rs2], we: ctrl(i).memWrite });

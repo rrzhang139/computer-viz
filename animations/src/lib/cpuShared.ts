@@ -18,6 +18,7 @@ export const decodeInstr = (w: string): Instr => ({
   rs1: parseInt(w.slice(4, 6), 2), rs2: parseInt(w.slice(6, 8), 2), rd: parseInt(w.slice(8, 10), 2),
 });
 export const ctrlOf = (i: Instr) => ({
+  branch:   (i.opc === 1 ? 1 : 0) as Bit,   // BEQ: raise Branch, force ALU compare
   memToReg: (i.opc === 2 ? 1 : 0) as Bit,   // LW: write-back comes from memory
   memWrite: (i.opc === 3 ? 1 : 0) as Bit,   // SW: arm the memory write port
 });
@@ -61,13 +62,16 @@ export type EmbedPins = Record<string, Pt>;
 // ── The trunk's wiring — identical on every CPU page ────────────────────────
 // clock → PC (over the top) + register file; PC address → imem; instr bus →
 // decoder; field buses → register file + ALU op; write-enable, operands, carry.
-export function routeCpuTrunk(R: RouteFn, p: { IM: EmbedPins; IDEC: EmbedPins; RF: EmbedPins; AL: EmbedPins }) {
-  const { IM, IDEC, RF, AL } = p;
+export function routeCpuTrunk(R: RouteFn, p: { IM: EmbedPins; IDEC: EmbedPins; RF: EmbedPins; AL: EmbedPins; PC?: EmbedPins }) {
+  const { IM, IDEC, RF, AL, PC } = p;
+  // The PC's terminals are fixed page coords by default; a page that embeds a
+  // real PC child (branchpc) passes its projected pins instead.
   const { CLK, ONE, ZERO, COUT, PC_CLK, PC_A1, PC_A0 } = CPU_TERMS;
-  R("wClkPc", [CLK, { x: -100, y: 100 }, { x: PC_CLK.x, y: 100 }, PC_CLK]);
+  const pcClk = PC?.pinClk ?? PC_CLK, pcA1 = PC?.pinA1 ?? PC_A1, pcA0 = PC?.pinA0 ?? PC_A0;
+  R("wClkPc", [CLK, { x: -100, y: 100 }, { x: pcClk.x, y: 100 }, pcClk], PC ? [pcClk] : undefined);
   R("wClkRf", [CLK, x(1440, CLK), x(1440, RF.pinClk), RF.pinClk], [RF.pinClk]);
-  R("wPcA1", [PC_A1, { x: 504, y: 250 }, { x: 504, y: 560 }, { x: 24, y: 560 }, x(24, IM.pinAddr1), IM.pinAddr1], [IM.pinAddr1]);
-  R("wPcA0", [PC_A0, { x: 516, y: 350 }, { x: 516, y: 548 }, { x: 36, y: 548 }, x(36, IM.pinAddr0), IM.pinAddr0], [IM.pinAddr0]);
+  R("wPcA1", [pcA1, { x: 504, y: pcA1.y }, { x: 504, y: 560 }, { x: 24, y: 560 }, x(24, IM.pinAddr1), IM.pinAddr1], PC ? [pcA1, IM.pinAddr1] : [IM.pinAddr1]);
+  R("wPcA0", [pcA0, { x: 516, y: pcA0.y }, { x: 516, y: 548 }, { x: 36, y: 548 }, x(36, IM.pinAddr0), IM.pinAddr0], PC ? [pcA0, IM.pinAddr0] : [IM.pinAddr0]);
   R("wInstr", [IM.pinRdata, x(590, IM.pinRdata), x(590, IDEC.pinInstr), IDEC.pinInstr], [IM.pinRdata, IDEC.pinInstr]);
   R("wRfA1", [IDEC.pinRaddrA, x(1440, IDEC.pinRaddrA), x(1440, RF.pinRaddrA1), RF.pinRaddrA1], [IDEC.pinRaddrA, RF.pinRaddrA1]);
   R("wRfA0", [x(1440, RF.pinRaddrA1), x(1440, RF.pinRaddrA0), RF.pinRaddrA0], [RF.pinRaddrA0]);
@@ -132,10 +136,10 @@ export function renderCpuTrunk(tk: Toolkit, s: TrunkState) {
   lightEmbed("idecodeDetail", {
     instr: 1, opcode: (oc1 || oc0) as Bit, op: (op1 || op0) as Bit,
     raddrA: (rs1h || rs1l) as Bit, raddrB: (rs2h || rs2l) as Bit, waddr: (rd1 || rd0) as Bit,
-    memtoreg: ctl.memToReg, memwrite: ctl.memWrite,
+    memtoreg: ctl.memToReg, memwrite: ctl.memWrite, branch: ctl.branch,
   }, {
     gBitOc1: oc1, gBitOc0: oc0, gBitOp1: op1, gBitOp0: op0, gBitA1: rs1h, gBitA0: rs1l, gBitB1: rs2h, gBitB0: rs2l, gBitW1: rd1, gBitW0: rd0,
-    gCtlMemToReg: ctl.memToReg, gCtlMemWrite: ctl.memWrite,
+    gCtlMemToReg: ctl.memToReg, gCtlMemWrite: ctl.memWrite, gCtlBranch: ctl.branch,
   });
   lightEmbed("regfileDetail", {
     raddrA1: rs1h, raddrA0: rs1l, raddrB1: rs2h, raddrB0: rs2l,
@@ -182,8 +186,8 @@ export function bindCpuControls(o: {
 
 // ── Trunk drill-downs (PC, imem, decode, regfile, ALU — every CPU page) ─────
 export function bindTrunkDrills(go: (href: string, params: Record<string, string | number>) => void,
-  cur: () => { pc: number; i: Instr; regs: Bit[]; we: Bit }) {
-  document.getElementById("slot-pc")!.addEventListener("click", () => go("/counter.html", { which: "pc" }));
+  cur: () => { pc: number; i: Instr; regs: Bit[]; we: Bit }, pcHref = "/counter.html") {
+  document.getElementById("slot-pc")!.addEventListener("click", () => go(pcHref, { which: "pc" }));
   document.getElementById("slot-imem")!.addEventListener("click", () => {
     const { pc } = cur();
     go("/mem.html", { which: "instruction-memory", addr1: (pc >> 1) & 1, addr0: pc & 1 });

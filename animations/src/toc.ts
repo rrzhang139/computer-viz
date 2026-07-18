@@ -64,7 +64,8 @@ const DATAPATH: Entry[] = [
   {
     href: "/cpu_branch.html", label: "CPU · branch (beq)", tag: "11", children: [
       { href: "/cpu_branch.html", label: "overview",            tag: "·" },
-      { href: "/counter.html",    label: "PC · program counter", tag: "a" },
+      { href: "/pcsrc.html",      label: "PCSrc · branch decision", tag: "!" },
+      { href: "/branchpc.html",   label: "PC · +1 & branch select", tag: "a" },
       { href: "/mem.html",        label: "instruction memory",   tag: "b" },
       { href: "/idecode.html",    label: "instruction decoder",  tag: "c" },
       { href: "/regfile.html",    label: "register file",        tag: "d" },

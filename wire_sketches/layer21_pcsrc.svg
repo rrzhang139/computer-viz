@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12.4 -7.4399999999999995 24.8 14.879999999999999" width="900" height="540">
+<rect x="-10" y="-6" width="20" height="12" fill="#f7efde" stroke="#c5b69a" stroke-width="0.04"/>
+<line x1="0" y1="6" x2="0" y2="-6" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
+<line x1="-10" y1="0" x2="10" y2="0" stroke="#d8c8a8" stroke-width="0.02" stroke-dasharray="0.1,0.1"/>
+<text x="-10" y="6.576" font-size="0.25" fill="#8a7864" font-family="serif">LEFT (data in)</text>
+<text x="10" y="6.576" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="end">RIGHT (data out)</text>
+<text x="0" y="-6.36" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">TOP (control)</text>
+<text x="0" y="7.008" font-size="0.25" fill="#8a7864" font-family="serif" text-anchor="middle">BOTTOM (power/ground)</text>
+<rect x="-3.5" y="1" width="3" height="2" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
+<text x="-2" y="2" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">zero</text>
+<text x="-2" y="2.95" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">notbox</text>
+<rect x="2.5" y="-2" width="3" height="2" fill="#fff8e7" stroke="#7a6147" stroke-width="0.04" stroke-dasharray="0.18,0.12"/>
+<text x="4" y="-1" text-anchor="middle" dominant-baseline="middle" font-size="0.28" fill="#7a6147" font-family="serif" font-weight="bold">and</text>
+<text x="4" y="-0.05" text-anchor="middle" dominant-baseline="alphabetic" font-size="0.16" fill="#a89880" font-family="serif" font-style="italic">andbox</text>
+<polyline points="-10.000,-3.000 1.500,-3.000 1.500,-1.500 2.500,-1.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-10.000,2.000 -3.500,2.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="-0.500,2.000 1.000,2.000 1.000,-0.500 2.500,-0.500" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<polyline points="5.500,-1.000 10.000,-1.000" fill="none" stroke="#7a6147" stroke-width="0.06" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>
+<circle cx="-10" cy="-3" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="-10.35" y="-3" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">branch_in</text>
+<text x="-10.35" y="-2.7199999999999998" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-10, 3)</text>
+<circle cx="-10" cy="2" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="-10.35" y="2" text-anchor="end" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">result_in</text>
+<text x="-10.35" y="2.2800000000000002" text-anchor="end" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(-10, -2)</text>
+<circle cx="10" cy="-1" r="0.18" fill="#b8470d" stroke="#3b2718" stroke-width="0.04"/>
+<text x="10.35" y="-1" text-anchor="start" dominant-baseline="middle" font-size="0.26" fill="#3b2718" font-family="serif" font-weight="600">pcsrc_out</text>
+<text x="10.35" y="-0.72" text-anchor="start" dominant-baseline="middle" font-size="0.18" fill="#7a6147" font-family="monospace">(10, 1)</text>
+<line x1="-10" y1="-6" x2="10" y2="-6" stroke="#3a7d34" stroke-width="0.10" stroke-linecap="round"/>
+<text x="-10" y="-6.25" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3a7d34" font-family="serif" font-weight="700">Vdd</text>
+<text x="10" y="-6.25" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=6</text>
+<line x1="-10" y1="6" x2="10" y2="6" stroke="#3b2718" stroke-width="0.10" stroke-linecap="round"/>
+<text x="-10" y="6.45" text-anchor="start" dominant-baseline="middle" font-size="0.30" fill="#3b2718" font-family="serif" font-weight="700">GND</text>
+<text x="10" y="6.45" text-anchor="end" dominant-baseline="middle" font-size="0.20" fill="#7a6147" font-family="monospace">y=-6</text>
+</svg>

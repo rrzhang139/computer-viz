@@ -31,6 +31,7 @@ x ∈ [-9, 9], y ∈ [-6, 6]
 | key          | role                            | (x, y)     | edge   |
 |--------------|---------------------------------|------------|--------|
 | instr_in     | 10-bit instruction word (/10)   | (-9,  0)   | LEFT   |
+| branch_out   | control: BEQ → PC source        | ( 9,  6.2) | RIGHT  |
 | memtoreg_out | control: LW → write-back source | ( 9,  5.5) | RIGHT  |
 | memwrite_out | control: SW → memory write-en   | ( 9,  4.8) | RIGHT  |
 | op_out       | func field → ALU op (/2)        | ( 9,  4)   | RIGHT  |
@@ -58,6 +59,7 @@ pure passthrough field-extraction wiring.
 | instr_in  | raddrA_out   | (-3, 0), (-3, 1.5)             | raddrA   |
 | instr_in  | raddrB_out   | (-2, 0), (-2, -1.5)            | raddrB   |
 | instr_in  | waddr_out    | (-1, 0), (-1, -4.5)            | waddr    |
+| instr_in  | branch_out   | (-5.5, 0), (-5.5, 6.2)         | branch   |
 | instr_in  | memtoreg_out | (-5, 0), (-5, 5.5)             | memtoreg |
 | instr_in  | memwrite_out | (-4.5, 0), (-4.5, 4.8)         | memwrite |
 

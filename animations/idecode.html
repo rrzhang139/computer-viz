@@ -133,7 +133,7 @@
           <span class="sep">·</span>
           <span class="label">write</span><span class="bits" id="writeBits">00</span>
           <span class="sep">·</span>
-          <span class="label">control</span><span class="bits" id="ctlBits">memToReg=0 memWrite=0</span>
+          <span class="label">control</span><span class="bits" id="ctlBits">branch=0 memToReg=0 memWrite=0</span>
         </div>
 
         <!--
@@ -143,12 +143,12 @@
           (opcode | func | rs1 | rs2 | rd). Fields wire STRAIGHT RIGHT to their
           datapath outputs. The opcode does NOT leave as data — the whole /2
           bundle feeds the CONTROL block, whose rows are truth-table lines:
-          opcode 10 raises memToReg (load), opcode 11 raises memWrite (store).
+          opcode 01 raises Branch (beq), 10 raises memToReg (load), 11 raises memWrite (store).
           That's the textbook shape: opcode → Control → named signal lines,
           func → ALU (like RISC-V's opcode vs funct split).
         -->
         <svg id="idecode" viewBox="-20 -20 1500 720" role="img"
-             aria-label="instruction decoder: the instruction word sliced into fields, plus the control unit decoding the opcode into memToReg / memWrite"
+             aria-label="instruction decoder: the instruction word sliced into fields, plus the control unit decoding the opcode into Branch / memToReg / memWrite"
              preserveAspectRatio="xMidYMid meet">
           <polyline class="wire" data-net="Vdd" data-on="1" points="0,0 1480,0" />
           <polyline class="wire" data-net="GND" points="0,686 1480,686" />
@@ -220,23 +220,28 @@
                style — each row is one opcode pattern and the control line it
                raises. R-type (00) matches neither row; both lines stay 0. ── -->
           <text class="tlabel-small" x="855" y="34">control</text>
-          <rect class="field-box" x="700" y="48" width="310" height="146" rx="10" />
-          <rect class="tbody" id="gCtlMemToReg" x="715" y="64"  width="280" height="54" rx="6" />
-          <text class="tlabel-small" x="855" y="91">10 · load → memToReg</text>
-          <rect class="tbody" id="gCtlMemWrite" x="715" y="130" width="280" height="54" rx="6" />
-          <text class="tlabel-small" x="855" y="157">11 · store → memWrite</text>
-          <polyline class="wire" data-net="memtoreg" points="995,91 1280,91" />
-          <polyline class="wire" data-net="memwrite" points="995,157 1280,157" />
+          <rect class="field-box" x="700" y="48" width="310" height="174" rx="10" />
+          <rect class="tbody" id="gCtlBranch" x="715" y="64" width="280" height="44" rx="6" />
+          <text class="tlabel-small" x="855" y="86">01 · beq → Branch, ALU←XOR</text>
+          <rect class="tbody" id="gCtlMemToReg" x="715" y="114" width="280" height="44" rx="6" />
+          <text class="tlabel-small" x="855" y="136">10 · load → memToReg</text>
+          <rect class="tbody" id="gCtlMemWrite" x="715" y="164" width="280" height="44" rx="6" />
+          <text class="tlabel-small" x="855" y="186">11 · store → memWrite</text>
+          <polyline class="wire" data-net="branch"   points="995,86 1280,86" />
+          <polyline class="wire" data-net="memtoreg" points="995,136 1280,136" />
+          <polyline class="wire" data-net="memwrite" points="995,186 1280,186" />
 
           <!-- datapath outputs (right) — control lines + field bundles -->
-          <circle class="pin" id="pinMemToReg" cx="1280" cy="91"  r="7" />
-          <circle class="pin" id="pinMemWrite" cx="1280" cy="157" r="7" />
+          <circle class="pin" id="pinBranch"   cx="1280" cy="86"  r="7" />
+          <circle class="pin" id="pinMemToReg" cx="1280" cy="136" r="7" />
+          <circle class="pin" id="pinMemWrite" cx="1280" cy="186" r="7" />
           <circle class="pin" id="pinOp"     cx="1280" cy="238" r="7" />
           <circle class="pin" id="pinRaddrA" cx="1280" cy="350" r="7" />
           <circle class="pin" id="pinRaddrB" cx="1280" cy="462" r="7" />
           <circle class="pin" id="pinWaddr"  cx="1280" cy="574" r="7" />
-          <text class="tlabel-small" x="1298" y="91"  text-anchor="start">→ memToReg</text>
-          <text class="tlabel-small" x="1298" y="157" text-anchor="start">→ memWrite</text>
+          <text class="tlabel-small" x="1298" y="86"  text-anchor="start">→ Branch</text>
+          <text class="tlabel-small" x="1298" y="136" text-anchor="start">→ memToReg</text>
+          <text class="tlabel-small" x="1298" y="186" text-anchor="start">→ memWrite</text>
           <text class="tlabel-small" x="1298" y="238" text-anchor="start">→ op</text>
           <text class="tlabel-small" x="1298" y="350" text-anchor="start">→ raddrA</text>
           <text class="tlabel-small" x="1298" y="462" text-anchor="start">→ raddrB</text>
@@ -265,8 +270,8 @@
             <h3>the control unit — where the two control bits come from</h3>
             <p class="do">Click <kbd>oc₁</kbd> to set <kbd>opcode = 10</kbd> (a load), and read the <kbd>control</kbd> readout.</p>
             <p>The <kbd>opcode</kbd> bundle runs into the <kbd>control</kbd> block — never out to the datapath. Each row of the block is one line of a <em>truth table</em>: the word matches row <kbd>10</kbd>, so the row lights and raises <kbd>memToReg</kbd> — "route memory's data, not the ALU's, into the register write port."</p>
-            <p class="do">Now click <kbd>oc₀</kbd>. <kbd>opcode = 11</kbd> is a store: the <kbd>11</kbd> row lights instead, raising <kbd>memWrite</kbd> — "arm the data memory's write port." Two different consumers, two different lines. An opcode of <kbd>00</kbd> matches neither row: register ops leave both lines at 0.</p>
-            <p>This is exactly a real CPU's shape: the opcode feeds a <em>combinational control unit</em> — a truth table in gates — whose named outputs (<kbd>RegWrite</kbd>, <kbd>ALUSrc</kbd>, <kbd>MemWrite</kbd>, <kbd>MemtoReg</kbd>, <kbd>Branch</kbd>…) fan out across the datapath, while <kbd>func</kbd> goes separately to the ALU (RISC-V's opcode / funct split). Ours decodes just the two lines the load/store CPU consumes.</p>
+            <p class="do">Now click <kbd>oc₀</kbd>. <kbd>opcode = 11</kbd> is a store: the <kbd>11</kbd> row lights instead, raising <kbd>memWrite</kbd> — "arm the data memory's write port." Two different consumers, two different lines. An opcode of <kbd>01</kbd> matches the top row and raises <kbd>Branch</kbd> — "this instruction may change where the program goes next." An opcode of <kbd>00</kbd> matches no row: register ops leave every line at 0.</p>
+            <p>This is exactly a real CPU's shape: the opcode feeds a <em>combinational control unit</em> — a truth table in gates — whose named outputs (<kbd>RegWrite</kbd>, <kbd>ALUSrc</kbd>, <kbd>MemWrite</kbd>, <kbd>MemtoReg</kbd>, <kbd>Branch</kbd>…) fan out across the datapath, while <kbd>func</kbd> goes separately to the ALU (RISC-V's opcode / funct split). Ours decodes the three lines our CPUs consume: <kbd>Branch</kbd>, <kbd>memToReg</kbd>, <kbd>memWrite</kbd>.</p>
           </article>
           <article class="step" hidden>
             <h3>why this matters</h3>

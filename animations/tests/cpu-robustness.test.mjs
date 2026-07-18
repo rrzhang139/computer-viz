@@ -27,7 +27,7 @@ function expect(label, ok, detail = '') {
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'],
   { cwd: new URL('..', import.meta.url).pathname, stdio: ['ignore', 'pipe', 'pipe'] });
-function killServer() { try { server.kill('SIGTERM'); } catch {} }
+function killServer() { try { process.kill(-server.pid, 'SIGTERM'); } catch {} try { server.kill('SIGTERM'); } catch {} }
 process.on('exit', killServer);
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error('vite preview timeout')), 15000);

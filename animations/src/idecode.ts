@@ -8,7 +8,7 @@ import { initCanvasZoom } from "./canvasZoom";
 // (opcode | func | rs1 | rs2 | rd) slices into fields wired STRAIGHT to their
 // datapath outputs; the opcode bundle feeds the CONTROL UNIT, whose rows are
 // truth-table lines (textbook: opcode → Control → named signal lines):
-//   opcode 10 (LW) → memToReg   opcode 11 (SW) → memWrite   00 (R) → neither
+//   opcode 01 (BEQ) → Branch   10 (LW) → memToReg   11 (SW) → memWrite   00 → none
 
 type Bit = 0 | 1;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -79,30 +79,36 @@ function render() {
   const oc = v[0] * 2 + v[1], op = v[2] * 2 + v[3];
   const rs1 = v[4] * 2 + v[5], rs2 = v[6] * 2 + v[7], rd = v[8] * 2 + v[9];
   // the control unit: truth-table rows keyed on the opcode pattern
+  const branch   = (oc === 1 ? 1 : 0) as Bit;   // 01 = BEQ
   const memToReg = (oc === 2 ? 1 : 0) as Bit;   // 10 = LW
   const memWrite = (oc === 3 ? 1 : 0) as Bit;   // 11 = SW
 
   // Field output buses (/2) + the incoming instruction bus (/10). A bus lights
   // when its field carries a non-zero value (0 = dim, as everywhere else).
   const on = (n: number): Bit => (n ? 1 : 0);
+  // P&H ALUOp: a branch FORCES the ALU operation to the compare (XOR = 1-bit
+  // subtract) no matter what the func field says; otherwise func passes through.
+  const aluOp = branch ? 3 : op;
   setNet('instr', on(oc | op | rs1 | rs2 | rd));
   setNet('opcode', on(oc));
-  setNet('op', on(op)); setNet('raddrA', on(rs1)); setNet('raddrB', on(rs2)); setNet('waddr', on(rd));
-  setNet('memtoreg', memToReg); setNet('memwrite', memWrite);
+  setNet('op', on(aluOp)); setNet('raddrA', on(rs1)); setNet('raddrB', on(rs2)); setNet('waddr', on(rd));
+  setNet('branch', branch); setNet('memtoreg', memToReg); setNet('memwrite', memWrite);
+  document.getElementById('gCtlBranch')?.setAttribute('data-on', String(branch));
   document.getElementById('gCtlMemToReg')?.setAttribute('data-on', String(memToReg));
   document.getElementById('gCtlMemWrite')?.setAttribute('data-on', String(memWrite));
   document.getElementById('pinInstr')?.setAttribute('data-on', String(on(oc | op | rs1 | rs2 | rd)));
-  document.getElementById('pinOp')?.setAttribute('data-on', String(on(op)));
+  document.getElementById('pinOp')?.setAttribute('data-on', String(on(aluOp)));
   document.getElementById('pinRaddrA')?.setAttribute('data-on', String(on(rs1)));
   document.getElementById('pinRaddrB')?.setAttribute('data-on', String(on(rs2)));
   document.getElementById('pinWaddr')?.setAttribute('data-on', String(on(rd)));
+  document.getElementById('pinBranch')?.setAttribute('data-on', String(branch));
   document.getElementById('pinMemToReg')?.setAttribute('data-on', String(memToReg));
   document.getElementById('pinMemWrite')?.setAttribute('data-on', String(memWrite));
 
   // per-field decoded meaning, shown in the diagram beside each field
-  const kindName = oc === 2 ? 'LW' : oc === 3 ? 'SW' : oc === 1 ? '—' : 'R';
+  const kindName = oc === 2 ? 'LW' : oc === 3 ? 'SW' : oc === 1 ? 'BEQ' : 'R';
   T('fldOc').textContent = `= ${kindName}`;
-  T('fldOp').textContent = `= ${OP_NAMES[op]}`;
+  T('fldOp').textContent = branch ? '= XOR ←ctrl' : `= ${OP_NAMES[op]}`;
   T('fldA').textContent = `= r${rs1}`;
   T('fldB').textContent = `= r${rs2}`;
   T('fldW').textContent = `= r${rd}`;
@@ -111,7 +117,7 @@ function render() {
   T('opName').textContent = `${v[0]}${v[1]} (${kindName === 'R' ? OP_NAMES[op] : kindName})`;
   T('readBits').textContent = `A=${v[4]}${v[5]} B=${v[6]}${v[7]}`;
   T('writeBits').textContent = `${v[8]}${v[9]}`;
-  T('ctlBits').textContent = `memToReg=${memToReg} memWrite=${memWrite}`;
+  T('ctlBits').textContent = `branch=${branch} memToReg=${memToReg} memWrite=${memWrite}`;
 }
 
 function persist() { saveSnapshot<Snap>(SNAP_KEY, { v: [...v] as Bit[] }); }

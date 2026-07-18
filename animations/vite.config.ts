@@ -28,6 +28,8 @@ export default defineConfig({
         cpu:        resolve(__dirname, 'cpu.html'),
         cpu_ldst:   resolve(__dirname, 'cpu_ldst.html'),
         cpu_branch: resolve(__dirname, 'cpu_branch.html'),
+        pcsrc:      resolve(__dirname, 'pcsrc.html'),
+        branchpc:   resolve(__dirname, 'branchpc.html'),
       },
     },
   },

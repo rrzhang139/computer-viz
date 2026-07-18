@@ -43,8 +43,8 @@ function expect(label, ok, detail = '') {
 const pages = readdirSync(ROOT).filter((f) => f.endsWith('.html') && !f.startsWith('_')).sort();
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'],
-  { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-process.on('exit', () => { try { server.kill('SIGTERM'); } catch {} });
+  { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+process.on('exit', () => { try { process.kill(-server.pid, 'SIGTERM'); } catch {} try { server.kill('SIGTERM'); } catch {} });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error('vite preview timeout')), 15000);
   server.stdout.on('data', (b) => { if (b.toString().includes('Local')) { clearTimeout(t); setTimeout(res, 400); } });

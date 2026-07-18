@@ -28,6 +28,8 @@ import alu1Raw from '../alu1.html?raw';
 import memRaw from '../mem.html?raw';
 import dmemRaw from '../dmem.html?raw';
 import idecodeRaw from '../idecode.html?raw';
+import pcsrcRaw from '../pcsrc.html?raw';
+import branchpcRaw from '../branchpc.html?raw';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -50,6 +52,8 @@ export const PAGE_RAW: Record<string, string> = {
   '/mem.html': memRaw,
   '/dmem.html': dmemRaw,
   '/idecode.html': idecodeRaw,
+  '/pcsrc.html': pcsrcRaw,
+  '/branchpc.html': branchpcRaw,
 };
 
 // Some pages build their diagram at runtime from a shared scene module rather

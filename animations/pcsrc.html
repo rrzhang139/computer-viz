@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / PCSrc — the branch decision</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; min-height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: calc(15px * var(--content-scale, 1)); text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 calc(10px * var(--content-scale, 1)); font-weight: 500; }
+      .step p { margin: 0 0 calc(10px * var(--content-scale, 1)); color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: calc(15px * var(--content-scale, 1)); line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: calc(13px * var(--content-scale, 1)); background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      @media (max-width: 900px) { .step-panel { height: auto; min-height: 180px; } .step-bodies { overflow: visible; max-height: none; } .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; } }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 16px; cursor: pointer; min-width: 64px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 60vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.4; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #888; font-size: 26px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #777; font-size: 19px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.10em; }
+      .out-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/pcsrc.html" aria-current="page">PCSrc</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn" id="btnBranch" data-on="0">Branch 0</button>
+          <button class="btn" id="btnResult" data-on="0">result 0</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">Branch</span><span class="bits" id="rBranch">0</span>
+          <span class="sep">·</span>
+          <span class="label">ALU result</span><span class="bits" id="rResult">0</span>
+          <span class="sep">·</span>
+          <span class="label">Zero</span><span class="bits" id="rZero">1</span>
+          <span class="sep">·</span>
+          <span class="label">PCSrc</span><span class="bits" id="rPcsrc">0</span>
+        </div>
+
+        <!--
+          PCSrc — the branch decision, the textbook way (P&H single-cycle):
+          the ALU's result feeds a Zero detector (result == 0 ⇔ the two compared
+          values were equal; for 1-bit data that's a NOT gate), and PCSrc =
+          Branch AND Zero steers the PC-source MUX. Two gates, one decision.
+          Wireframe: wire_sketches/layer21_pcsrc.md.
+        -->
+        <svg id="pcsrc" viewBox="-40 -30 1500 640" role="img"
+             aria-label="PCSrc logic: ALU result through a Zero detector, ANDed with the Branch control line"
+             preserveAspectRatio="xMidYMid meet">
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,-10 1420,-10" />
+          <polyline class="wire" data-net="GND" points="0,600 1420,600" />
+
+          <!-- inputs (left) -->
+          <circle class="pin" id="pinBranch" cx="60" cy="180" r="7" />
+          <text class="tlabel-small" data-pin="pinBranch" text-anchor="end" x="42" y="180">Branch</text>
+          <circle class="pin" id="pinResult" cx="60" cy="440" r="7" />
+          <text class="tlabel-small" data-pin="pinResult" text-anchor="end" x="42" y="440">result</text>
+
+          <!-- Zero detector: result == 0 ⇔ equal (1-bit: a NOT gate; 32-bit: a wide NOR) -->
+          <polyline class="wire" data-net="result" points="60,440 300,440" />
+          <rect class="tbody" id="gZero" x="300" y="360" width="280" height="160" rx="10" />
+          <text class="tlabel" x="440" y="425">= 0 ?</text>
+          <text class="tlabel-small" x="440" y="482">Zero detector (NOT)</text>
+
+          <!-- Zero flag → AND -->
+          <polyline class="wire" data-net="zero" points="580,440 700,440 700,370 760,370" />
+          <text class="tlabel-small" x="648" y="412">Zero</text>
+
+          <!-- Branch control → AND -->
+          <polyline class="wire" data-net="branch" points="60,180 700,180 700,290 760,290" />
+
+          <!-- the AND gate: PCSrc = Branch · Zero -->
+          <rect class="tbody" id="gAnd" x="760" y="240" width="280" height="180" rx="10" />
+          <text class="tlabel" x="900" y="315">AND</text>
+          <text class="tlabel-small" x="900" y="382">PCSrc = Branch · Zero</text>
+
+          <!-- output (right) -->
+          <polyline class="wire" data-net="pcsrc" points="1040,330 1240,330" />
+          <circle class="pin" id="pinPcsrc" cx="1240" cy="330" r="7" />
+          <text class="tlabel-small" data-pin="pinPcsrc" text-anchor="start" x="1258" y="330">PCSrc</text>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 4</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: the machine's only decision</h3>
+            <p>Everything else in the CPU computes values. This little corner is the one place a <em>decision</em> is made: should the next instruction come from <kbd>PC + 1</kbd>, or from the branch target? The answer is a single wire called <span class="accent">PCSrc</span>, and it is built from just two gates.</p>
+            <p>The names here are the standard ones from computer-architecture courses (Patterson &amp; Hennessy's single-cycle datapath): <kbd>Branch</kbd> is the control line the decoder raises for a branch opcode, <kbd>Zero</kbd> is the ALU's "the result was zero" flag, and <kbd>PCSrc = Branch AND Zero</kbd> selects the PC's source.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the Zero flag — how hardware asks "are these equal?"</h3>
+            <p>Hardware never compares two numbers directly. It subtracts them and asks whether the result is zero: <kbd>A − B = 0</kbd> exactly when <kbd>A = B</kbd>. Our data is one bit wide, and one-bit subtraction is XOR — so the ALU's XOR result is the difference, and the <kbd>= 0 ?</kbd> block is just a NOT gate. In a 32-bit ALU the same block is a wide NOR across all 32 result bits, and its output pin is labeled <kbd>Zero</kbd> right on the ALU.</p>
+            <p class="do">Click <kbd>result</kbd> to flip the ALU result and watch the <kbd>Zero</kbd> readout invert: result 0 means the values were equal, so Zero is 1.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the AND gate — both conditions, or nothing</h3>
+            <p>Being equal is not enough — most instructions are not branches, and their results are often zero. Wanting to branch is not enough either — a <kbd>beq</kbd> whose registers differ must fall through. So the two conditions meet at an AND gate: <kbd>PCSrc</kbd> fires only when the decoder said "this is a branch" <em>and</em> the ALU said "they were equal."</p>
+            <p class="do">Turn on <kbd>Branch</kbd> while <kbd>result</kbd> is 0. Now both AND inputs are 1 and <kbd>PCSrc</kbd> goes to 1 — this is the only input combination that redirects the machine.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>That output wire runs back to the fetch stage and flips the PC-source MUX. Two gates decide whether the machine walks forward or leaps. Every <kbd>if</kbd>, <kbd>while</kbd>, and <kbd>for</kbd> in every program ultimately funnels through an AND gate exactly like this one.</p>
+            <p>And notice the cost of the trip: the decision needs the instruction fetched, decoded, registers read, and the ALU finished — the longest path on the whole datapath — before fetch knows where to look next. Pipelined CPUs refuse to wait, guess the answer in advance, and pay a penalty when they guess wrong. That story is called the <em>control hazard</em>, and it starts right here.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/pcsrc.ts"></script>
+  </body>
+</html>

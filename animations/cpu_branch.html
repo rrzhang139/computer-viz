@@ -128,16 +128,20 @@
           <circle class="pin" id="pinMemWrite" cx="540" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="522" y="1240">memWrite</text>
           <circle class="pin" id="pinMemToReg" cx="3120" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3102" y="1330">memToReg</text>
           <circle class="pin" id="pinZero2"    cx="560" cy="1120" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="542" y="1120">0</text>
-          <!-- the decoder's branch control line (BEQ row of its truth table) -->
-          <circle class="pin" id="pinBranch" cx="1430" cy="1010" r="7" /><text class="tlabel-small" data-pin="pinBranch" text-anchor="start" x="1448" y="1034">branch</text>
+          <!-- the decoder's Branch control line is born at the embedded
+               decoder's real pin (01·beq truth-table row); src/cpu_branch.ts
+               routes the solid stub + dotted run to the PCSrc block. -->
           <polyline class="wire" data-net="memwrite" id="wCtlMemWrite" points="0,0 0,0" />
           <polyline class="wire" data-net="memtoreg" id="wCtlMemToReg" points="0,0 0,0" />
           <polyline class="ctrl-wire" data-net="memwrite" id="ctrlMemWrite" points="0,0 0,0" />
           <polyline class="ctrl-wire" data-net="memtoreg" id="ctrlMemToReg" points="0,0 0,0" />
-          <!-- branch → taken block; taken → PC-source MUX select (over the top) -->
-          <polyline class="ctrl-wire" data-net="branch" id="ctrlBranch" points="1430,1010 3220,1010 3220,260 3300,260" />
-          <polyline class="ctrl-wire" data-net="taken" id="ctrlTaken" points="3640,230 3680,230 3680,70 235,70" />
-          <polyline class="wire" data-net="taken" id="wTakenIn" points="235,70 235,130" />
+          <!-- Branch → PCSrc block; PCSrc → PC-source MUX select (top lane) -->
+          <polyline class="wire" data-net="branch" id="wCtlBranch" points="0,0 0,0" />
+          <polyline class="ctrl-wire" data-net="branch" id="ctrlBranch" points="0,0 0,0" />
+          <polyline class="wire" data-net="branch" id="wPcsrcBr" points="0,0 0,0" />
+          <polyline class="wire" data-net="pcsrc" id="wPcsrcOut" points="0,0 0,0" />
+          <polyline class="ctrl-wire" data-net="pcsrc" id="ctrlPcsrc" points="0,0 0,0" />
+          <polyline class="wire" data-net="pcsrc" id="wPcsrcIn" points="235,70 235,130" />
 
           <!-- ── wires (geometry set in src/cpu_branch.ts onto projected pins) ── -->
           <!-- clock -->
@@ -170,8 +174,8 @@
           <polyline class="wire" data-net="op0"  id="wAluOp0" points="0,0 0,0" />
           <polyline class="wire" data-net="zero" id="wAluCin" points="0,0 0,0" />
           <polyline class="wire" data-net="cout" id="wAluCout" points="0,0 0,0" />
-          <!-- ALU result → taken block (for BEQ: XOR of the reads = 0 ⇔ equal) -->
-          <polyline class="wire" data-net="aluY" id="wTakenY" points="0,0 0,0" />
+          <!-- ALU result → the PCSrc block's Zero detector (XOR result = 0 ⇔ equal) -->
+          <polyline class="wire" data-net="aluY" id="wResultY" points="0,0 0,0" />
           <polyline class="wire" data-net="wb" id="wWdata" points="0,0 0,0" />
 
           <!-- MEM + write-back MUX (unchanged from the load/store CPU) -->
@@ -187,15 +191,14 @@
           <polyline class="wire" data-net="zero"     id="wMuxS1"   points="0,0 0,0" />
           <polyline class="wire" data-net="memtoreg" id="wMuxS0"   points="0,0 0,0" />
 
-          <!-- ── the taken block: branch AND (rs1 == rs2) — the decision ──── -->
-          <g id="gTakenGroup">
-            <rect class="tbody" id="gTaken" x="3300" y="140" width="340" height="180" rx="10" />
-            <text class="tlabel-small" x="3470" y="205">branch taken?</text>
-            <text class="tlabel-small" x="3470" y="255">= branch · (A=B)</text>
-            <circle class="pin" id="pinTakenY"   cx="3300" cy="200" r="7" />
-            <circle class="pin" id="pinTakenBr"  cx="3300" cy="260" r="7" />
-            <circle class="pin" id="pinTakenOut" cx="3640" cy="230" r="7" />
-            <text class="tlabel-small" data-pin="pinTakenOut" text-anchor="start" x="3658" y="254">taken</text>
+          <!-- ── the branch decision: PCSrc = Branch AND Zero (P&H naming).
+               Exact live embed of /pcsrc.html — hover to see the two gates,
+               click to drill into the page that builds it. ──────────────── -->
+          <g class="child-slot" id="slot-pcsrc" tabindex="0" role="button" aria-label="branch decision — PCSrc"
+             data-embed-page="/pcsrc.html" data-embed-svg="pcsrc">
+            <rect class="tbody simple-body" id="gPcsrc" x="3260" y="130" width="460" height="200" rx="10" />
+            <text class="tlabel simple-label" x="3490" y="230">PCSrc</text>
+            <g class="detailed" id="pcsrcDetail"></g>
           </g>
 
           <!-- ── drillable blocks (each = exact embed of its page) ─────────── -->
@@ -203,44 +206,11 @@
                MUX: in0 = pc+1 (sequential), in1 = the branch target, select =
                taken. Revealed on hover. Drill → /counter.html. -->
           <g class="child-slot" id="slot-pc" tabindex="0" role="button"
-             aria-label="program counter with PC-source MUX — click to drill into the counter">
+             aria-label="program counter with PC-source MUX — click to drill into the branching PC"
+             data-embed-page="/branchpc.html" data-embed-svg="branchpc">
             <rect class="tbody simple-body" id="gPc" x="40" y="130" width="440" height="320" rx="12" />
             <text class="tlabel simple-label" x="260" y="290">PC</text>
-            <!-- hover preview: +1 adder → PC-source MUX → register, looped -->
-            <g class="detailed" id="pcDetail">
-              <rect class="tbody" data-body="gPcAdd" x="60" y="180" width="90" height="120" rx="10" />
-              <text class="tlabel" x="105" y="240">+1</text>
-              <rect class="tbody" data-body="gPcMux" x="190" y="170" width="90" height="230" rx="10" />
-              <text class="tlabel" x="235" y="285">sel</text>
-              <rect class="tbody" data-body="gPcReg" x="330" y="180" width="90" height="220" rx="10" />
-              <text class="tlabel" x="375" y="290">reg</text>
-              <!-- clk into the register (top) -->
-              <polyline class="wire" data-net="clk" points="360,130 360,180" />
-              <!-- taken → MUX select (top) -->
-              <polyline class="wire" data-net="taken" points="235,130 235,170" />
-              <!-- +1 result → MUX in0 (the sequential future) -->
-              <polyline class="wire" data-net="pcnext" points="150,220 190,220" />
-              <!-- branch target → MUX in1 (the other future) -->
-              <polyline class="wire" data-net="tgt1" points="40,290 190,290" />
-              <polyline class="wire" data-net="tgt0" points="40,330 190,330" />
-              <!-- MUX out → register D (the chosen next PC) -->
-              <polyline class="wire" data-net="pcsel" points="280,260 330,260" />
-              <!-- register Q → address out (right edge) -->
-              <polyline class="wire" data-net="addr1" points="420,250 480,250" />
-              <polyline class="wire" data-net="addr0" points="420,350 480,350" />
-              <!-- feedback: register Q loops back to the +1 adder (bottom band) -->
-              <polyline class="wire" data-net="addr0" points="420,350 446,350 446,424 52,424 52,240 60,240" />
-            </g>
-            <!-- external terminals (always visible; the CPU wires land here) -->
-            <circle class="pin" id="pinPcClk" cx="360" cy="130" r="7" />
-            <circle class="pin" id="pinPcTaken" cx="235" cy="130" r="7" />
-            <circle class="pin" id="pinPcT1" cx="40" cy="290" r="7" />
-            <circle class="pin" id="pinPcT0" cx="40" cy="330" r="7" />
-            <circle class="pin" id="pinPcA1"  cx="480" cy="250" r="7" />
-            <circle class="pin" id="pinPcA0"  cx="480" cy="350" r="7" />
-            <text class="tlabel-small" x="500" y="250" text-anchor="start">addr1</text>
-            <text class="tlabel-small" x="500" y="350" text-anchor="start">addr0</text>
-            <text class="tlabel-small" x="26" y="264" text-anchor="end">target</text>
+            <g class="detailed" id="pcDetail"></g>
           </g>
           <!-- IF: instruction memory -->
           <g class="child-slot" id="slot-imem" tabindex="0" role="button" aria-label="instruction memory"
@@ -296,46 +266,46 @@
         <div class="step-bodies">
           <article class="step" data-stage="overview" data-focus="all" data-gate="#btnReset" data-pc="0">
             <h3>the branch CPU — choosing the next instruction</h3>
-            <p data-hl="box:gPc box:gTaken net:taken net:tgt1 net:tgt0">Until now the <kbd>PC</kbd> had exactly one future: <kbd>PC + 1</kbd>. This page gives it a second one. Two new pieces do it: a <em>branch target</em> wire that loops the instruction's target field back into fetch, and a <kbd>branch taken?</kbd> block beside the ALU that decides — <kbd class="wt-taken">taken</kbd> = branch <em>and</em> the two registers are equal.</p>
-            <p data-hl="open:gPc net:taken net:tgt1 net:tgt0">Hover the <kbd>PC</kbd>: its +1 loop has been <em>opened by a MUX</em>. Input 0 is the sequential future (<kbd class="wt-pcnext">+1</kbd>), input 1 is the branch target, and <kbd class="wt-taken">taken</kbd> selects. That MUX is the whole lesson — the load/store page promised it: <em>branches add a PC-source MUX</em>.</p>
-            <p class="do" data-hl="box:gRegfile box:gImem">The new instruction is <kbd>BEQ rs1,rs2,→t</kbd>: <em>if</em> <kbd>rs1 = rs2</kbd>, the next PC is <kbd>t</kbd>; otherwise fall through to <kbd>PC+1</kbd>. Press <kbd>↺ reset</kbd>: <kbd>PC 00</kbd> · <kbd>r0=1 r1=1 r2=0 r3=0</kbd>. <em>Tip: click any paragraph to spotlight what it names</em> (click again or <kbd>Esc</kbd> clears).</p>
+            <p data-hl="box:gPc box:gPcsrc net:pcsrc net:tgt1 net:tgt0">Until now the <kbd>PC</kbd> had exactly one possible future: <kbd>PC + 1</kbd>. This page gives it a second one. Two new pieces make that possible: a <em>branch target</em> wire that carries the instruction's target address back into fetch, and a <kbd>PCSrc</kbd> block beside the ALU that makes the decision. These are the standard names from computer-architecture courses: the decoder raises <kbd class="wt-branch">Branch</kbd>, the ALU reports <kbd>Zero</kbd> (the two values were equal), and <kbd class="wt-pcsrc">PCSrc</kbd> — Branch AND Zero — tells the PC which future to take.</p>
+            <p data-hl="open:gPc net:pcsrc">Hover the <kbd>PC</kbd> and look inside. Its +1 loop now runs through a <em>MUX</em> — a switch with several inputs, one output, and a select wire that decides which input passes through. Input 0 of this MUX is the incremented PC (the sequential future); input 1 is the branch target (the other future); the select wire is <kbd class="wt-pcsrc">PCSrc</kbd>. The load/store page promised this: adding a capability means adding a source and a MUX to choose it.</p>
+            <p class="do" data-hl="box:gRegfile box:gImem">The new instruction is <kbd>BEQ rs1,rs2,→t</kbd> — "branch if equal": if register <kbd>rs1</kbd> equals register <kbd>rs2</kbd>, the next instruction comes from address <kbd>t</kbd>; otherwise the program continues to <kbd>PC+1</kbd> as usual. Press <kbd>↺ reset</kbd> to start clean: <kbd>PC 00</kbd>, registers <kbd>r0=1 r1=1 r2=0 r3=0</kbd>. <em>Tip: click any paragraph to spotlight the wires and blocks it names</em> (click again or <kbd>Esc</kbd> to clear).</p>
           </article>
           <article class="step" hidden data-stage="warmup" data-focus="all" data-gate="#btnStep" data-pc="0">
-            <h3>warm-up — one sequential step</h3>
-            <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr">First, feel the default. <kbd>PC 00</kbd> fetches <kbd>AND r3,r0,r1</kbd> — an ordinary R-type from the last two pages. No branch anywhere: the <kbd class="wt-taken">taken</kbd> wire stays dark, the PC MUX picks <kbd class="wt-pcnext">+1</kbd>.</p>
-            <p class="do" data-hl="open:gPc box:gImem net:addr0 net:addr1">Press <kbd>↻ run instruction</kbd>: <kbd>r3</kbd> becomes <kbd>1</kbd> and <kbd>PC</kbd> ticks <kbd>00 → 01</kbd>. Sequential life: each cell of instruction memory in order, one per clock.</p>
+            <h3>warm-up — one ordinary sequential step</h3>
+            <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr">Before the branch, feel the default. <kbd>PC 00</kbd> fetches <kbd>AND r3,r0,r1</kbd> — an ordinary register instruction from the previous pages. Nothing branch-related is active: the <kbd class="wt-branch">Branch</kbd> line stays dark, so <kbd class="wt-pcsrc">PCSrc</kbd> stays 0 and the PC's MUX passes the incremented value through.</p>
+            <p class="do" data-hl="open:gPc box:gImem">Press <kbd>↻ run instruction</kbd>. Register <kbd>r3</kbd> becomes 1, and the <kbd>PC</kbd> steps from <kbd>00</kbd> to <kbd>01</kbd>. This is sequential life: the machine walks through instruction memory one cell per clock tick.</p>
           </article>
           <article class="step" hidden data-stage="btrace" data-focus="all" data-pc="1">
             <h3>the branch — trace the decision</h3>
-            <p>Now <kbd>PC 01</kbd> holds <kbd>BEQ r0,r1,→3</kbd>: <em>if r0 = r1, jump to cell 3.</em> Click each numbered step to light its path.</p>
-            <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr"><strong>1 · fetch.</strong> The <kbd>PC</kbd> (<kbd>01</kbd>) addresses <kbd>instruction memory</kbd>; the <kbd>BEQ</kbd> word rides out on the violet <kbd class="wt-instr">instr</kbd> bus.</p>
-            <p data-hl="open:gIdecode net:instr net:op0 net:op1 net:branch box:gTaken"><strong>2 · decode.</strong> opcode=<kbd>01</kbd> — the branch row. The control unit raises the amber <kbd class="wt-branch">branch</kbd> line, which runs to the <kbd>branch taken?</kbd> block. The ALU op is set to XOR: the comparison is <em>free</em> — two values are equal exactly when their XOR is 0.</p>
-            <p data-hl="net:tgt1 net:tgt0 open:gPc" data-hl-focus="#gPc,#gIdecode"><strong>3 · the target loops back.</strong> The instruction's target field (<kbd>3</kbd>) runs all the way back LEFT into the <kbd>PC</kbd>'s MUX — the blue <kbd class="wt-tgt1">target</kbd> pair. Execute is reaching back into fetch: that backwards wire is what makes a branch a branch.</p>
-            <p data-hl="open:gRegfile net:rdataA net:rdataB open:gAlu net:aluY box:gTaken"><strong>4 · compare.</strong> The register file reads <kbd class="wt-rdataA">r0</kbd>=1 and <kbd class="wt-rdataB">r1</kbd>=1; the ALU XORs them → <kbd>0</kbd>. Equal.</p>
-            <p data-hl="box:gTaken net:branch net:aluY net:taken open:gPc"><strong>5 · decide.</strong> <kbd>branch</kbd>=1 <em>and</em> equal → <kbd class="wt-taken">taken</kbd>=1. The decision rides the long top wire back to the PC MUX select. Click <kbd>next →</kbd> to pulse the clock.</p>
+            <p>Now <kbd>PC 01</kbd> holds <kbd>BEQ r0,r1,→3</kbd>: if register <kbd>r0</kbd> equals register <kbd>r1</kbd>, jump to cell 3. Click each numbered paragraph to light up that part of the path.</p>
+            <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr"><strong>1 · fetch.</strong> The <kbd>PC</kbd> (<kbd>01</kbd>) addresses <kbd>instruction memory</kbd>, and the <kbd>BEQ</kbd> word rides out on the violet <kbd class="wt-instr">instr</kbd> bus — exactly like any other instruction so far.</p>
+            <p data-hl="open:gIdecode net:instr net:branch net:op0 net:op1"><strong>2 · decode.</strong> The opcode is <kbd>01</kbd> — the branch opcode. Hover <kbd>decode</kbd>: inside its control unit, the <kbd>01 · beq</kbd> row of the truth table lights up and raises the amber <kbd class="wt-branch">Branch</kbd> line. The control unit also forces the ALU's operation to XOR — the comparison — no matter what the func field says. (This is the textbook <kbd>ALUOp</kbd> trick: a branch hijacks the ALU to do its subtraction, because two values are equal exactly when their difference is zero, and one-bit subtraction is XOR.)</p>
+            <p data-hl="net:tgt1 net:tgt0 net:rd1 net:rd0 open:gPc" data-hl-focus="#gPc,#gIdecode"><strong>3 · the target travels to the PC.</strong> The instruction's last field carries the target address, <kbd>3</kbd>. Watch the pink wires: the same field that normally names the destination register (<kbd class="wt-rd1">rd</kbd>, pink, decode → register file) is reused by a branch as the <em>target</em>, and a pink pair carries it from the decoder all the way left into the PC's MUX. This wire is permanently connected — it always carries whatever is in that field. It causes nothing by itself; the MUX simply ignores it unless the select line says otherwise.</p>
+            <p data-hl="open:gRegfile net:rdataA net:rdataB open:gAlu net:aluY"><strong>4 · compare.</strong> The register file reads <kbd class="wt-rdataA">r0</kbd> = 1 and <kbd class="wt-rdataB">r1</kbd> = 1, and the ALU computes their XOR, which is 0. A result of zero means the two values were equal.</p>
+            <p data-hl="open:gPcsrc net:branch net:aluY net:pcsrc open:gPc"><strong>5 · decide.</strong> Hover the <kbd>PCSrc</kbd> block: the ALU's zero result and the raised <kbd class="wt-branch">Branch</kbd> line meet at an AND gate, so <kbd class="wt-pcsrc">PCSrc</kbd> goes to 1. That decision rides the long wire across the top of the datapath back to the PC's MUX select. Everything is now staged — click <kbd>next →</kbd> to continue.</p>
           </article>
           <article class="step" hidden data-stage="brun" data-focus="#gPc,#gImem" data-gate="#btnStep" data-pc="1">
-            <h3>the branch — run it and watch the PC jump</h3>
-            <p data-hl="open:gPc net:taken net:tgt1 net:tgt0">Everything is staged: the MUX is holding the target <kbd>3</kbd>, <kbd class="wt-taken">taken</kbd>=1 selects it.</p>
-            <p class="do" data-hl="open:gPc net:clk">Press <kbd>↻ run instruction</kbd> and watch the <kbd>PC</kbd> readout.</p>
-            <p data-hl="open:gImem"><kbd>PC</kbd> jumps <kbd>01 → 11</kbd> — <em>not</em> <kbd>10</kbd>. No register changed, no memory changed: a branch's entire effect is <em>where the machine looks next</em>.</p>
+            <h3>the branch — run it and watch the jump</h3>
+            <p data-hl="open:gPc net:pcsrc net:tgt1 net:tgt0">The target <kbd>3</kbd> is waiting at the PC MUX's input 1, and <kbd class="wt-pcsrc">PCSrc</kbd> = 1 has switched the MUX to pass it through. The next clock edge loads it into the PC.</p>
+            <p class="do" data-hl="open:gImem net:addr0 net:addr1">Press <kbd>↻ run instruction</kbd>, then hover <kbd>instruction memory</kbd> and watch which cell is lit. The fetch was on the second cell (<kbd>M1</kbd>); now it is on the fourth (<kbd>M3</kbd>). It never touched <kbd>M2</kbd>.</p>
+            <p data-hl="open:gImem">The <kbd>PC</kbd> readout jumped from <kbd>01</kbd> to <kbd>11</kbd> — not <kbd>10</kbd>. No register changed and no memory changed: a branch's entire effect is <em>where the machine looks next</em>.</p>
           </article>
           <article class="step" hidden data-stage="skip" data-focus="#gImem" data-pc="3">
             <h3>the skipped cell — the key idea</h3>
-            <p data-hl="open:gImem net:addr0 net:addr1">Hover <kbd>instruction memory</kbd>. The fetch lit cell <kbd>M3</kbd> — and cell <kbd>M2</kbd>, outlined red, was <em>skipped</em>. It sits between where you were and where you are, and the machine simply never looked at it.</p>
-            <p data-hl="open:gImem box:gRegfile">The proof is in the registers: <kbd>M2</kbd> holds <kbd>ADD r2,r0,r1</kbd>, which would have set <kbd>r2=1</kbd>. Check the readout — <kbd>r2</kbd> is still <kbd>0</kbd>. An instruction that is never fetched never happened.</p>
-            <p data-hl="net:taken open:gPc">And the counterfactual: had <kbd>r0 ≠ r1</kbd>, <kbd class="wt-taken">taken</kbd> would stay 0, the MUX would pick <kbd class="wt-pcnext">+1</kbd>, and <kbd>M2</kbd> would have run like any other cell. Same wires, two futures — the data decided.</p>
+            <p data-hl="open:gImem net:addr0 net:addr1">Hover <kbd>instruction memory</kbd>. The fetch lit cell <kbd>M3</kbd> — and cell <kbd>M2</kbd>, outlined in red, was <em>skipped</em>. It sits between where the program was and where it is now, and the machine simply never looked at it.</p>
+            <p data-hl="open:gImem box:gRegfile">The registers prove it. <kbd>M2</kbd> holds <kbd>ADD r2,r0,r1</kbd>, which would have set <kbd>r2</kbd> to 1. Check the readout: <kbd>r2</kbd> is still 0. An instruction that is never fetched never happened.</p>
+            <p data-hl="net:pcsrc open:gPc">And the other future was one wire away: had <kbd>r0</kbd> and <kbd>r1</kbd> differed, the ALU's result would not have been zero, <kbd class="wt-pcsrc">PCSrc</kbd> would have stayed 0, the MUX would have passed <kbd>PC+1</kbd> through, and <kbd>M2</kbd> would have run like any other cell. Same wires either way — the data decided.</p>
           </article>
           <article class="step" hidden data-stage="target" data-focus="all" data-gate="#btnStep" data-pc="3">
             <h3>land at the target</h3>
-            <p data-hl="open:gPc open:gImem net:instr">The machine carries on from cell <kbd>3</kbd> as if nothing happened — a branch is not an exception, just a different next address. <kbd>M3</kbd> holds <kbd>XOR r3,r0,r1</kbd>.</p>
-            <p class="do" data-hl="box:gRegfile net:wb">Press <kbd>↻ run instruction</kbd>: <kbd>r3</kbd> flips <kbd>1 → 0</kbd> (1 XOR 1). The target instruction executed exactly like a sequential one — and the <kbd>PC</kbd> resumes counting from <kbd>11</kbd>.</p>
+            <p data-hl="open:gPc open:gImem net:instr">The machine carries on from cell 3 as if nothing unusual happened — a branch is not an exception, just a different next address. <kbd>M3</kbd> holds <kbd>XOR r3,r0,r1</kbd>.</p>
+            <p class="do" data-hl="box:gRegfile net:wb">Press <kbd>↻ run instruction</kbd>. <kbd>r3</kbd> flips from 1 to 0 (1 XOR 1 = 0) — the target instruction executed exactly like a sequential one, and the <kbd>PC</kbd> resumes counting from <kbd>11</kbd>.</p>
           </article>
           <article class="step" hidden data-stage="why" data-focus="all" data-pc="3">
             <h3>why this matters — control flow is born</h3>
-            <p data-hl="box:gPc box:gTaken net:taken">Every <kbd>if</kbd>, every <kbd>while</kbd>, every function call in every program compiles down to exactly this: a compare, a <kbd class="wt-taken">taken</kbd> decision, a PC-source MUX. Point the target <em>backwards</em> and you have a loop — the same four memory cells can now run forever.</p>
-            <p data-hl="open:gPc net:taken"><strong>The MUX is the whole idea, again.</strong> Load/store added a write-back MUX to choose a register's source; the branch adds a PC MUX to choose the <em>machine's</em> source. New capability = new source + a MUX. Same move every time.</p>
-            <p><strong>Toy → real.</strong> RV32I's <kbd>beq</kbd> computes its target as <kbd>PC + offset</kbd> with a dedicated adder (here the target rides in the instruction directly), the compare is a full 32-bit subtract-and-test-zero, and the decoder's truth table grows its <kbd>Branch</kbd> row exactly like this one. And the fact that the machine has already fetched <kbd>PC+1</kbd> <em>before</em> the decision arrives is the control hazard that makes pipelines interesting — the next page's problem.</p>
+            <p data-hl="box:gPc box:gPcsrc net:pcsrc">Every <kbd>if</kbd>, every <kbd>while</kbd>, every function call in every program compiles down to exactly this: a comparison, a <kbd class="wt-pcsrc">PCSrc</kbd> decision, and a PC MUX. Point the target <em>backwards</em> and you have a loop — the same four memory cells can now run forever.</p>
+            <p data-hl="open:gPc net:pcsrc"><strong>The MUX is the whole idea, again.</strong> Load/store added a write-back MUX so a register could choose its source; the branch adds a PC MUX so the <em>machine</em> can choose its next instruction. New capability, new source, new MUX — the same move every time.</p>
+            <p><strong>Toy → real.</strong> A real RV32I <kbd>beq</kbd> computes its target as <kbd>PC + offset</kbd> with a dedicated adder (ours carries the target inside the instruction), the comparison is a full 32-bit subtraction whose <kbd>Zero</kbd> flag comes straight off the ALU, and the control unit's truth table grows a <kbd>Branch</kbd> row exactly like ours. One more thing to notice: the decision needed the fetch, the decode, the register read, and the ALU — the longest path on the page — before fetch knew where to look next. Pipelined CPUs refuse to wait and guess instead. That problem is called the <em>control hazard</em>, and it is the next page's story.</p>
           </article>
         </div>
       </aside>

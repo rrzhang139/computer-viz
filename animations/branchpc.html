@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / branching PC — +1 adder, PC-source MUX, register</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; min-height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: calc(15px * var(--content-scale, 1)); text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 calc(10px * var(--content-scale, 1)); font-weight: 500; }
+      .step p { margin: 0 0 calc(10px * var(--content-scale, 1)); color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: calc(15px * var(--content-scale, 1)); line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: calc(13px * var(--content-scale, 1)); background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      @media (max-width: 900px) { .step-panel { height: auto; min-height: 180px; } .step-bodies { overflow: visible; max-height: none; } .step-nav { position: static; margin: 0 0 8px; justify-content: flex-end; } }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 16px; cursor: pointer; min-width: 64px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      .btn-pulse { background: rgba(239, 159, 39, 0.12); color: var(--on); border-color: var(--on); }
+      .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 60vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.4; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #888; font-size: 28px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #777; font-size: 19px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot .simple-body, .child-slot .simple-label { transition: opacity 180ms; }
+      .child-slot:hover .simple-body, .child-slot:focus-within .simple-body,
+      .child-slot:hover .simple-label, .child-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      .detailed .pulse { display: none; }
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.10em; }
+      .out-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/branchpc.html" aria-current="page">branching PC</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn btn-pulse" id="btnPulse">pulse CLK 0→1→0</button>
+          <button class="btn" id="btnPcsrc" data-on="0">PCSrc 0</button>
+          <button class="btn" id="btnT1" data-on="0">t₁ 0</button>
+          <button class="btn" id="btnT0" data-on="0">t₀ 0</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">PC</span><span class="bits" id="rPc">00</span>
+          <span class="sep">·</span>
+          <span class="label">+1</span><span class="bits" id="rNext">01</span>
+          <span class="sep">·</span>
+          <span class="label">target</span><span class="bits" id="rTgt">00</span>
+          <span class="sep">·</span>
+          <span class="label">MUX picks</span><span class="bits" id="rPick">01 (+1)</span>
+        </div>
+
+        <!--
+          Branching program counter: the counter page's +1 loop, opened by a
+          PC-source MUX. in0 = PC+1 (sequential), in1 = the branch target,
+          select = PCSrc. The MUX slot is a live embed of /mux.html (the
+          per-bit slice; this PC is 2 bits = two such slices).
+          Wireframe: wire_sketches/layer22_branchpc.md.
+        -->
+        <svg id="branchpc" viewBox="-40 -30 1560 780" role="img"
+             aria-label="branching program counter: +1 adder, PC-source MUX, register in a loop"
+             preserveAspectRatio="xMidYMid meet">
+          <!-- inputs (left edge) -->
+          <circle class="pin" id="pinPcsrc" cx="60" cy="60" r="7" />
+          <text class="tlabel-small" data-pin="pinPcsrc" text-anchor="end" x="42" y="60">PCSrc</text>
+          <circle class="pin" id="pinT1" cx="60" cy="260" r="7" />
+          <text class="tlabel-small" data-pin="pinT1" text-anchor="end" x="42" y="260">target₁</text>
+          <circle class="pin" id="pinT0" cx="60" cy="320" r="7" />
+          <text class="tlabel-small" data-pin="pinT0" text-anchor="end" x="42" y="320">target₀</text>
+          <circle class="pin" id="pinClk" cx="60" cy="660" r="7" />
+          <text class="tlabel-small" data-pin="pinClk" text-anchor="end" x="42" y="660">clk</text>
+
+          <!-- +1 adder (combinational; B hardwired to 01) -->
+          <rect class="tbody" id="gAdd" x="180" y="220" width="240" height="300" rx="12" />
+          <text class="tlabel" x="300" y="355">+1</text>
+          <text class="tlabel-small" x="300" y="410">adder</text>
+
+          <!-- PC-source MUX — live embed of /mux.html (the per-bit slice) -->
+          <g class="child-slot" id="slot-pcmux" tabindex="0" role="button" aria-label="PC-source MUX"
+             data-embed-page="/mux.html" data-embed-svg="mux">
+            <rect class="tbody simple-body" id="gPcmux" x="560" y="180" width="340" height="380" rx="12" />
+            <text class="tlabel simple-label" x="730" y="370">select</text>
+            <g class="detailed" id="pcmuxDetail"></g>
+          </g>
+
+          <!-- the PC register -->
+          <rect class="tbody" id="gReg" x="1040" y="180" width="240" height="380" rx="12" />
+          <text class="tlabel" x="1160" y="355">reg</text>
+          <text class="tlabel-small" x="1160" y="410">the PC</text>
+
+          <!-- wires that touch the embed are routed in src/branchpc.ts onto the
+               embedded MUX's projected pins -->
+          <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="0,0 0,0" />
+          <polyline class="wire" data-net="tgt1"   id="wTgt1" points="0,0 0,0" />
+          <polyline class="wire" data-net="tgt0"   id="wTgt0" points="0,0 0,0" />
+          <polyline class="wire" data-net="pcnext" id="wPcnext" points="0,0 0,0" />
+          <polyline class="wire" data-net="pcnext" id="wPcnext0" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"   id="wMuxIn2" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"   id="wMuxIn3" points="0,0 0,0" />
+          <polyline class="wire" data-net="zero"   id="wMuxS1" points="0,0 0,0" />
+          <polyline class="wire" data-net="pcsel"  id="wPcsel" points="0,0 0,0" />
+
+          <!-- static wires between page-drawn blocks -->
+          <polyline class="wire" data-net="clk" id="wClk" points="60,660 1160,660 1160,560" />
+          <polyline class="wire" data-net="addr1" id="wQ1out" points="1280,300 1420,300" />
+          <polyline class="wire" data-net="addr0" id="wQ0out" points="1280,380 1420,380" />
+          <!-- feedback: Q loops back to the +1 adder along the bottom -->
+          <polyline class="wire" data-net="addr1" id="wFb1" points="1280,300 1330,300 1330,706 120,706 120,300 180,300" />
+          <polyline class="wire" data-net="addr0" id="wFb0" points="1280,380 1316,380 1316,690 136,690 136,420 180,420" />
+
+          <!-- outputs (right edge): the fetch address -->
+          <circle class="pin" id="pinA1" cx="1420" cy="300" r="7" />
+          <text class="tlabel-small" data-pin="pinA1" text-anchor="start" x="1438" y="300">addr1</text>
+          <circle class="pin" id="pinA0" cx="1420" cy="380" r="7" />
+          <text class="tlabel-small" data-pin="pinA0" text-anchor="start" x="1438" y="380">addr0</text>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step">
+            <h3>where we are: the counter's loop, with a switch in it</h3>
+            <p data-hl="box:gAdd open:gPcmux box:gReg">On the program-counter page, the loop was sealed: register → +1 adder → register, forever. Here the loop runs through one new block before it reaches the register — a <em>PC-source MUX</em>. A MUX is a switch: several inputs, one output, and a select wire that decides which input passes through to the output.</p>
+            <p data-hl="net:pcnext net:tgt1 net:tgt0 net:pcsrc">The MUX's input 0 carries <kbd class="wt-pcnext">PC + 1</kbd>, the sequential future. Input 1 carries the <kbd class="wt-tgt1">branch target</kbd>, delivered from the instruction decoder. The select wire is <kbd class="wt-pcsrc">PCSrc</kbd> — the branch decision, computed beside the ALU as Branch AND Zero.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>both futures are always computed</h3>
+            <p data-hl="box:gAdd net:pcnext net:tgt1 net:tgt0">Nothing here waits for permission. The adder is always outputting <kbd class="wt-pcnext">PC + 1</kbd>; the target wires always carry whatever the instruction's target field holds. Both candidate futures sit at the MUX's inputs at all times.</p>
+            <p class="do" data-hl="net:tgt1 net:tgt0">Click <kbd>t₁</kbd> to change the target and watch the <kbd>target</kbd> readout follow. Notice the <kbd>MUX picks</kbd> readout does not change — the target wire being connected causes nothing by itself. The select decides; the inputs just wait.</p>
+          </article>
+          <article class="step" hidden data-gate="#btnPcsrc">
+            <h3>flip the select</h3>
+            <p class="do" data-hl="net:pcsrc open:gPcmux">Click <kbd>PCSrc</kbd>. The <kbd>MUX picks</kbd> readout switches from the +1 value to the target value. Hover the <kbd>select</kbd> block to watch the real MUX inside: a different AND row now carries the signal to the OR.</p>
+            <p>Nothing has been stored yet — the register still holds the old PC. The MUX only chose what is <em>staged</em> at the register's door.</p>
+          </article>
+          <article class="step" hidden data-gate="#btnPulse">
+            <h3>pulse the clock — the chosen future becomes the present</h3>
+            <p class="do" data-hl="net:clk box:gReg">Press <kbd>pulse CLK 0→1→0</kbd>. On the rising edge, the register captures whatever the MUX passed through. If <kbd class="wt-pcsrc">PCSrc</kbd> was 1, the PC is now the target — it leapt. If it was 0, the PC advanced by one — it walked.</p>
+            <p data-hl="net:addr1 net:addr0">Either way the new PC leaves on the <kbd class="wt-addr1">address</kbd> wires to fetch the next instruction, and loops back into the adder so the next +1 is ready. Same loop as the counter — with a decision in it.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>why this matters</h3>
+            <p>This is the fetch-front of every real CPU: a 32-bit PC register, a +4 adder, and a PC-source MUX steered by <kbd>PCSrc = Branch AND Zero</kbd>. Jumps, function calls, and exceptions each add another input to this same MUX — more futures, same switch.</p>
+            <p>And the timing story carries over exactly: the adder and MUX are combinational (always computing), the register is sequential (deciding when). The branch CPU embeds this page inside its PC block — what you see here is literally what is running there.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/branchpc.ts"></script>
+  </body>
+</html>
