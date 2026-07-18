@@ -65,24 +65,24 @@ if (ready) {
   mk("wImmS2", "imm1", [{ x: 104, y: TA.pinB1!.y }, { x: 104, y: TA.pinB2!.y }, TA.pinB2]);
   mk("wImmS3", "imm1", [{ x: 104, y: TA.pinB2!.y }, { x: 104, y: TA.pinB3!.y }, TA.pinB3]);
   mk("wTaCin", "zero", [H(TA.pinCin, 100), TA.pinCin]); srcTerm({ x: 100, y: TA.pinCin!.y }, "0");
-  mk("wTaCout", "cout", [TA.pinCout, H(TA.pinCout, TA.pinCout!.x + 36)]); srcTerm({ x: TA.pinCout!.x + 60, y: TA.pinCout!.y }, "n/c");
+  mk("wTaCout", "cout", [TA.pinCout, H(TA.pinCout, 552)]); srcTerm({ x: 576, y: TA.pinCout!.y }, "n/c");
   // +1 adder: B hardwired to the constant 0001, Cin to 0
   mk("wAddB0", "one", [H(ADD.pinB0, 96), ADD.pinB0]); srcTerm({ x: 96, y: ADD.pinB0!.y }, "1 (Vdd)");
   mk("wAddB1", "one", [H(ADD.pinB1, 96), ADD.pinB1]); srcTerm({ x: 96, y: ADD.pinB1!.y }, "0");
   mk("wAddB2", "one", [H(ADD.pinB2, 96), ADD.pinB2]); srcTerm({ x: 96, y: ADD.pinB2!.y }, "0");
   mk("wAddB3", "one", [H(ADD.pinB3, 96), ADD.pinB3]); srcTerm({ x: 96, y: ADD.pinB3!.y }, "0");
   mk("wAddCin", "zero", [H(ADD.pinCin, 96), ADD.pinCin]); srcTerm({ x: 96, y: ADD.pinCin!.y }, "0");
-  mk("wAddCout", "cout", [ADD.pinCout, H(ADD.pinCout, ADD.pinCout!.x + 36)]); srcTerm({ x: ADD.pinCout!.x + 60, y: ADD.pinCout!.y }, "n/c");
+  mk("wAddCout", "cout", [ADD.pinCout, H(ADD.pinCout, 552)]); srcTerm({ x: 576, y: ADD.pinCout!.y }, "n/c");
   // adder sums → the MUX (both low bits onto the per-bit slice's inputs);
   // upper sums honestly n/c (our PC is the low two bits)
   R("wPcnext", [ADD.pinS0, H(ADD.pinS0, 560), { x: 560, y: MX.pinIn0!.y }, MX.pinIn0], [MX.pinIn0]);
   mk("wPcnext1", "pcnext", [ADD.pinS1, H(ADD.pinS1, 576), { x: 576, y: MX.pinIn0!.y - 14 }, { x: MX.pinIn0!.x, y: MX.pinIn0!.y - 14 }, MX.pinIn0]);
-  mk("wAddS2", "pcnext", [ADD.pinS2, H(ADD.pinS2, ADD.pinS2!.x + 30)]); srcTerm({ x: ADD.pinS2!.x + 54, y: ADD.pinS2!.y }, "n/c");
-  mk("wAddS3", "pcnext", [ADD.pinS3, H(ADD.pinS3, ADD.pinS3!.x + 30)]); srcTerm({ x: ADD.pinS3!.x + 54, y: ADD.pinS3!.y }, "n/c");
+  mk("wAddS2", "pcnext", [ADD.pinS2, H(ADD.pinS2, 552)]); srcTerm({ x: 576, y: ADD.pinS2!.y }, "n/c");
+  mk("wAddS3", "pcnext", [ADD.pinS3, H(ADD.pinS3, 552)]); srcTerm({ x: 576, y: ADD.pinS3!.y }, "n/c");
   R("wTgt", [TA.pinS0, H(TA.pinS0, 604), { x: 604, y: MX.pinIn1!.y }, MX.pinIn1], [MX.pinIn1]);
   mk("wTgt1b", "target", [TA.pinS1, H(TA.pinS1, 588), { x: 588, y: MX.pinIn1!.y + 14 }, { x: MX.pinIn1!.x, y: MX.pinIn1!.y + 14 }, MX.pinIn1]);
-  mk("wTaS2", "target", [TA.pinS2, H(TA.pinS2, TA.pinS2!.x + 30)]); srcTerm({ x: TA.pinS2!.x + 54, y: TA.pinS2!.y }, "n/c");
-  mk("wTaS3", "target", [TA.pinS3, H(TA.pinS3, TA.pinS3!.x + 30)]); srcTerm({ x: TA.pinS3!.x + 54, y: TA.pinS3!.y }, "n/c");
+  mk("wTaS2", "target", [TA.pinS2, H(TA.pinS2, 552)]); srcTerm({ x: 576, y: TA.pinS2!.y }, "n/c");
+  mk("wTaS3", "target", [TA.pinS3, H(TA.pinS3, 552)]); srcTerm({ x: 576, y: TA.pinS3!.y }, "n/c");
   // MUX out → the register's low D inputs; upper D tied 0
   R("wPcsel", [MX.pinOut, H(MX.pinOut, 985), { x: 985, y: REG.pinD0!.y }, REG.pinD0], [MX.pinOut, REG.pinD0]);
   mk("wPcsel1", "pcsel", [{ x: 985, y: REG.pinD0!.y }, { x: 985, y: REG.pinD1!.y }, REG.pinD1]);
@@ -104,8 +104,8 @@ if (ready) {
     mk(`w${tag}A3z`, "zero", [H(ad.pinA3, 96), ad.pinA3]); srcTerm({ x: 96, y: ad.pinA3!.y }, "0");
   }
   // register upper Q bits honestly n/c
-  mk("wRegQ2", "addr1", [REG.pinQ2, H(REG.pinQ2, REG.pinQ2!.x + 34)]); srcTerm({ x: REG.pinQ2!.x + 58, y: REG.pinQ2!.y }, "n/c");
-  mk("wRegQ3", "addr1", [REG.pinQ3, H(REG.pinQ3, REG.pinQ3!.x + 34)]); srcTerm({ x: REG.pinQ3!.x + 58, y: REG.pinQ3!.y }, "n/c");
+  mk("wRegQ2", "addr1", [REG.pinQ2, H(REG.pinQ2, 1444)]); srcTerm({ x: 1468, y: REG.pinQ2!.y }, "n/c");
+  mk("wRegQ3", "addr1", [REG.pinQ3, H(REG.pinQ3, 1444)]); srcTerm({ x: 1468, y: REG.pinQ3!.y }, "n/c");
 }
 
 setupPulses();
