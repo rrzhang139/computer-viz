@@ -120,22 +120,27 @@
 
           <!-- wires that touch the embed are routed in src/branchpc.ts onto the
                embedded MUX's projected pins -->
-          <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="0,0 0,0" />
-          <polyline class="wire" data-net="tgt1"   id="wTgt1" points="0,0 0,0" />
-          <polyline class="wire" data-net="tgt0"   id="wTgt0" points="0,0 0,0" />
-          <polyline class="wire" data-net="pcnext" id="wPcnext" points="0,0 0,0" />
-          <polyline class="wire" data-net="pcnext" id="wPcnext0" points="0,0 0,0" />
-          <polyline class="wire" data-net="zero"   id="wMuxIn2" points="0,0 0,0" />
-          <polyline class="wire" data-net="zero"   id="wMuxIn3" points="0,0 0,0" />
-          <polyline class="wire" data-net="zero"   id="wMuxS1" points="0,0 0,0" />
-          <polyline class="wire" data-net="pcsel"  id="wPcsel" points="0,0 0,0" />
+          <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="60,60 940,60 940,311.1 566.8,311.1" />
+          <polyline class="wire" data-net="tgt1"   id="wTgt1" points="60,260 508,260 508,100 560,100" />
+          <polyline class="wire" data-net="tgt0"   id="wTgt0" points="60,320 520,320 520,399 566.8,399" />
+          <polyline class="wire" data-net="pcnext" id="wPcnext" points="420,288 472,288 472,124 560,124" />
+          <polyline class="wire" data-net="pcnext" id="wPcnext0" points="420,420 448,420 448,428 566.8,428" />
+          <polyline class="wire" data-net="zero"   id="wMuxIn2" points="540,370 566.8,370" />
+          <polyline class="wire" data-net="zero"   id="wMuxIn3" points="540,341 566.8,341" />
+          <polyline class="wire" data-net="zero"   id="wMuxS1" points="540,283.9 566.8,283.9" />
+          <polyline class="wire" data-net="pcsel"  id="wPcsel" points="893.2,384.5 980,384.5 980,370 1040,370" />
+          <polyline class="wire" data-net="pcsel"  id="wPcsel1" points="900,110 964,110 964,370 1040,370" />
+
+          <!-- bit 1's identical MUX slice (the embed below is the bit-0 slice) -->
+          <rect class="tbody" id="gMux1" x="560" y="70" width="340" height="80" rx="10" />
+          <text class="tlabel-small" x="730" y="110">bit-1 slice · same mux</text>
 
           <!-- static wires between page-drawn blocks -->
           <polyline class="wire" data-net="clk" id="wClk" points="60,660 1160,660 1160,560" />
           <polyline class="wire" data-net="addr1" id="wQ1out" points="1280,300 1420,300" />
           <polyline class="wire" data-net="addr0" id="wQ0out" points="1280,380 1420,380" />
           <!-- feedback: Q loops back to the +1 adder along the bottom -->
-          <polyline class="wire" data-net="addr1" id="wFb1" points="1280,300 1330,300 1330,706 120,706 120,300 180,300" />
+          <polyline class="wire" data-net="addr1" id="wFb1" points="1280,300 1342,300 1342,712 114,712 114,300 180,300" />
           <polyline class="wire" data-net="addr0" id="wFb0" points="1280,380 1316,380 1316,690 136,690 136,420 180,420" />
 
           <!-- outputs (right edge): the fetch address -->

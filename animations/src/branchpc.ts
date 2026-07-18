@@ -32,17 +32,17 @@ const MX: Record<string, Pt> = embeds.get("slot-pcmux") || {};
 
 const PCSRC_IN = { x: 60, y: 60 };
 const T1_IN = { x: 60, y: 260 }, T0_IN = { x: 60, y: 320 };
-const ADD_OUT1 = { x: 420, y: 300 }, ADD_OUT0 = { x: 420, y: 420 };
+const ADD_OUT1 = { x: 420, y: 288 }, ADD_OUT0 = { x: 420, y: 420 };
 const REG_D = { x: 1040, y: 370 };
 
 // select rides the top lane and drops onto the embedded MUX's s0 pin
 R("wPcsrcSel", [PCSRC_IN, x(940, PCSRC_IN), x(940, MX.pinS0), MX.pinS0], [MX.pinS0]);
-// the two target bits land on the MUX's input-1 (the per-bit slice's in1)
-R("wTgt1", [T1_IN, x(500, T1_IN), y(MX.pinIn1 ? MX.pinIn1.y - 8 : 0, { x: 500, y: 0 }), MX.pinIn1 && { x: MX.pinIn1.x, y: MX.pinIn1.y - 8 }, MX.pinIn1], [MX.pinIn1]);
-R("wTgt0", [T0_IN, x(516, T0_IN), y(MX.pinIn1 ? MX.pinIn1.y + 8 : 0, { x: 516, y: 0 }), MX.pinIn1 && { x: MX.pinIn1.x, y: MX.pinIn1.y + 8 }, MX.pinIn1], [MX.pinIn1]);
-// the adder's +1 result (both lanes) → the MUX's input-0
-R("wPcnext", [ADD_OUT1, x(478, ADD_OUT1), y(MX.pinIn0 ? MX.pinIn0.y - 8 : 0, { x: 478, y: 0 }), MX.pinIn0 && { x: MX.pinIn0.x, y: MX.pinIn0.y - 8 }, MX.pinIn0], [MX.pinIn0]);
-R("wPcnext0", [ADD_OUT0, x(462, ADD_OUT0), y(MX.pinIn0 ? MX.pinIn0.y + 8 : 0, { x: 462, y: 0 }), MX.pinIn0 && { x: MX.pinIn0.x, y: MX.pinIn0.y + 8 }, MX.pinIn0], [MX.pinIn0]);
+// tgt0 lands on the embedded slice's in1; tgt1 enters bit 1's twin block
+R("wTgt1", [T1_IN, x(508, T1_IN), { x: 508, y: 100 }, { x: 560, y: 100 }]);
+R("wTgt0", [T0_IN, x(520, T0_IN), MX.pinIn1 && y(MX.pinIn1.y, { x: 520, y: 0 }), MX.pinIn1], [MX.pinIn1]);
+// +1 result: bit 0 → the embedded slice's in0; bit 1 → the twin block
+R("wPcnext", [ADD_OUT1, x(472, ADD_OUT1), { x: 472, y: 124 }, { x: 560, y: 124 }]);
+R("wPcnext0", [ADD_OUT0, x(448, ADD_OUT0), MX.pinIn0 && y(MX.pinIn0.y, { x: 448, y: 0 }), MX.pinIn0], [MX.pinIn0]);
 // unused MUX inputs + high select tie to 0 — honest hardwired stubs
 stub("wMuxIn2", MX.pinIn2, "0", 540);
 stub("wMuxIn3", MX.pinIn3, "0", 540);
@@ -80,7 +80,7 @@ function render() {
   setNet("addr1", a1); setPin("pinA1", a1);
   setNet("addr0", a0); setPin("pinA0", a0);
   setNet("zero", 0);
-  setBody("gAdd", 1); setBody("gReg", (pc !== 0 ? 1 : 0) as Bit); setBody("gPcmux", 1);
+  setBody("gAdd", 1); setBody("gReg", (pc !== 0 ? 1 : 0) as Bit); setBody("gPcmux", 1); setBody("gMux1", 1);
 
   // the embedded MUX slice shows the low bit's traffic
   const in0 = next & 1, in1 = t0;
