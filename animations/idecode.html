@@ -46,6 +46,7 @@
       .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.2; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
       .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
       .field-box { fill: none; stroke: #5a5a5a; stroke-width: 2.4; }
+      .bitrole { fill: #555; font-size: 15px; font-family: ui-monospace, monospace; text-anchor: start; dominant-baseline: central; pointer-events: none; user-select: none; }
       .bitidx { fill: #666; font-size: 18px; font-family: ui-monospace, monospace; text-anchor: end; dominant-baseline: central; pointer-events: none; user-select: none; }
       .bitval { fill: #888; font-size: 30px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
       .tbody[data-on="1"] + .bitval { fill: var(--on); }
@@ -102,7 +103,7 @@
             <button class="btn" id="btnOc0" data-on="0">oc₀ 0</button>
           </div>
           <div class="controls-row">
-            <span class="label">func</span>
+            <span class="label">funct</span>
             <button class="btn" id="btnOp1" data-on="0">f₁ 0</button>
             <button class="btn" id="btnOp0" data-on="0">f₀ 0</button>
           </div>
@@ -170,36 +171,36 @@
           <rect class="field-box" x="440" y="518" width="150" height="112" rx="8" />
           <text class="tlabel-field" x="392" y="110">opcode</text>
           <text class="tlabel-val"   x="392" y="142" id="fldOc">= R</text>
-          <text class="tlabel-field" x="392" y="222">func</text>
+          <text class="tlabel-field" x="392" y="222">funct</text>
           <text class="tlabel-val"   x="392" y="254" id="fldOp">= ADD</text>
           <text class="tlabel-field" x="392" y="334">rs1</text>
           <text class="tlabel-val"   x="392" y="366" id="fldA">= r0</text>
           <text class="tlabel-field" x="392" y="446">rs2</text>
           <text class="tlabel-val"   x="392" y="478" id="fldB">= r0</text>
-          <text class="tlabel-field" x="392" y="558">rd</text>
+          <text class="tlabel-field" x="392" y="558">rd/imm</text>
           <text class="tlabel-val"   x="392" y="590" id="fldW">= r0</text>
 
           <!-- 10 instruction bit cells (one contiguous word, bit 9 → bit 0) -->
           <text class="bitidx" x="428" y="98">9</text>
-          <rect class="tbody" id="gBitOc1" x="440" y="70"  width="150" height="56" /><text class="bitval" x="515" y="98">0</text>
+          <rect class="tbody" id="gBitOc1" x="440" y="70"  width="150" height="56" /><text class="bitval" x="515" y="98">0</text><text class="bitrole" x="452" y="98">oc₁</text>
           <text class="bitidx" x="428" y="154">8</text>
-          <rect class="tbody" id="gBitOc0" x="440" y="126" width="150" height="56" /><text class="bitval" x="515" y="154">0</text>
+          <rect class="tbody" id="gBitOc0" x="440" y="126" width="150" height="56" /><text class="bitval" x="515" y="154">0</text><text class="bitrole" x="452" y="154">oc₀</text>
           <text class="bitidx" x="428" y="210">7</text>
-          <rect class="tbody" id="gBitOp1" x="440" y="182" width="150" height="56" /><text class="bitval" x="515" y="210">0</text>
+          <rect class="tbody" id="gBitOp1" x="440" y="182" width="150" height="56" /><text class="bitval" x="515" y="210">0</text><text class="bitrole" x="452" y="210">f₁</text>
           <text class="bitidx" x="428" y="266">6</text>
-          <rect class="tbody" id="gBitOp0" x="440" y="238" width="150" height="56" /><text class="bitval" x="515" y="266">0</text>
+          <rect class="tbody" id="gBitOp0" x="440" y="238" width="150" height="56" /><text class="bitval" x="515" y="266">0</text><text class="bitrole" x="452" y="266">f₀</text>
           <text class="bitidx" x="428" y="322">5</text>
-          <rect class="tbody" id="gBitA1"  x="440" y="294" width="150" height="56" /><text class="bitval" x="515" y="322">0</text>
+          <rect class="tbody" id="gBitA1"  x="440" y="294" width="150" height="56" /><text class="bitval" x="515" y="322">0</text><text class="bitrole" x="452" y="322">rs1₁</text>
           <text class="bitidx" x="428" y="378">4</text>
-          <rect class="tbody" id="gBitA0"  x="440" y="350" width="150" height="56" /><text class="bitval" x="515" y="378">0</text>
+          <rect class="tbody" id="gBitA0"  x="440" y="350" width="150" height="56" /><text class="bitval" x="515" y="378">0</text><text class="bitrole" x="452" y="378">rs1₀</text>
           <text class="bitidx" x="428" y="434">3</text>
-          <rect class="tbody" id="gBitB1"  x="440" y="406" width="150" height="56" /><text class="bitval" x="515" y="434">0</text>
+          <rect class="tbody" id="gBitB1"  x="440" y="406" width="150" height="56" /><text class="bitval" x="515" y="434">0</text><text class="bitrole" x="452" y="434">rs2₁</text>
           <text class="bitidx" x="428" y="490">2</text>
-          <rect class="tbody" id="gBitB0"  x="440" y="462" width="150" height="56" /><text class="bitval" x="515" y="490">0</text>
+          <rect class="tbody" id="gBitB0"  x="440" y="462" width="150" height="56" /><text class="bitval" x="515" y="490">0</text><text class="bitrole" x="452" y="490">rs2₀</text>
           <text class="bitidx" x="428" y="546">1</text>
-          <rect class="tbody" id="gBitW1"  x="440" y="518" width="150" height="56" /><text class="bitval" x="515" y="546">0</text>
+          <rect class="tbody" id="gBitW1"  x="440" y="518" width="150" height="56" /><text class="bitval" x="515" y="546">0</text><text class="bitrole" x="452" y="546">rd₁</text>
           <text class="bitidx" x="428" y="602">0</text>
-          <rect class="tbody" id="gBitW0"  x="440" y="574" width="150" height="56" /><text class="bitval" x="515" y="602">0</text>
+          <rect class="tbody" id="gBitW0"  x="440" y="574" width="150" height="56" /><text class="bitval" x="515" y="602">0</text><text class="bitrole" x="452" y="602">rd₀</text>
 
           <!-- Each field leaves as ONE 2-bit bus (/2) — the two cell-bits
                bundled — straight to its consumer. The opcode's bus goes to the

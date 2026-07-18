@@ -12,11 +12,19 @@ import { x, type Bit, type Pt } from "./datapath";
 // func = the ALU operation (00 ADD, 01 AND, 10 OR, 11 XOR) — RISC-V's funct.
 // Like a real machine, the opcode never leaves the decoder as data — its
 // control unit decodes it, truth-table style, into memToReg / memWrite.
-export type Instr = { opc: number; op: number; rs1: number; rs2: number; rd: number };
-export const decodeInstr = (w: string): Instr => ({
-  opc: parseInt(w.slice(0, 2), 2), op: parseInt(w.slice(2, 4), 2),
-  rs1: parseInt(w.slice(4, 6), 2), rs2: parseInt(w.slice(6, 8), 2), rd: parseInt(w.slice(8, 10), 2),
-});
+export type Instr = { opc: number; op: number; rs1: number; rs2: number; rd: number; imm: number; bits: string };
+// The last field is ONE slot with two format-dependent readings (the RV32I
+// overlay move): rd for R/I-type destinations, imm for branches/stores.
+// imm is signed 2-bit (-2..+1); with a 4-word memory, PC+imm mod 4 reaches
+// every cell, so backward branches (loops) work.
+export const decodeInstr = (w: string): Instr => {
+  const last = parseInt(w.slice(8, 10), 2);
+  return {
+    opc: parseInt(w.slice(0, 2), 2), op: parseInt(w.slice(2, 4), 2),
+    rs1: parseInt(w.slice(4, 6), 2), rs2: parseInt(w.slice(6, 8), 2),
+    rd: last, imm: last >= 2 ? last - 4 : last, bits: w,
+  };
+};
 export const ctrlOf = (i: Instr) => ({
   branch:   (i.opc === 1 ? 1 : 0) as Bit,   // BEQ: raise Branch, force ALU compare
   memToReg: (i.opc === 2 ? 1 : 0) as Bit,   // LW: write-back comes from memory
@@ -93,6 +101,7 @@ export function routeCpuTrunk(R: RouteFn, p: { IM: EmbedPins; IDEC: EmbedPins; R
 // in; everything downstream of the trunk stays in the page's render().
 export type TrunkState = {
   clk: Bit; pc: number; i: Instr;
+  iRaw?: Instr;          // the fetched instruction as encoded (display); i may carry a forced ALU op
   A: Bit; B: Bit; Y: Bit;
   regs: Bit[]; we: Bit; wdata: Bit;
 };
@@ -133,6 +142,7 @@ export function renderCpuTrunk(tk: Toolkit, s: TrunkState) {
   });
   const ctl = ctrlOf(s.i);
   const [oc1, oc0] = hiLo(s.i.opc);
+  writeIdecodeBits(s.iRaw ?? s.i);
   lightEmbed("idecodeDetail", {
     instr: 1, opcode: (oc1 || oc0) as Bit, op: (op1 || op0) as Bit,
     raddrA: (rs1h || rs1l) as Bit, raddrB: (rs2h || rs2l) as Bit, waddr: (rd1 || rd0) as Bit,
@@ -150,6 +160,74 @@ export function renderCpuTrunk(tk: Toolkit, s: TrunkState) {
     { gFa: 1, gAnd: A & B, gOr: A | B, gXor: A ^ B, gMux: Y });
 
   return { a1, a0, rs1h, rs1l, rs2h, rs2l, rd1, rd0, op1, op0 };
+}
+
+
+// ── Embedded-decoder strip: show the REAL fetched bits ──────────────────────
+// The idecode embed is a static clone — its bit-cell digits and field readings
+// would otherwise sit at 0 forever. Write the actual instruction into it.
+const OPC_NAMES = ["R", "BEQ", "LW", "SW"];
+const FUNCT_NAMES = ["ADD", "AND", "OR", "XOR"];
+export function writeIdecodeBits(i: Instr) {
+  const host = document.querySelector("#idecodeDetail");
+  if (!host || !i.bits) return;
+  const vals = host.querySelectorAll<SVGTextElement>(".bitval");
+  vals.forEach((t, k) => { if (k < i.bits.length) t.textContent = i.bits[k]; });
+  const fld = (id: string, txt: string) => {
+    const el = host.querySelector<SVGTextElement>(`#${id}, [id$="${id}"]`);
+    if (el) el.textContent = txt;
+  };
+  fld("fldOc", `= ${OPC_NAMES[i.opc]}`);
+  fld("fldOp", i.opc === 1 ? "= XOR ←ctrl" : `= ${FUNCT_NAMES[i.op]}`);
+  fld("fldA", `= r${i.rs1}`);
+  fld("fldB", `= r${i.rs2}`);
+  fld("fldW", i.opc === 1 ? `= ${i.imm >= 0 ? "+" : ""}${i.imm}` : `= r${i.rd}`);
+}
+
+// ── Instruction-memory encoding inspector ───────────────────────────────────
+// Each embedded memory cell gets its instruction's assembly plus a per-field
+// breakdown: tiny gray subheaders (opcode · funct · rs1 · rs2 · rd/imm) with
+// the actual bits beneath, spaced per field. The last column's header follows
+// the format — rd for R-type, imm for branches/stores (the RV32I overlay).
+const SVG_NS = "http://www.w3.org/2000/svg";
+export function annotateImemProgram(program: string[], asm: (i: Instr) => string) {
+  const host = document.querySelector("#imemDetail");
+  if (!host) return;
+  const cells = host.querySelectorAll<SVGRectElement>('[data-body^="gWord"]');
+  cells.forEach((cell) => {
+    const m = /gWord(\d)/.exec(cell.getAttribute("data-body") || "");
+    if (!m) return;
+    const n = Number(m[1]);
+    if (n >= program.length) return;
+    const i = decodeInstr(program[n]);
+    const cx = +(cell.getAttribute("x") || 0), cy = +(cell.getAttribute("y") || 0);
+    const cw = +(cell.getAttribute("width") || 0);
+    // the generic memory value text ("00000000") becomes the assembly line
+    const val = cell.parentNode?.querySelector<SVGTextElement>(`[id$="vWord${n}"], .word-val:nth-of-type(${n + 1})`);
+    const old = cell.nextElementSibling as SVGTextElement | null;
+    const asmT = (old && old.classList.contains("word-val")) ? old : val;
+    if (asmT) { asmT.textContent = asm(i); asmT.setAttribute("y", String(cy + 34)); asmT.setAttribute("font-size", "34"); }
+    // five field columns: header + bits
+    const fields: [string, string][] = [
+      ["opcode", i.bits.slice(0, 2)], ["funct", i.bits.slice(2, 4)],
+      ["rs1", i.bits.slice(4, 6)], ["rs2", i.bits.slice(6, 8)],
+      [i.opc === 1 || i.opc === 3 ? "imm" : "rd", i.bits.slice(8, 10)],
+    ];
+    const colW = (cw - 20) / 5;
+    fields.forEach(([name, bits], k) => {
+      const colX = cx + 10 + colW * k + colW / 2;
+      const head = document.createElementNS(SVG_NS, "text");
+      head.setAttribute("class", "enc-head");
+      head.setAttribute("x", String(colX)); head.setAttribute("y", String(cy + 72));
+      head.textContent = name;
+      const b = document.createElementNS(SVG_NS, "text");
+      b.setAttribute("class", "enc-bits");
+      b.setAttribute("x", String(colX)); b.setAttribute("y", String(cy + 104));
+      b.textContent = bits;
+      cell.parentNode?.appendChild(head);
+      cell.parentNode?.appendChild(b);
+    });
+  });
 }
 
 const T = (id: string) => document.getElementById(id) as HTMLElement;

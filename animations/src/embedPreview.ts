@@ -193,6 +193,8 @@ function ensureEmbedStyle() {
        governs every embed on every page. */
     .embed text { display: none; }
     .embed text.tlabel, .embed text.tlabel-mini { display: inline; fill: #cbcbcb; }
+    /* instruction-encoding inspector (annotateImemProgram): assembly + field columns */
+    .embed text.word-val, .embed text.enc-head, .embed text.enc-bits { display: inline; }
     .embed .tbody[data-on="1"] + text.tlabel,
     .embed .tbody-mini[data-on="1"] + text.tlabel-mini { fill: var(--on); }
   `;

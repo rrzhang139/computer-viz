@@ -9,7 +9,7 @@ import { initProseHighlight } from "./proseHighlight";
 import { datapath, x, y, type Bit, type Pt } from "./lib/datapath";
 import {
   CPU_BASE_COLORS, SEED, asBits4, decodeInstr,
-  routeCpuTrunk, renderCpuTrunk, renderReadout, bindCpuControls, bindTrunkDrills,
+  routeCpuTrunk, renderCpuTrunk, renderReadout, bindCpuControls, bindTrunkDrills, annotateImemProgram
 } from "./lib/cpuShared";
 
 // CPU — a single-cycle R-type datapath where EVERY block is a live drill into
@@ -51,6 +51,7 @@ let clk: Bit = 0;
 
 // ── Embed every child page; route the shared trunk + the direct write-back. ──
 const embeds = autoFillEmbeds(svg);
+annotateImemProgram(PROGRAM, (i) => `${OP_NAMES[i.op]} r${i.rd},r${i.rs1},r${i.rs2}`);
 const IM: Record<string, Pt> = embeds.get("slot-imem") || {};
 const IDEC: Record<string, Pt> = embeds.get("slot-idecode") || {};
 const RF: Record<string, Pt> = embeds.get("slot-regfile") || {};

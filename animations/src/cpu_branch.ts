@@ -8,7 +8,7 @@ import { applyWireColors } from "./wireColors";
 import { initProseHighlight } from "./proseHighlight";
 import { datapath, x, y, type Bit, type Pt } from "./lib/datapath";
 import {
-  CPU_BASE_COLORS, CPU_TERMS, SEED, asBits4, ctrlOf, decodeInstr, hiLo,
+  CPU_BASE_COLORS, CPU_TERMS, SEED, asBits4, ctrlOf, decodeInstr, hiLo, annotateImemProgram,
   routeCpuTrunk, renderCpuTrunk, renderReadout, bindCpuControls, bindTrunkDrills,
   type Instr,
 } from "./lib/cpuShared";
@@ -32,7 +32,7 @@ const { R, stub, setupPulses, setNet, setPin, setBody, lightEmbed } = tk;
 // AND r3,r0,r1 → r3=1 ; BEQ r0,r1,→3 (r0==r1 → TAKEN, skips pc2) ;
 // ADD r2,r0,r1 → the victim: never runs, r2 stays 0 ; XOR r3,r0,r1 → r3=0.
 const OP_NAMES = ["ADD", "AND", "OR", "XOR"];
-const PROGRAM = ["0001000111", "0100000111", "0000000110", "0011000111"];
+const PROGRAM = ["0001000111", "0100000110", "0000000110", "0011000111"];
 const rtype = (a: Bit, b: Bit, op: number): Bit =>
   [(a ^ b) as Bit, (a & b) as Bit, (a | b) as Bit, (a ^ b) as Bit][op];
 
@@ -104,8 +104,8 @@ if (PS.pinPcsrc && PC.pinPcsrc) {
 // Branch target: the rd field loops BACK into fetch — the wire that makes a
 // branch a branch. Rides the y=500/512 lanes above the decoder, then climbs
 // the far-left edge into the PC MUX's in1.
-R("wTgt1", [IDEC.pinWaddr, x(1486, IDEC.pinWaddr), { x: 1486, y: 500 }, { x: 20, y: 500 }, PC.pinT1 && y(PC.pinT1.y, { x: 20, y: 0 }), PC.pinT1], [PC.pinT1]);
-R("wTgt0", [{ x: 1486, y: 512 }, { x: 8, y: 512 }, PC.pinT0 && y(PC.pinT0.y, { x: 8, y: 0 }), PC.pinT0], [PC.pinT0]);
+R("wImm1", [IDEC.pinWaddr, x(1486, IDEC.pinWaddr), { x: 1486, y: 500 }, { x: 20, y: 500 }, PC.pinImm1 && y(PC.pinImm1.y, { x: 20, y: 0 }), PC.pinImm1], [PC.pinImm1]);
+R("wImm0", [{ x: 1486, y: 512 }, { x: 8, y: 512 }, PC.pinImm0 && y(PC.pinImm0.y, { x: 8, y: 0 }), PC.pinImm0], [PC.pinImm0]);
 
 // ── MEM (data memory) + write-back MUX — carried over from cpu_ldst ────────
 R("wAluY", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1368 }, { x: 3160, y: 1368 }, x(3160, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
@@ -135,7 +135,8 @@ applyWireColors(svg, {
   memdata: "#7ee0ff",
   memwrite: "#ffcf3a", memtoreg: "#ffcf3a",
   branch: "#ffcf3a", pcsrc: "#ffcf3a",          // control — amber
-  tgt1: "#ff6fae", tgt0: "#ff6fae",             // branch target = the rd field — pink
+  imm1: "#ff6fae", imm0: "#ff6fae",             // the imm field (rd slot) — pink
+  tgt1: "#6f8cff", tgt0: "#6f8cff",             // computed target = a PC value — blue
   pcnext: "#6f8cff", pcsel: "#6f8cff",
 });
 
@@ -143,10 +144,12 @@ const setCtrl = (net: string, on: number) =>
   svg.querySelectorAll<SVGElement>(`.ctrl-wire[data-net="${net}"]`).forEach((e) => e.setAttribute("data-on", String(on)));
 
 const asmText = (i: Instr) =>
-  i.opc === 1 ? `BEQ r${i.rs1},r${i.rs2},→${i.rd}`
+  i.opc === 1 ? `BEQ r${i.rs1},r${i.rs2},${i.imm >= 0 ? "+" : ""}${i.imm}`
   : i.opc === 2 ? `LW r${i.rd},(r${i.rs1})`
   : i.opc === 3 ? `SW r${i.rs2},(r${i.rs1})`
   : `${OP_NAMES[i.op]} r${i.rd},r${i.rs1},r${i.rs2}`;
+
+annotateImemProgram(PROGRAM, asmText);
 
 function render() {
   const i = decodeInstr(PROGRAM[pc]);
@@ -154,23 +157,25 @@ function render() {
   const A = regs[i.rs1], B = regs[i.rs2];
   const Y = aluResult(A, B, i);
   const pcsrc = pcsrcOf(i, Y);
-  const [t1, t0] = hiLo(i.rd);
+  const target = (pc + i.imm) & 0b11;
+  const [t1, t0] = hiLo(i.imm < 0 ? i.imm + 4 : i.imm);   // raw imm field bits
   const memData = mem[Y] as Bit;
   const wbVal = (c.memToReg ? memData : Y) as Bit;
 
   // The control unit forces the ALU op to XOR for a branch (P&H ALUOp) — the
   // trunk renders the op the ALU actually receives, not the raw func field.
   const iEff = c.branch ? { ...i, op: 3 } : i;
-  const { a1, a0 } = renderCpuTrunk(tk, { clk, pc, i: iEff, A, B, Y, regs, we: c.regWrite, wdata: wbVal });
+  const { a1, a0 } = renderCpuTrunk(tk, { clk, pc, i: iEff, iRaw: i, A, B, Y, regs, we: c.regWrite, wdata: wbVal });
 
   // branch stage: target bus, control lines, the PCSrc decision, PC MUX preview
-  setNet("tgt1", (c.branch ? t1 : 0) as Bit); setNet("tgt0", (c.branch ? t0 : 0) as Bit);
+  setNet("imm1", (c.branch ? t1 : 0) as Bit); setNet("imm0", (c.branch ? t0 : 0) as Bit);
   setNet("branch", c.branch);
   setNet("pcsrc", pcsrc);
   lightEmbed("pcDetail", {
-    clk, pcsrc, tgt1: (c.branch ? t1 : 0), tgt0: (c.branch ? t0 : 0),
+    clk, pcsrc, imm1: (c.branch ? t1 : 0), imm0: (c.branch ? t0 : 0),
+    tgt1: (c.branch ? (target >> 1) & 1 : 0), tgt0: (c.branch ? target & 1 : 0),
     pcnext: 1, pcsel: 1, addr1: (pc >> 1) & 1, addr0: pc & 1, zero: 0,
-  }, { gAdd: 1, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1 });
+  }, { gAdd: 1, gTAdd: c.branch, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1, gMux1: 1 });
   setCtrl("branch", c.branch); setCtrl("pcsrc", pcsrc);
   setBody("gPcsrc", pcsrc);
   setNet("pcsel", 1);
@@ -226,7 +231,7 @@ bindCpuControls({
     if (c.memWrite) mem[Y] = B;
     if (c.regWrite) regs[i.rd] = (c.memToReg ? mem[Y] : Y) as Bit;
     skipped = pcsrc ? (pc + 1) & 0b11 : -1;
-    pc = pcsrc ? i.rd & 0b11 : (pc + 1) & 0b11;
+    pc = pcsrc ? (pc + i.imm) & 0b11 : (pc + 1) & 0b11;
   },
   reset: () => {
     pc = 0; skipped = -1;

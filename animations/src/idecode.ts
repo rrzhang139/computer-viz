@@ -111,7 +111,7 @@ function render() {
   T('fldOp').textContent = branch ? '= XOR ←ctrl' : `= ${OP_NAMES[op]}`;
   T('fldA').textContent = `= r${rs1}`;
   T('fldB').textContent = `= r${rs2}`;
-  T('fldW').textContent = `= r${rd}`;
+  T('fldW').textContent = (oc === 1 || oc === 3) ? `= imm ${rd >= 2 ? rd - 4 : (rd === 0 ? '+0' : '+1')}` : `= r${rd}`;
 
   T('instrBits').textContent = `${v[0]}${v[1]}·${v[2]}${v[3]}·${v[4]}${v[5]}·${v[6]}${v[7]}·${v[8]}${v[9]}`;
   T('opName').textContent = `${v[0]}${v[1]} (${kindName === 'R' ? OP_NAMES[op] : kindName})`;

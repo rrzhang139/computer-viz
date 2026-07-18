@@ -8,7 +8,7 @@ import { applyWireColors } from "./wireColors";
 import { initProseHighlight } from "./proseHighlight";
 import { datapath, x, y, type Bit, type Pt } from "./lib/datapath";
 import {
-  CPU_BASE_COLORS, CPU_TERMS, SEED, asBits4, ctrlOf, decodeInstr,
+  CPU_BASE_COLORS, CPU_TERMS, SEED, asBits4, ctrlOf, decodeInstr, annotateImemProgram,
   routeCpuTrunk, renderCpuTrunk, renderReadout, bindCpuControls, bindTrunkDrills,
   type Instr,
 } from "./lib/cpuShared";
@@ -56,6 +56,10 @@ let clk: Bit = 0;
 
 // ── Embed every child page; route the trunk + the memory stage. ─────────────
 const embeds = autoFillEmbeds(svg);
+annotateImemProgram(PROGRAM, (i) =>
+  i.opc === 2 ? `LW r${i.rd},(r${i.rs1})`
+  : i.opc === 3 ? `SW r${i.rs2},(r${i.rs1})`
+  : `${OP_NAMES[i.op]} r${i.rd},r${i.rs1},r${i.rs2}`);
 const IM: Record<string, Pt> = embeds.get("slot-imem") || {};
 const IDEC: Record<string, Pt> = embeds.get("slot-idecode") || {};
 const RF: Record<string, Pt> = embeds.get("slot-regfile") || {};

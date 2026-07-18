@@ -17,7 +17,7 @@ const svg = document.getElementById("branchpc") as unknown as SVGSVGElement;
 const tk = datapath(svg);
 const { R, stub, setupPulses, setNet, setPin, setBody, lightEmbed } = tk;
 
-type Snap = { pc: number; pcsrc: Bit; t1: Bit; t0: Bit };
+type Snap = { pc: number; pcsrc: Bit; t1: Bit; t0: Bit };   // t1/t0 = the imm field bits
 const SNAP_KEY = "branchpc";
 const _s = loadSnapshot<Snap>(SNAP_KEY);
 let pc = (Number(_s?.pc) || 0) & 0b11;
@@ -31,15 +31,15 @@ const embeds = autoFillEmbeds(svg);
 const MX: Record<string, Pt> = embeds.get("slot-pcmux") || {};
 
 const PCSRC_IN = { x: 60, y: 60 };
-const T1_IN = { x: 60, y: 260 }, T0_IN = { x: 60, y: 320 };
-const ADD_OUT1 = { x: 420, y: 288 }, ADD_OUT0 = { x: 420, y: 420 };
+const ADD_OUT1 = { x: 420, y: 240 }, ADD_OUT0 = { x: 420, y: 300 };
+const TADD_OUT1 = { x: 420, y: 430 }, TADD_OUT0 = { x: 420, y: 490 };
 const REG_D = { x: 1040, y: 370 };
 
 // select rides the top lane and drops onto the embedded MUX's s0 pin
 R("wPcsrcSel", [PCSRC_IN, x(940, PCSRC_IN), x(940, MX.pinS0), MX.pinS0], [MX.pinS0]);
-// tgt0 lands on the embedded slice's in1; tgt1 enters bit 1's twin block
-R("wTgt1", [T1_IN, x(508, T1_IN), { x: 508, y: 100 }, { x: 560, y: 100 }]);
-R("wTgt0", [T0_IN, x(520, T0_IN), MX.pinIn1 && y(MX.pinIn1.y, { x: 520, y: 0 }), MX.pinIn1], [MX.pinIn1]);
+// computed target (PC + imm): bit 0 → the embedded slice's in1; bit 1 → twin
+R("wTgt1", [TADD_OUT1, x(520, TADD_OUT1), { x: 520, y: 100 }, { x: 560, y: 100 }]);
+R("wTgt0", [TADD_OUT0, x(496, TADD_OUT0), MX.pinIn1 && y(MX.pinIn1.y, { x: 496, y: 0 }), MX.pinIn1], [MX.pinIn1]);
 // +1 result: bit 0 → the embedded slice's in0; bit 1 → the twin block
 R("wPcnext", [ADD_OUT1, x(472, ADD_OUT1), { x: 472, y: 124 }, { x: 560, y: 124 }]);
 R("wPcnext0", [ADD_OUT0, x(448, ADD_OUT0), MX.pinIn0 && y(MX.pinIn0.y, { x: 448, y: 0 }), MX.pinIn0], [MX.pinIn0]);
@@ -54,7 +54,8 @@ setupPulses();
 applyWireColors(svg, {
   clk: "#56ccf2",
   pcsrc: "#ffcf3a",                    // control — amber
-  tgt1: "#ff6fae", tgt0: "#ff6fae",    // branch target = the rd field — pink
+  imm1: "#ff6fae", imm0: "#ff6fae",    // the imm field (rd slot) — pink
+  tgt1: "#6f8cff", tgt0: "#6f8cff",    // computed target = a PC value — blue
   pcnext: "#6f8cff", pcsel: "#6f8cff", // PC values — blue
   addr1: "#6f8cff", addr0: "#6f8cff",
 });
@@ -67,33 +68,36 @@ const setBtn = (id: string, label: string, v: Bit) => {
 
 function render() {
   const next = (pc + 1) & 0b11;
-  const tgt = t1 * 2 + t0;
+  const simm = t1 * 2 + t0 >= 2 ? t1 * 2 + t0 - 4 : t1 * 2 + t0;   // signed 2-bit imm
+  const tgt = (pc + simm) & 0b11;                                   // PC-relative target
   const pick = pcsrc ? tgt : next;
   const [a1, a0] = [(pc >> 1) & 1, pc & 1] as [Bit, Bit];
 
   setNet("clk", clk); setPin("pinClk", clk);
   setNet("pcsrc", pcsrc); setPin("pinPcsrc", pcsrc);
-  setNet("tgt1", t1); setPin("pinT1", t1);
-  setNet("tgt0", t0); setPin("pinT0", t0);
+  setNet("imm1", t1); setPin("pinImm1", t1);
+  setNet("imm0", t0); setPin("pinImm0", t0);
+  setNet("tgt1", (tgt >> 1) & 1); setNet("tgt0", tgt & 1);
   setNet("pcnext", 1);
   setNet("pcsel", 1);
   setNet("addr1", a1); setPin("pinA1", a1);
   setNet("addr0", a0); setPin("pinA0", a0);
   setNet("zero", 0);
-  setBody("gAdd", 1); setBody("gReg", (pc !== 0 ? 1 : 0) as Bit); setBody("gPcmux", 1); setBody("gMux1", 1);
+  setBody("gAdd", 1); setBody("gTAdd", 1); setBody("gReg", (pc !== 0 ? 1 : 0) as Bit); setBody("gPcmux", 1); setBody("gMux1", 1);
 
   // the embedded MUX slice shows the low bit's traffic
-  const in0 = next & 1, in1 = t0;
+  const in0 = next & 1, in1 = tgt & 1;
   const out = pick & 1;
   lightEmbed("pcmuxDetail", {
     in0, in1, in2: 0, in3: 0, s1: 0, s0: pcsrc,
     [`sel${pcsrc ? 1 : 0}`]: 1, [`andOut${pcsrc ? 1 : 0}`]: out, out,
   }, { [`gAnd${pcsrc ? 1 : 0}`]: 1, gOr: 1, gDecoder: 1 });
 
-  setBtn("btnPcsrc", "PCSrc", pcsrc); setBtn("btnT1", "t₁", t1); setBtn("btnT0", "t₀", t0);
+  setBtn("btnPcsrc", "PCSrc", pcsrc); setBtn("btnT1", "imm₁", t1); setBtn("btnT0", "imm₀", t0);
   T("rPc").textContent = `${a1}${a0}`;
   T("rNext").textContent = `${(next >> 1) & 1}${next & 1}`;
-  T("rTgt").textContent = `${t1}${t0}`;
+  T("rImm").textContent = `${simm >= 0 ? "+" : ""}${simm}`;
+  T("rTgt").textContent = `${(tgt >> 1) & 1}${tgt & 1}`;
   T("rPick").textContent = `${(pick >> 1) & 1}${pick & 1} (${pcsrc ? "target" : "+1"})`;
 }
 
@@ -105,7 +109,8 @@ document.getElementById("btnPulse")!.addEventListener("click", () => {
   busy = true;
   clk = 1; render();
   setTimeout(() => {
-    pc = pcsrc ? t1 * 2 + t0 : (pc + 1) & 0b11;
+    const simm = t1 * 2 + t0 >= 2 ? t1 * 2 + t0 - 4 : t1 * 2 + t0;
+    pc = pcsrc ? (pc + simm) & 0b11 : (pc + 1) & 0b11;
     clk = 0; render(); persist();
     busy = false;
   }, 320);
