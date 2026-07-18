@@ -59,6 +59,20 @@ const DATAPATH: Entry[] = [
       { href: "/mux.html",      label: "write-back MUX",       tag: "g" },
     ],
   },
+  // The branch CPU = the load/store core plus a PC-source MUX and the taken
+  // logic — the machine chooses its next instruction.
+  {
+    href: "/cpu_branch.html", label: "CPU · branch (beq)", tag: "11", children: [
+      { href: "/cpu_branch.html", label: "overview",            tag: "·" },
+      { href: "/counter.html",    label: "PC · program counter", tag: "a" },
+      { href: "/mem.html",        label: "instruction memory",   tag: "b" },
+      { href: "/idecode.html",    label: "instruction decoder",  tag: "c" },
+      { href: "/regfile.html",    label: "register file",        tag: "d" },
+      { href: "/alu1.html",       label: "ALU",                  tag: "e" },
+      { href: "/dmem.html",       label: "data memory",          tag: "f" },
+      { href: "/mux.html",        label: "write-back MUX",       tag: "g" },
+    ],
+  },
 ];
 
 const CSS = `

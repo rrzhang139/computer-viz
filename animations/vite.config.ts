@@ -27,6 +27,7 @@ export default defineConfig({
         fetch:      resolve(__dirname, 'fetch.html'),
         cpu:        resolve(__dirname, 'cpu.html'),
         cpu_ldst:   resolve(__dirname, 'cpu_ldst.html'),
+        cpu_branch: resolve(__dirname, 'cpu_branch.html'),
       },
     },
   },
