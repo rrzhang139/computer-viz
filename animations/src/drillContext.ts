@@ -32,6 +32,11 @@ export function buildDrillUrl(
   for (const [k, v] of Object.entries(params)) {
     u.searchParams.set(k, String(v));
   }
+  // Prose lock: if THIS page is already showing a parent lesson's prose
+  // (arrived via drill), keep drilling under that same lesson — the root
+  // parent's `from` wins over the immediate page's.
+  const inherited = new URLSearchParams(window.location.search).get('from');
+  if (inherited) u.searchParams.set('from', inherited);
   return u.toString();
 }
 

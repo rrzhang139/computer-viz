@@ -1,4 +1,5 @@
 import { loadSnapshot, saveSnapshot } from './drillContext';
+import { PAGE_RAW } from './embedPreview';
 import { getZoomController } from './canvasZoom';
 
 // Step walkthrough nav — the ONE shared implementation for every page.
@@ -24,7 +25,31 @@ import { getZoomController } from './canvasZoom';
 //
 //  • data-stage="fetch" + ?stage=fetch (or ?step=N) — deep-link straight to a
 //    step. Powers /cpu/<stage> sub-views that reuse this same prose, focused.
+// ── Prose lock (drill-down) ─────────────────────────────────────────────────
+// Drilling into a component keeps the PARENT lesson's prose: the child page
+// has no prose of its own in that mode — its step panel adopts the parent's
+// steps verbatim (interaction hooks stripped: they name parent-page elements)
+// and shares the parent's saved step, so going back resumes exactly where the
+// reader was. Returns the parent's page stem when adopted.
+function adoptParentSteps(): string | null {
+  const from = new URLSearchParams(window.location.search).get('from');
+  if (!from) return null;
+  const raw = PAGE_RAW[`/${from}.html`] ?? (from === 'index' || from === 'gate' ? PAGE_RAW['/index.html'] : undefined);
+  if (!raw) return null;
+  const mine = document.querySelector<HTMLElement>('.step-bodies');
+  if (!mine) return null;
+  const doc = new DOMParser().parseFromString(raw, 'text/html');
+  const theirs = doc.querySelector('.step-bodies');
+  if (!theirs) return null;
+  for (const el of Array.from(theirs.querySelectorAll('[data-hl], [data-hl-focus], [data-gate], [data-gate-event], [data-focus], [data-pc], [data-stage]'))) {
+    for (const a of ['data-hl', 'data-hl-focus', 'data-gate', 'data-gate-event', 'data-focus', 'data-pc', 'data-stage']) el.removeAttribute(a);
+  }
+  mine.innerHTML = theirs.innerHTML;
+  return from;
+}
+
 export function initSteps(opts: { onStepShow?: (step: HTMLElement) => void } = {}) {
+  const lockedTo = adoptParentSteps();
   const steps = Array.from(document.querySelectorAll<HTMLElement>('.step'));
   if (steps.length === 0) return;
   const stepPrev = document.getElementById('stepPrev') as HTMLButtonElement;
@@ -33,7 +58,7 @@ export function initSteps(opts: { onStepShow?: (step: HTMLElement) => void } = {
   const stepCount = document.getElementById('stepCount')!;
   const stepPanel = document.querySelector<HTMLElement>('.step-panel')!;
   const stepBodies = document.querySelector<HTMLElement>('.step-bodies')!;
-  const page = window.location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'index';
+  const page = lockedTo ?? (window.location.pathname.replace(/^\//, '').replace(/\.html$/, '') || 'index');
   const STEP_KEY = `${page}:step`;
   stepCount.textContent = ` / ${steps.length}`;
 

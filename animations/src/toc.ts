@@ -204,15 +204,20 @@ export function pageTitle(path: string): string {
   return path.replace(/^\//, "").replace(/\.html$/, "") || "index";
 }
 
-function renderEntry(e: Entry, currentPath: string): string {
+function renderEntry(e: Entry, currentPath: string, fromStem?: string): string {
   const active = pathMatches(e.href, currentPath);
   const aria = active ? ` aria-current="page"` : "";
-  const link = `<a href="${e.href}"${aria}><span class="toc-tag">${e.tag}.</span><span>${e.label}</span></a>`;
+  // Subpages of a lesson hub link WITH the lesson's drill context, so the
+  // parent's prose stays locked in the step panel (steps.ts adoptParentSteps).
+  const href = fromStem && !active && e.href !== `/${fromStem}.html`
+    ? `${e.href}?from=${fromStem}` : e.href;
+  const link = `<a href="${href}"${aria}><span class="toc-tag">${e.tag}.</span><span>${e.label}</span></a>`;
   if (!e.children) return `<li>${link}</li>`;
   // Expandable group: open when on this page or any of its subpages.
   const childActive = e.children.some((c) => pathMatches(c.href, currentPath));
   const open = active || childActive ? " open" : "";
-  const kids = e.children.map((c) => renderEntry(c, currentPath)).join("");
+  const stem = e.href.replace(/^\//, "").replace(/\.html$/, "") || "index";
+  const kids = e.children.map((c) => renderEntry(c, currentPath, stem)).join("");
   return `<li><details class="toc-drop"${open}>` +
     `<summary class="toc-summary"><span class="toc-tag">${e.tag}.</span><span>${e.label}</span></summary>` +
     `<ul class="toc-list toc-sublist">${kids}</ul></details></li>`;
@@ -283,7 +288,10 @@ export function initToc() {
   if (meta && !meta.querySelector(".step-page-name")) {
     const name = document.createElement("span");
     name.className = "step-page-name";
-    name.textContent = pageTitle(path);
+    const from = new URLSearchParams(window.location.search).get("from");
+    name.textContent = from
+      ? `${pageTitle(`/${from === "gate" ? "" : from + ".html"}`)} ▸ ${pageTitle(path)}`
+      : pageTitle(path);
     const sep = document.createElement("span");
     sep.className = "step-page-sep";
     sep.textContent = " · ";

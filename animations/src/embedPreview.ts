@@ -30,6 +30,11 @@ import dmemRaw from '../dmem.html?raw';
 import idecodeRaw from '../idecode.html?raw';
 import pcsrcRaw from '../pcsrc.html?raw';
 import branchpcRaw from '../branchpc.html?raw';
+// Prose-holder parents: not embeddable scenes, but their walkthrough steps are
+// adopted by child pages drilled from them (steps.ts adoptParentSteps).
+import cpuRaw from '../cpu.html?raw';
+import cpuLdstRaw from '../cpu_ldst.html?raw';
+import cpuBranchRaw from '../cpu_branch.html?raw';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -54,6 +59,9 @@ export const PAGE_RAW: Record<string, string> = {
   '/idecode.html': idecodeRaw,
   '/pcsrc.html': pcsrcRaw,
   '/branchpc.html': branchpcRaw,
+  '/cpu.html': cpuRaw,
+  '/cpu_ldst.html': cpuLdstRaw,
+  '/cpu_branch.html': cpuBranchRaw,
 };
 
 // Some pages build their diagram at runtime from a shared scene module rather
