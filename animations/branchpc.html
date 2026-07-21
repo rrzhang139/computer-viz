@@ -35,6 +35,7 @@
       .btn-pulse:hover { background: rgba(239, 159, 39, 0.22); }
       svg { display: block; background: var(--bg); max-width: 100%; max-height: 60vh; width: 100%; height: auto; }
       .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire.bus { stroke-width: 7; }
       .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
       .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
       .pulse[data-on="1"] { opacity: 0.95; }
@@ -89,7 +90,7 @@
           per-bit slice; this PC is 2 bits = two such slices).
           Wireframe: wire_sketches/layer22_branchpc.md.
         -->
-        <svg id="branchpc" viewBox="-40 -30 1560 1240" role="img"
+        <svg id="branchpc" viewBox="-40 -30 1740 1240" role="img"
              aria-label="branching program counter built from real components: two 4-bit adders, a PC-source MUX, and a register"
              preserveAspectRatio="xMidYMid meet">
           <!-- inputs -->
@@ -137,20 +138,22 @@
           <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="60,60 590,60 590,505 640,505" />
           <polyline class="wire" data-net="imm1"   id="wImm1" points="60,760 140,760" />
           <polyline class="wire" data-net="imm0"   id="wImm0" points="60,816 140,816" />
-          <polyline class="wire" data-net="clk"    id="wClk" points="60,1160 1470,1160 1470,250 1220,250 1220,300" />
-          <polyline class="wire" data-net="pcnext" id="wPcnext" points="520,355 560,355 560,430 640,430" />
-          <polyline class="wire" data-net="target" id="wTgt" points="520,885 604,885 604,590 640,590" />
+          <polyline class="wire" data-net="clk"    id="wClk" points="60,1160 1660,1160 1660,250 1220,250 1220,300" />
+          <polyline class="wire bus" data-net="pcnext" id="wPcnext" points="520,355 560,355 560,430 640,430" />
+          <text class="tlabel-small" x="592" y="404">/2</text>
+          <polyline class="wire bus" data-net="target" id="wTgt" points="520,885 604,885 604,590 640,590" />
+          <text class="tlabel-small" x="628" y="628">/2</text>
           <polyline class="wire" data-net="pcsel"  id="wPcsel" points="940,510 1030,510" />
-          <polyline class="wire" data-net="addr1"  id="wQ1out" points="1410,540 1500,540" />
-          <polyline class="wire" data-net="addr0"  id="wQ0out" points="1410,600 1500,600" />
-          <polyline class="wire" data-net="addr1"  id="wFb" points="1410,540 1530,540 1530,1120 100,1120 100,355 140,355" />
+          <polyline class="wire" data-net="addr1"  id="wQ1out" points="1410,540 1490,540" />
+          <polyline class="wire" data-net="addr0"  id="wQ0out" points="1410,600 1490,600" />
+          <polyline class="wire" data-net="addr1"  id="wFb" points="1410,540 1628,540 1628,1120 100,1120 100,355 140,355" />
           <polyline class="wire" data-net="addr1"  id="wFbT" points="100,885 140,885" />
 
           <!-- outputs (right): the fetch address -->
-          <circle class="pin" id="pinA1" cx="1500" cy="540" r="7" />
-          <text class="tlabel-small" data-pin="pinA1" text-anchor="start" x="1518" y="540">addr1</text>
-          <circle class="pin" id="pinA0" cx="1500" cy="600" r="7" />
-          <text class="tlabel-small" data-pin="pinA0" text-anchor="start" x="1518" y="600">addr0</text>
+          <circle class="pin" id="pinA1" cx="1490" cy="540" r="7" />
+          <text class="tlabel-small" data-pin="pinA1" text-anchor="start" x="1508" y="516">addr1</text>
+          <circle class="pin" id="pinA0" cx="1490" cy="600" r="7" />
+          <text class="tlabel-small" data-pin="pinA0" text-anchor="start" x="1508" y="624">addr0</text>
         </svg>
       </div>
 
