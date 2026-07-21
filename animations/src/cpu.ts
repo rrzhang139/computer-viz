@@ -61,6 +61,10 @@ routeCpuTrunk(R, { IM, IDEC, RF, AL });
 // The decoder's control outputs (memToReg / memWrite) leave the embedded
 // decoder but land on n/c dots: an R-type core has no data memory, so nothing
 // consumes them yet — the load/store page is where they get their consumers.
+if (IDEC.pinJump) {
+  R("wCtlJump", [IDEC.pinJump, { x: 1452, y: IDEC.pinJump.y }, { x: 1452, y: 1032 }]);
+  tk.srcTerm({ x: 1452, y: 1032 }, "Jump — n/c");
+}
 if (IDEC.pinBranch) {
   const br = IDEC.pinBranch;
   R("wCtlBranch", [br, { x: 1416, y: br.y }, { x: 1416, y: 1068 }]);

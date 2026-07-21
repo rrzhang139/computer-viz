@@ -149,6 +149,11 @@
           <polyline class="wire" data-net="addr1"  id="wFb" points="1410,540 1628,540 1628,1120 100,1120 100,355 140,355" />
           <polyline class="wire" data-net="addr1"  id="wFbT" points="100,885 140,885" />
 
+          <!-- the link tap: PC+1 leaves the block for a jump's write-back -->
+          <polyline class="wire" data-net="pcnext" id="wPcp1" points="560,430 560,1060 1700,1060 1700,980" />
+          <circle class="pin" id="pinPcnext" cx="1700" cy="980" r="7" />
+          <text class="tlabel-small" data-pin="pinPcnext" text-anchor="start" x="1666" y="952">PC+1 (link)</text>
+
           <!-- outputs (right): the fetch address -->
           <circle class="pin" id="pinA1" cx="1490" cy="540" r="7" />
           <text class="tlabel-small" data-pin="pinA1" text-anchor="start" x="1508" y="516">addr1</text>

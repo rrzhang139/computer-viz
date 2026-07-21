@@ -79,7 +79,8 @@ function render() {
   const oc = v[0] * 2 + v[1], op = v[2] * 2 + v[3];
   const rs1 = v[4] * 2 + v[5], rs2 = v[6] * 2 + v[7], rd = v[8] * 2 + v[9];
   // the control unit: truth-table rows keyed on the opcode pattern
-  const branch   = (oc === 1 ? 1 : 0) as Bit;   // 01 = BEQ
+  const branch   = (oc === 1 && op <= 1 ? 1 : 0) as Bit;   // 01,f0x = BEQ/BNE
+  const jump     = (oc === 1 && op === 2 ? 1 : 0) as Bit;  // 01,f10 = JAL
   const memToReg = (oc === 2 ? 1 : 0) as Bit;   // 10 = LW
   const memWrite = (oc === 3 ? 1 : 0) as Bit;   // 11 = SW
 
@@ -92,7 +93,8 @@ function render() {
   setNet('instr', on(oc | op | rs1 | rs2 | rd));
   setNet('opcode', on(oc));
   setNet('op', on(aluOp)); setNet('raddrA', on(rs1)); setNet('raddrB', on(rs2)); setNet('waddr', on(rd));
-  setNet('branch', branch); setNet('memtoreg', memToReg); setNet('memwrite', memWrite);
+  setNet('branch', branch); setNet('jump', jump); setNet('memtoreg', memToReg); setNet('memwrite', memWrite);
+  document.getElementById('gCtlJump')?.setAttribute('data-on', String(jump));
   document.getElementById('gCtlBranch')?.setAttribute('data-on', String(branch));
   document.getElementById('gCtlMemToReg')?.setAttribute('data-on', String(memToReg));
   document.getElementById('gCtlMemWrite')?.setAttribute('data-on', String(memWrite));
@@ -102,11 +104,12 @@ function render() {
   document.getElementById('pinRaddrB')?.setAttribute('data-on', String(on(rs2)));
   document.getElementById('pinWaddr')?.setAttribute('data-on', String(on(rd)));
   document.getElementById('pinBranch')?.setAttribute('data-on', String(branch));
+  document.getElementById('pinJump')?.setAttribute('data-on', String(jump));
   document.getElementById('pinMemToReg')?.setAttribute('data-on', String(memToReg));
   document.getElementById('pinMemWrite')?.setAttribute('data-on', String(memWrite));
 
   // per-field decoded meaning, shown in the diagram beside each field
-  const kindName = oc === 2 ? 'LW' : oc === 3 ? 'SW' : oc === 1 ? 'BEQ' : 'R';
+  const kindName = oc === 2 ? 'LW' : oc === 3 ? 'SW' : oc === 1 ? (op === 2 ? 'JAL' : op === 1 ? 'BNE' : 'BEQ') : 'R';
   T('fldOc').textContent = `= ${kindName}`;
   T('fldOp').textContent = branch ? '= XOR ←ctrl' : `= ${OP_NAMES[op]}`;
   T('fldA').textContent = `= r${rs1}`;
@@ -117,7 +120,7 @@ function render() {
   T('opName').textContent = `${v[0]}${v[1]} (${kindName === 'R' ? OP_NAMES[op] : kindName})`;
   T('readBits').textContent = `A=${v[4]}${v[5]} B=${v[6]}${v[7]}`;
   T('writeBits').textContent = `${v[8]}${v[9]}`;
-  T('ctlBits').textContent = `branch=${branch} memToReg=${memToReg} memWrite=${memWrite}`;
+  T('ctlBits').textContent = `branch=${branch} jump=${jump} memToReg=${memToReg} memWrite=${memWrite}`;
 }
 
 function persist() { saveSnapshot<Snap>(SNAP_KEY, { v: [...v] as Bit[] }); }

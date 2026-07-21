@@ -56,11 +56,14 @@
       <div class="canvas-col">
         <div class="controls">
           <button class="btn" id="btnBranch" data-on="0">Branch 0</button>
+          <button class="btn" id="btnJump" data-on="0">Jump 0</button>
           <button class="btn" id="btnResult" data-on="0">result 0</button>
           <button class="btn btn-reset" id="btnReset">↺ reset</button>
         </div>
         <div class="out-readout">
           <span class="label">Branch</span><span class="bits" id="rBranch">0</span>
+          <span class="sep">·</span>
+          <span class="label">Jump</span><span class="bits" id="rJump">0</span>
           <span class="sep">·</span>
           <span class="label">ALU result</span><span class="bits" id="rResult">0</span>
           <span class="sep">·</span>
@@ -83,6 +86,8 @@
           <polyline class="wire" data-net="GND" points="0,600 1420,600" />
 
           <!-- inputs (left) -->
+          <circle class="pin" id="pinJump" cx="60" cy="60" r="7" />
+          <text class="tlabel-small" data-pin="pinJump" text-anchor="end" x="42" y="60">Jump</text>
           <circle class="pin" id="pinBranch" cx="60" cy="180" r="7" />
           <text class="tlabel-small" data-pin="pinBranch" text-anchor="end" x="42" y="180">Branch</text>
           <circle class="pin" id="pinResult" cx="60" cy="440" r="7" />
@@ -106,15 +111,22 @@
           <text class="tlabel" x="855" y="330">AND</text>
           <text class="tlabel-small" x="875" y="452">PCSrc = Branch · Zero</text>
 
+          <!-- the AND's verdict ("a taken conditional branch") meets Jump at an OR -->
+          <polyline class="wire" data-net="bz" points="990,330 1060,330" />
+          <polyline class="wire" data-net="jump" points="60,60 1020,60 1020,250 1060,250" />
+          <path class="tbody" id="gOr" d="M 1060 210 C 1130 210 1170 250 1200 290 C 1170 330 1130 370 1060 370 C 1090 330 1090 250 1060 210 Z" />
+          <text class="tlabel" x="1120" y="290">OR</text>
+          <text class="tlabel-small" x="1128" y="404">unconditional? then go</text>
+
           <!-- output (right) -->
-          <polyline class="wire" data-net="pcsrc" points="990,330 1240,330" />
-          <circle class="pin" id="pinPcsrc" cx="1240" cy="330" r="7" />
-          <text class="tlabel-small" data-pin="pinPcsrc" text-anchor="start" x="1258" y="330">PCSrc</text>
+          <polyline class="wire" data-net="pcsrc" points="1200,290 1330,290" />
+          <circle class="pin" id="pinPcsrc" cx="1330" cy="290" r="7" />
+          <text class="tlabel-small" data-pin="pinPcsrc" text-anchor="start" x="1348" y="290">PCSrc</text>
         </svg>
       </div>
 
       <aside class="step-panel">
-        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 4</span></div>
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span></div>
         <div class="step-nav">
           <button class="btn" id="stepPrev">← prev</button>
           <button class="btn" id="stepNext">next →</button>
@@ -134,6 +146,11 @@
             <h3>the AND gate — both conditions, or nothing</h3>
             <p>Being equal is not enough — most instructions are not branches, and their results are often zero. Wanting to branch is not enough either — a <kbd>beq</kbd> whose registers differ must fall through. So the two conditions meet at an AND gate: <kbd>PCSrc</kbd> fires only when the decoder said "this is a branch" <em>and</em> the ALU said "they were equal."</p>
             <p class="do">Turn on <kbd>Branch</kbd> while <kbd>result</kbd> is 0. Now both AND inputs are 1 and <kbd>PCSrc</kbd> goes to 1 — this is the only input combination that redirects the machine.</p>
+          </article>
+          <article class="step" hidden>
+            <h3>the OR gate — jumps don't ask</h3>
+            <p>A conditional branch has to earn its redirect: Branch AND Zero. A <em>jump</em> (<kbd>jal</kbd>) doesn't — it always goes. So the decoder has one more control line, <kbd>Jump</kbd>, and it meets the AND gate's verdict at an OR: <kbd>PCSrc = (Branch AND Zero) OR Jump</kbd>. That is the complete equation in a real single-cycle RISC-V core.</p>
+            <p class="do">Turn everything off, then click <kbd>Jump</kbd> alone. <kbd>PCSrc</kbd> goes straight to 1 — no comparison consulted. The machine redirects because the instruction said so, not because the data agreed.</p>
           </article>
           <article class="step" hidden>
             <h3>why this matters</h3>

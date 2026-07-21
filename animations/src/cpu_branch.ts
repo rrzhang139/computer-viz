@@ -29,10 +29,10 @@ const tk = datapath(svg);
 const { R, stub, setupPulses, setNet, setPin, setBody, lightEmbed } = tk;
 
 // ── ISA + demo program ──────────────────────────────────────────────────────
-// AND r3,r0,r1 → r3=1 ; BEQ r0,r1,→3 (r0==r1 → TAKEN, skips pc2) ;
-// ADD r2,r0,r1 → the victim: never runs, r2 stays 0 ; XOR r3,r0,r1 → r3=0.
+// AND r3 ; BEQ r0,r1,-2 (taken → cell 3, skips 2) ; ADD r2 (the victim) ;
+// JAL +1 (links r3 ← low bit of PC+1, wraps to cell 0 — the program loops).
 const OP_NAMES = ["ADD", "AND", "OR", "XOR"];
-const PROGRAM = ["0001000111", "0100000110", "0000000110", "0011000111"];
+const PROGRAM = ["0001000111", "0100000110", "0000000110", "0110000001"];
 const rtype = (a: Bit, b: Bit, op: number): Bit =>
   [(a ^ b) as Bit, (a & b) as Bit, (a | b) as Bit, (a ^ b) as Bit][op];
 
@@ -40,12 +40,15 @@ const rtype = (a: Bit, b: Bit, op: number): Bit =>
 // A branch writes nothing: no register, no memory — only the PC.
 const ctrl = (i: Instr) => {
   const c = ctrlOf(i);
+  // a conditional branch and a store write nothing; a JAL writes its link
   return { ...c, memRead: c.memToReg, regWrite: (c.memWrite || c.branch ? 0 : 1) as Bit };
 };
 const aluResult = (a: Bit, b: Bit, i: Instr): Bit =>
   i.opc >= 2 ? a : rtype(a, b, i.opc === 1 ? 3 : i.op);
-// PCSrc = Branch AND Zero; for BEQ the ALU runs XOR, so Zero ⇔ Y == 0.
-const pcsrcOf = (i: Instr, Y: Bit): Bit => (i.opc === 1 && Y === 0 ? 1 : 0);
+// PCSrc = (Branch AND Zero) OR Jump. BEQ takes on equal (XOR result 0),
+// BNE (funct 01) on unequal, JAL (funct 10) always.
+const pcsrcOf = (i: Instr, Y: Bit): Bit =>
+  i.opc !== 1 ? 0 : i.op === 2 ? 1 : i.op === 1 ? (Y !== 0 ? 1 : 0) : (Y === 0 ? 1 : 0);
 
 // ── State ───────────────────────────────────────────────────────────────────
 // `skipped` remembers the cell a taken branch jumped over (−1 = none), so the
@@ -86,6 +89,15 @@ if (PS.pinResult) {
 // Branch control: born at the embedded decoder's real pin (01·beq row), solid
 // stub off the pin, dotted schematic run across the datapath, solid stub onto
 // the embedded PCSrc block's Branch pin.
+if (IDEC.pinJump && PS.pinJump) {
+  const jStub = { x: 1456, y: IDEC.pinJump.y };
+  const jIn = { x: 3230, y: PS.pinJump.y };
+  R("wCtlJump", [IDEC.pinJump, jStub]);
+  R("ctrlJump", [jStub, { x: 3216, y: jStub.y }, { x: 3216, y: jIn.y }, jIn]);
+  R("wPcsrcJm", [jIn, PS.pinJump], [PS.pinJump]);
+  // ...and the same Jump line selects the link at the write-back MUX (s1)
+  R("ctrlJumpWb", [jStub, { x: 3940, y: jStub.y }, { x: 3940, y: 1044 }]);
+}
 if (IDEC.pinBranch && PS.pinBranch) {
   const bStub = { x: 1440, y: IDEC.pinBranch.y };
   const bIn = { x: 3230, y: PS.pinBranch.y };
@@ -115,9 +127,15 @@ R("wDmWdata", [RF.pinRdataB, x(3050, RF.pinRdataB), { x: 3050, y: DM.pinWdata ? 
 R("wDmWe", [MEMWRITE, x(3120, MEMWRITE), x(3120, DM.pinWe), DM.pinWe], [DM.pinWe]);
 R("wDmClk", [CLK, { x: -76, y: 1200 }, { x: -76, y: 1420 }, { x: 3108, y: 1420 }, x(3108, DM.pinClk), DM.pinClk], [DM.pinClk]);
 R("wDmRdata", [DM.pinRdata, x(3900, DM.pinRdata), x(3900, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
-stub("wMuxIn2", MX.pinIn2, "0", 3930);
+if (PC.pinPcnext && MX.pinIn2) {
+  // the link: PC+1 leaves the PC block and rides forward to the spare
+  // write-back input that every page so far honestly tied to 0
+  R("wLink", [PC.pinPcnext, x(544, PC.pinPcnext), { x: 544, y: 92 }, { x: 3128, y: 92 }, { x: 3128, y: 1390 }, { x: 3948, y: 1390 }, x(3948, MX.pinIn2), MX.pinIn2], [PC.pinPcnext, MX.pinIn2]);
+} else {
+  stub("wMuxIn2", MX.pinIn2, "0", 3930);
+}
 stub("wMuxIn3", MX.pinIn3, "0", 3930);
-stub("wMuxS1", MX.pinS1, "0", 3930);
+R("wMuxS1", [{ x: 3940, y: 1044 }, x(3940, MX.pinS1), MX.pinS1], [MX.pinS1]);
 R("wMuxS0", [MEMTOREG, x(3860, MX.pinS0), MX.pinS0], [MX.pinS0]);
 if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
   const mw = { x: 1408, y: IDEC.pinMemWrite.y }, mr = { x: 1424, y: IDEC.pinMemToReg.y };
@@ -144,7 +162,8 @@ const setCtrl = (net: string, on: number) =>
   svg.querySelectorAll<SVGElement>(`.ctrl-wire[data-net="${net}"]`).forEach((e) => e.setAttribute("data-on", String(on)));
 
 const asmText = (i: Instr) =>
-  i.opc === 1 ? `BEQ r${i.rs1},r${i.rs2},${i.imm >= 0 ? "+" : ""}${i.imm}`
+  i.opc === 1 && i.op === 2 ? `JAL ${i.imm >= 0 ? "+" : ""}${i.imm}`
+  : i.opc === 1 ? `${i.op === 1 ? "BNE" : "BEQ"} r${i.rs1},r${i.rs2},${i.imm >= 0 ? "+" : ""}${i.imm}`
   : i.opc === 2 ? `LW r${i.rd},(r${i.rs1})`
   : i.opc === 3 ? `SW r${i.rs2},(r${i.rs1})`
   : `${OP_NAMES[i.op]} r${i.rd},r${i.rs1},r${i.rs2}`;
@@ -161,26 +180,31 @@ function render() {
   const memData = mem[Y] as Bit;
   const wbVal = (c.memToReg ? memData : Y) as Bit;
 
-  // The control unit forces the ALU op to XOR for a branch (P&H ALUOp) — the
-  // trunk renders the op the ALU actually receives, not the raw func field.
-  const iEff = c.branch ? { ...i, op: 3 } : i;
-  const { a1, a0 } = renderCpuTrunk(tk, { clk, pc, i: iEff, iRaw: i, A, B, Y, regs, we: c.regWrite, wdata: wbVal });
+  const link = ((pc + 1) & 0b11) as number;           // a JAL's write-back value
+  const wb = (c.jump ? (link & 1) : wbVal) as Bit;    // 1-bit regs hold the low bit
+  // The control unit forces the ALU op to XOR for a branch (P&H ALUOp), and
+  // forces the write address to r3 for a JAL (the link-register convention) —
+  // the trunk renders what the datapath actually receives.
+  const iEff = c.branch ? { ...i, op: 3 } : c.jump ? { ...i, rd: 3 } : i;
+  const { a1, a0 } = renderCpuTrunk(tk, { clk, pc, i: iEff, iRaw: i, A, B, Y, regs, we: c.regWrite, wdata: wb });
 
   // branch stage: target bus, control lines, the PCSrc decision, PC MUX preview
   setNet("imm1", (c.branch ? t1 : 0) as Bit); setNet("imm0", (c.branch ? t0 : 0) as Bit);
   setNet("branch", c.branch);
+  setNet("jump", c.jump); setPin("pinJumpWb", c.jump);
   setNet("pcsrc", pcsrc);
   lightEmbed("pcDetail", {
     clk, pcsrc, imm1: (c.branch ? t1 : 0), imm0: (c.branch ? t0 : 0),
     target: c.branch, pcnext: 1, pcsel: 1,
     addr1: (pc >> 1) & 1, addr0: pc & 1, zero: 0,
   }, { gAdd: 1, gTAdd: c.branch, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1 });
-  setCtrl("branch", c.branch); setCtrl("pcsrc", pcsrc);
+  setCtrl("branch", c.branch); setCtrl("jump", c.jump); setCtrl("pcsrc", pcsrc);
   setBody("gPcsrc", pcsrc);
   setNet("pcsel", 1);
   // PCSrc embed: result → Zero detector → AND with Branch
-  lightEmbed("pcsrcDetail", { branch: c.branch, result: Y, zero: (Y === 0 ? 1 : 0), pcsrc },
-    { gZero: (Y === 0 ? 1 : 0), gAnd: pcsrc });
+  const bz = (c.branch && Y === 0 ? 1 : 0) as Bit;
+  lightEmbed("pcsrcDetail", { branch: c.branch, jump: c.jump, result: Y, zero: (Y === 0 ? 1 : 0), bz, pcsrc },
+    { gZero: (Y === 0 ? 1 : 0), gAnd: bz, gOr: pcsrc });
 
   setPin("pinZero2", 0);
   setNet("cout", 0); setPin("coutTerm", 0);
@@ -189,7 +213,7 @@ function render() {
   setNet("memwrite", c.memWrite); setPin("pinMemWrite", c.memWrite);
   setNet("memtoreg", c.memToReg); setPin("pinMemToReg", c.memToReg);
   setCtrl("memwrite", c.memWrite); setCtrl("memtoreg", c.memToReg);
-  setNet("wb", wbVal);
+  setNet("wb", wb);
 
   setBody("gDmem", (c.memRead || c.memWrite) as Bit); setBody("gWbmux", 1);
 
@@ -199,11 +223,11 @@ function render() {
     [`wsel${Y}`]: c.memWrite,
   }, { gReadmux: 1, gWritePort: (c.memWrite && clk) as Bit,
        gWord0: mem[0], gWord1: mem[1], gWord2: mem[2], gWord3: mem[3] });
-  const muxSel = c.memToReg;
+  const sel = c.jump ? 2 : c.memToReg ? 1 : 0;
   lightEmbed("wbmuxDetail", {
-    in0: Y, in1: memData, s1: 0, s0: muxSel,
-    [`sel${muxSel ? 1 : 0}`]: 1, [`andOut${muxSel ? 1 : 0}`]: wbVal, out: wbVal,
-  }, { [`gAnd${muxSel ? 1 : 0}`]: 1, gOr: 1, gDecoder: 1 });
+    in0: Y, in1: memData, in2: link & 1, s1: c.jump, s0: c.memToReg,
+    [`sel${sel}`]: 1, [`andOut${sel}`]: wb, out: wb,
+  }, { [`gAnd${sel}`]: 1, gOr: 1, gDecoder: 1 });
 
   // Mark the cell a taken branch jumped over: the red-outlined hole in the
   // fetch sequence. (renderCpuTrunk re-lights the imem embed every render, so
@@ -214,7 +238,7 @@ function render() {
   }
 
   renderReadout({
-    a1, a0, instr: asmText(i), A, B, result: (c.branch ? pcsrc : wbVal) as Bit,
+    a1, a0, instr: asmText(i), A, B, result: (c.branch || c.jump ? pcsrc : wb) as Bit,
     regs: `r0=${regs[0]} r1=${regs[1]} r2=${regs[2]} r3=${regs[3]}  ·  M0=${mem[0]} M1=${mem[1]}`,
   });
 }
@@ -228,7 +252,7 @@ bindCpuControls({
     const Y = aluResult(A, B, i);
     const pcsrc = pcsrcOf(i, Y);
     if (c.memWrite) mem[Y] = B;
-    if (c.regWrite) regs[i.rd] = (c.memToReg ? mem[Y] : Y) as Bit;
+    if (c.regWrite) regs[c.jump ? 3 : i.rd] = (c.jump ? (((pc + 1) & 0b11) & 1) : c.memToReg ? mem[Y] : Y) as Bit;
     skipped = pcsrc ? (pc + 1) & 0b11 : -1;
     pc = pcsrc ? (pc + i.imm) & 0b11 : (pc + 1) & 0b11;
   },

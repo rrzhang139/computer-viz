@@ -130,6 +130,7 @@
           <circle class="pin" id="coutTerm" cx="4090" cy="560" r="6" /><text class="tlabel-small" data-pin="coutTerm" text-anchor="start" x="4080" y="530">Cout</text>
           <!-- control signals (decoded from the opcode) + a 0 for the memory high address bit -->
           <circle class="pin" id="pinMemWrite" cx="3060" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="3042" y="1240">memWrite</text>
+          <circle class="pin" id="pinJumpWb" cx="3940" cy="1044" r="7" /><text class="tlabel-small" data-pin="pinJumpWb" text-anchor="end" x="3922" y="1044">jump</text>
           <circle class="pin" id="pinMemToReg" cx="3860" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3842" y="1330">memToReg</text>
           <circle class="pin" id="pinZero2"    cx="3080" cy="1030" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="3062" y="1030">0</text>
           <!-- the decoder's Branch control line is born at the embedded
@@ -142,6 +143,11 @@
           <!-- Branch → PCSrc block; PCSrc → PC-source MUX select (top lane) -->
           <polyline class="wire" data-net="branch" id="wCtlBranch" points="0,0 0,0" />
           <polyline class="ctrl-wire" data-net="branch" id="ctrlBranch" points="0,0 0,0" />
+          <polyline class="wire" data-net="jump" id="wCtlJump" points="0,0 0,0" />
+          <polyline class="ctrl-wire" data-net="jump" id="ctrlJump" points="0,0 0,0" />
+          <polyline class="wire" data-net="jump" id="wPcsrcJm" points="0,0 0,0" />
+          <polyline class="ctrl-wire" data-net="jump" id="ctrlJumpWb" points="0,0 0,0" />
+          <polyline class="wire" data-net="pcnext" id="wLink" points="0,0 0,0" />
           <polyline class="wire" data-net="branch" id="wPcsrcBr" points="0,0 0,0" />
           <polyline class="wire" data-net="pcsrc" id="wPcsrcOut" points="0,0 0,0" />
           <polyline class="ctrl-wire" data-net="pcsrc" id="ctrlPcsrc" points="0,0 0,0" />
@@ -262,7 +268,7 @@
       </div>
 
       <aside class="step-panel">
-        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 7</span></div>
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 8</span></div>
         <div class="step-nav">
           <button class="btn" id="stepPrev">← prev</button>
           <button class="btn" id="stepNext">next →</button>
@@ -300,16 +306,22 @@
             <p data-hl="open:gImem box:gRegfile">The registers prove it. <kbd>M2</kbd> holds <kbd>ADD r2,r0,r1</kbd>, which would have set <kbd>r2</kbd> to 1. Check the readout: <kbd>r2</kbd> is still 0. An instruction that is never fetched never happened.</p>
             <p data-hl="net:pcsrc open:gPc">And the other future was one wire away: had <kbd>r0</kbd> and <kbd>r1</kbd> differed, the ALU's result would not have been zero, <kbd class="wt-pcsrc">PCSrc</kbd> would have stayed 0, the MUX would have passed <kbd>PC+1</kbd> through, and <kbd>M2</kbd> would have run like any other cell. Same wires either way — the data decided.</p>
           </article>
-          <article class="step" hidden data-stage="target" data-focus="all" data-gate="#btnStep" data-pc="3">
-            <h3>land at the target</h3>
-            <p data-hl="open:gPc open:gImem net:instr">The machine carries on from cell 3 as if nothing unusual happened — a branch is not an exception, just a different next address. <kbd>M3</kbd> holds <kbd>XOR r3,r0,r1</kbd>.</p>
-            <p class="do" data-hl="box:gRegfile net:wb">Press <kbd>↻ run instruction</kbd>. <kbd>r3</kbd> flips from 1 to 0 (1 XOR 1 = 0) — the target instruction executed exactly like a sequential one, and the <kbd>PC</kbd> resumes counting from <kbd>11</kbd>.</p>
+          <article class="step" hidden data-stage="jtrace" data-focus="all" data-pc="3">
+            <h3>the jump — no conditions, and it remembers</h3>
+            <p data-hl="open:gIdecode net:instr net:jump">You landed at cell 3, and it holds the page's second new instruction: <kbd>JAL +1</kbd> — "jump and link." Hover <kbd>decode</kbd>: the opcode is <kbd>01</kbd> again, but the <kbd>funct</kbd> field now selects <em>within</em> the control-flow family — <kbd>00</kbd> is beq, <kbd>01</kbd> is bne, and <kbd>10</kbd> is jal. The control unit matches its <kbd>01,f10 · jal</kbd> row and raises the amber <kbd class="wt-jump">Jump</kbd> line. (Real RISC-V works the same way for beq/bne — funct3 selects within the branch format — though jal gets its own opcode there.)</p>
+            <p data-hl="open:gPcsrc net:jump net:pcsrc">Hover <kbd>PCSrc</kbd>: the block grew an OR gate. A conditional branch must earn its redirect through Branch AND Zero — a jump doesn't ask. <kbd class="wt-jump">Jump</kbd> enters the OR directly, so <kbd class="wt-pcsrc">PCSrc</kbd> = (Branch AND Zero) OR Jump = 1, no comparison consulted.</p>
+            <p data-hl="net:pcnext net:jump box:gWbmux" data-hl-focus="#gPc,#gWbmux"><strong>And the link.</strong> A jump also <em>remembers where it came from</em>: it writes the return address — <kbd class="wt-pcnext">PC + 1</kbd>, tapped straight off the PC's own incrementer — into a register. Look at the <kbd>write-back</kbd> MUX: its spare input 2, the one every page so far honestly tied to <kbd>0</kbd>, finally gets its job. <kbd class="wt-jump">Jump</kbd> drives the MUX's high select, choosing the link over the ALU result or loaded data. The write address is forced to <kbd>r3</kbd> — our link-register convention, like RISC-V's <kbd>ra</kbd>. Click <kbd>next →</kbd> to continue.</p>
+          </article>
+          <article class="step" hidden data-stage="jrun" data-focus="all" data-gate="#btnStep" data-pc="3">
+            <h3>run the jump — the program becomes a loop</h3>
+            <p class="do" data-hl="open:gPc box:gRegfile">Press <kbd>↻ run instruction</kbd> and watch both the <kbd>PC</kbd> and <kbd>r3</kbd>.</p>
+            <p data-hl="open:gPc net:pcsrc">The <kbd>PC</kbd> wraps <kbd>11 → 00</kbd> (3 + 1, mod 4): the program has jumped back to its beginning and will now run forever — AND, branch, jump, around and around. Four memory cells, and you have a <em>loop</em>. And <kbd>r3</kbd> caught the link: the low bit of the return address <kbd>00</kbd> (our 1-bit registers hold only the low bit — a real machine's registers are as wide as its PC, so <kbd>ra</kbd> holds all of it, ready for a <kbd>ret</kbd> to jump back through).</p>
           </article>
           <article class="step" hidden data-stage="why" data-focus="all" data-pc="3">
             <h3>why this matters — control flow is born</h3>
             <p data-hl="box:gPc box:gPcsrc net:pcsrc">Every <kbd>if</kbd>, every <kbd>while</kbd>, every function call in every program compiles down to exactly this: a comparison, a <kbd class="wt-pcsrc">PCSrc</kbd> decision, and a PC MUX. Point the target <em>backwards</em> and you have a loop — the same four memory cells can now run forever.</p>
             <p data-hl="open:gPc net:pcsrc"><strong>The MUX is the whole idea, again.</strong> Load/store added a write-back MUX so a register could choose its source; the branch adds a PC MUX so the <em>machine</em> can choose its next instruction. New capability, new source, new MUX — the same move every time.</p>
-            <p><strong>Toy → real.</strong> A real RV32I <kbd>beq</kbd> works exactly like this one now — a signed offset in the instruction, <kbd>PC + imm</kbd> in a dedicated adder — just 32 bits wide with a 12-bit offset. The comparison is a full 32-bit subtraction whose <kbd>Zero</kbd> flag comes straight off the ALU, and the control unit's truth table grows a <kbd>Branch</kbd> row exactly like ours. One more thing to notice: the decision needed the fetch, the decode, the register read, and the ALU — the longest path on the page — before fetch knew where to look next. Pipelined CPUs refuse to wait and guess instead. That problem is called the <em>control hazard</em>, and it is the next page's story.</p>
+            <p><strong>Toy → real.</strong> With beq, bne, and jal, the control-flow family is complete enough for real programs: loops, ifs, and — through the link register — function <em>calls</em> (jal saves the return address; jumping back through it is a return). A real RV32I <kbd>beq</kbd> works exactly like this one — a signed offset in the instruction, <kbd>PC + imm</kbd> in a dedicated adder — just 32 bits wide with a 12-bit offset. The comparison is a full 32-bit subtraction whose <kbd>Zero</kbd> flag comes straight off the ALU, and the control unit's truth table grows a <kbd>Branch</kbd> row exactly like ours. One more thing to notice: the decision needed the fetch, the decode, the register read, and the ALU — the longest path on the page — before fetch knew where to look next. Pipelined CPUs refuse to wait and guess instead. That problem is called the <em>control hazard</em>, and it is the next page's story.</p>
           </article>
         </div>
       </aside>

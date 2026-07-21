@@ -26,6 +26,7 @@ x ∈ [-12, 12], y ∈ [-7, 7]
 | imm0_in  | branch offset (imm), low bit          | (-12,-1.6)| LEFT   |
 | clk_in   | clock — edge loads the chosen next PC | (-12, -5) | LEFT   |
 | addr1_out| PC value, high bit → fetch address    | ( 12, 2.6)| RIGHT  |
+| pcnext_out| PC+1 → a jump's link write-back      | ( 12,-2.0)| RIGHT  |
 | addr0_out| PC value, low bit → fetch address     | ( 12, 1.4)| RIGHT  |
 | Vdd      | supply (+V)                           | (  0,  7) | TOP    |
 | GND      | supply (0V)                           | (  0, -7) | BOTTOM |
@@ -99,6 +100,7 @@ Register `reg` (x∈[3.5,6.5], y∈[0,4]):
 | imm0_in    | tadd_imm_in | (-9.8, -1.6), (-9.8, -1.0)               | imm0   |
 | clk_in     | reg_clk_in  | (5.0, -5.0)                              | clk    |
 | add_s_out  | mux_in0_in  | (-4.4, 2.5), (-4.4, 3.0)                 | pcnext |
+| add_s_out  | pcnext_out  | (-4.7, 2.5), (-4.7, -2.0)                | pcnext |
 | tadd_t_out | mux_in1_in  | (-4.0, -1.5), (-4.0, 1.0)                | target |
 | mux_out    | reg_d_in    | —                                        | pcsel  |
 | reg_q1_out | addr1_out   | (10.0, 2.6)                              | addr1  |

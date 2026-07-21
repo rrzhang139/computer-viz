@@ -101,6 +101,10 @@ R("wMuxS0", [MEMTOREG, x(3860, MX.pinS0), MX.pinS0], [MX.pinS0]);
 // Control lines are BORN in the decoder (its control unit decodes type+f0):
 // a short solid stub leaves each embedded control pin, then a dotted schematic
 // line runs from the stub to its consumer terminal, free to cross components.
+if (IDEC.pinJump) {
+  R("wCtlJump", [IDEC.pinJump, { x: 1452, y: IDEC.pinJump.y }, { x: 1452, y: 1032 }]);
+  tk.srcTerm({ x: 1452, y: 1032 }, "Jump — n/c");
+}
 if (IDEC.pinBranch) {
   R("wCtlBranch", [IDEC.pinBranch, { x: 1416, y: IDEC.pinBranch.y }, { x: 1416, y: 1068 }]);
   tk.srcTerm({ x: 1416, y: 1068 }, "Branch — n/c");

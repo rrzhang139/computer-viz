@@ -21,6 +21,7 @@ x ∈ [-10, 10], y ∈ [-6, 6]
 
 | key       | role                                | (x, y)    | edge   |
 |-----------|-------------------------------------|-----------|--------|
+| jump_in   | Jump control (unconditional)        | (-10,  5) | LEFT   |
 | branch_in | Branch control (from the decoder)   | (-10,  3) | LEFT   |
 | result_in | ALU result (the compare difference) | (-10, -2) | LEFT   |
 | pcsrc_out | PCSrc → PC-source MUX select        | ( 10,  1) | RIGHT  |
@@ -38,9 +39,11 @@ between the rails and tap them directly.
 |----------|-------------|-----------------|-------------|
 | zero     | notbox      | (-2.0, -2.0)    | 3.0 × 2.0   |
 | and      | andbox      | ( 4.0,  1.0)    | 3.0 × 2.0   |
+| or       | orbox       | ( 7.5,  1.0)    | 2.0 × 2.0   |
 
 - `zero` — the Zero detector: NOT of the 1-bit ALU result (wide NOR at 32 bit).
-- `and` — PCSrc = Branch AND Zero, the decision itself.
+- `and` — Branch AND Zero: a conditional branch must earn its redirect.
+- `or` — the AND's verdict OR Jump: PCSrc, the final decision (jumps don't ask).
 
 ## Absorbed terminals
 
@@ -55,23 +58,33 @@ AND gate `and` (x∈[2.5,5.5], y∈[0,2]):
 - `and_b_in` (2.5, 0.5)  ← LEFT
 - `and_out`  (5.5, 1.0)  ← RIGHT
 
+OR gate `or` (x∈[6.5,8.5], y∈[0,2]):
+
+- `or_a_in` (6.5, 1.5)  ← LEFT
+- `or_b_in` (6.5, 0.5)  ← LEFT
+- `or_out`  (8.5, 1.0)  ← RIGHT
+
 ## Internal nets
 
 | net    | carries                                      |
 |--------|----------------------------------------------|
+| jump   | decoder's Jump control → OR (unconditional)  |
 | branch | decoder's Branch control → AND input a       |
 | result | ALU result → Zero detector                   |
 | zero   | Zero flag (result == 0) → AND input b        |
-| pcsrc  | Branch AND Zero → PC-source MUX select       |
+| bz     | Branch AND Zero → OR input b                 |
+| pcsrc  | (Branch AND Zero) OR Jump → PC MUX select    |
 
 ## Wires
 
 | from      | to             | via                  | net    |
 |-----------|----------------|----------------------|--------|
+| jump_in   | or_a_in        | (6.0, 5), (6.0, 1.5) | jump   |
 | branch_in | and_a_in       | (1.5, 3), (1.5, 1.5) | branch |
 | result_in | zero_result_in | —                    | result |
 | zero_out  | and_b_in       | (1.0, -2), (1.0, 0.5)| zero   |
-| and_out   | pcsrc_out      | —                    | pcsrc  |
+| and_out   | or_b_in        | (5.9, 1.0), (5.9, 0.5) | bz   |
+| or_out    | pcsrc_out      | —                    | pcsrc  |
 
 The Branch control rides the top lane (y=3), clear of both gates, then drops
 into the AND's upper input. The ALU result enters at the Zero detector's

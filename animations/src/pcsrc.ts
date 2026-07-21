@@ -12,10 +12,11 @@ type Bit = 0 | 1;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const svg = document.getElementById("pcsrc") as unknown as SVGSVGElement;
 
-type Snap = { branch: Bit; result: Bit };
+type Snap = { branch: Bit; result: Bit; jump: Bit };
 const SNAP_KEY = "pcsrc";
 const _s = loadSnapshot<Snap>(SNAP_KEY);
 let branch: Bit = readBitParam("branch", (_s?.branch ?? 0) as Bit);
+let jump: Bit = readBitParam("jump", ((_s as { jump?: Bit } | null)?.jump ?? 0) as Bit);
 let result: Bit = readBitParam("result", (_s?.result ?? 0) as Bit);
 
 // per-wire pulse overlays (same pattern as idecode.ts)
@@ -40,34 +41,43 @@ const T = (id: string) => document.getElementById(id) as HTMLElement;
 
 function render() {
   const zero = (result === 0 ? 1 : 0) as Bit;
-  const pcsrc = (branch && zero ? 1 : 0) as Bit;
+  const bz = (branch && zero ? 1 : 0) as Bit;         // the AND's verdict
+  const pcsrc = (bz || jump ? 1 : 0) as Bit;          // OR with Jump
 
   setNet("branch", branch);
   setNet("result", result);
   setNet("zero", zero);
+  setNet("bz", bz);
+  setNet("jump", jump);
   setNet("pcsrc", pcsrc);
   document.getElementById("pinBranch")?.setAttribute("data-on", String(branch));
   document.getElementById("pinResult")?.setAttribute("data-on", String(result));
   document.getElementById("pinPcsrc")?.setAttribute("data-on", String(pcsrc));
   document.getElementById("gZero")?.setAttribute("data-on", String(zero));
-  document.getElementById("gAnd")?.setAttribute("data-on", String(pcsrc));
+  document.getElementById("gAnd")?.setAttribute("data-on", String(bz));
+  document.getElementById("gOr")?.setAttribute("data-on", String(pcsrc));
+  document.getElementById("pinJump")?.setAttribute("data-on", String(jump));
 
   const bB = document.getElementById("btnBranch") as HTMLButtonElement;
   bB.setAttribute("data-on", String(branch)); bB.textContent = `Branch ${branch}`;
+  const bJ = document.getElementById("btnJump") as HTMLButtonElement;
+  bJ.setAttribute("data-on", String(jump)); bJ.textContent = `Jump ${jump}`;
   const bR = document.getElementById("btnResult") as HTMLButtonElement;
   bR.setAttribute("data-on", String(result)); bR.textContent = `result ${result}`;
 
   T("rBranch").textContent = String(branch);
+  T("rJump").textContent = String(jump);
   T("rResult").textContent = String(result);
   T("rZero").textContent = String(zero);
   T("rPcsrc").textContent = String(pcsrc);
 }
 
-function persist() { saveSnapshot<Snap>(SNAP_KEY, { branch, result }); }
+function persist() { saveSnapshot<Snap>(SNAP_KEY, { branch, result, jump }); }
 
 document.getElementById("btnBranch")?.addEventListener("click", () => { branch = branch ? 0 : 1; render(); persist(); });
+document.getElementById("btnJump")?.addEventListener("click", () => { jump = jump ? 0 : 1; render(); persist(); });
 document.getElementById("btnResult")?.addEventListener("click", () => { result = result ? 0 : 1; render(); persist(); });
-document.getElementById("btnReset")?.addEventListener("click", () => { branch = 0; result = 0; clearSnapshot(SNAP_KEY); render(); });
+document.getElementById("btnReset")?.addEventListener("click", () => { branch = 0; result = 0; jump = 0; clearSnapshot(SNAP_KEY); render(); });
 
 initDrillBreadcrumb();
 render();

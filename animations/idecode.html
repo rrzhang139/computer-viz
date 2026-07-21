@@ -134,7 +134,7 @@
           <span class="sep">·</span>
           <span class="label">write</span><span class="bits" id="writeBits">00</span>
           <span class="sep">·</span>
-          <span class="label">control</span><span class="bits" id="ctlBits">branch=0 memToReg=0 memWrite=0</span>
+          <span class="label">control</span><span class="bits" id="ctlBits">branch=0 jump=0 memToReg=0 memWrite=0</span>
         </div>
 
         <!--
@@ -221,28 +221,33 @@
                style — each row is one opcode pattern and the control line it
                raises. R-type (00) matches neither row; both lines stay 0. ── -->
           <text class="tlabel-small" x="855" y="34">control</text>
-          <rect class="field-box" x="700" y="48" width="310" height="174" rx="10" />
-          <rect class="tbody" id="gCtlBranch" x="715" y="64" width="280" height="44" rx="6" />
-          <text class="tlabel-small" x="855" y="86">01 · beq → Branch, ALU←XOR</text>
-          <rect class="tbody" id="gCtlMemToReg" x="715" y="114" width="280" height="44" rx="6" />
-          <text class="tlabel-small" x="855" y="136">10 · load → memToReg</text>
-          <rect class="tbody" id="gCtlMemWrite" x="715" y="164" width="280" height="44" rx="6" />
-          <text class="tlabel-small" x="855" y="186">11 · store → memWrite</text>
-          <polyline class="wire" data-net="branch"   points="995,86 1280,86" />
-          <polyline class="wire" data-net="memtoreg" points="995,136 1280,136" />
-          <polyline class="wire" data-net="memwrite" points="995,186 1280,186" />
+          <rect class="field-box" x="700" y="44" width="310" height="184" rx="10" />
+          <rect class="tbody" id="gCtlBranch" x="715" y="56" width="280" height="38" rx="6" />
+          <text class="tlabel-small" x="855" y="75">01,f0x · beq/bne → Branch</text>
+          <rect class="tbody" id="gCtlJump" x="715" y="99" width="280" height="38" rx="6" />
+          <text class="tlabel-small" x="855" y="118">01,f10 · jal → Jump, link</text>
+          <rect class="tbody" id="gCtlMemToReg" x="715" y="142" width="280" height="38" rx="6" />
+          <text class="tlabel-small" x="855" y="161">10 · load → memToReg</text>
+          <rect class="tbody" id="gCtlMemWrite" x="715" y="185" width="280" height="38" rx="6" />
+          <text class="tlabel-small" x="855" y="204">11 · store → memWrite</text>
+          <polyline class="wire" data-net="branch"   points="995,75 1280,75" />
+          <polyline class="wire" data-net="jump"     points="995,118 1280,118" />
+          <polyline class="wire" data-net="memtoreg" points="995,161 1280,161" />
+          <polyline class="wire" data-net="memwrite" points="995,204 1280,204" />
 
           <!-- datapath outputs (right) — control lines + field bundles -->
-          <circle class="pin" id="pinBranch"   cx="1280" cy="86"  r="7" />
-          <circle class="pin" id="pinMemToReg" cx="1280" cy="136" r="7" />
-          <circle class="pin" id="pinMemWrite" cx="1280" cy="186" r="7" />
+          <circle class="pin" id="pinBranch"   cx="1280" cy="75"  r="7" />
+          <circle class="pin" id="pinJump"     cx="1280" cy="118" r="7" />
+          <circle class="pin" id="pinMemToReg" cx="1280" cy="161" r="7" />
+          <circle class="pin" id="pinMemWrite" cx="1280" cy="204" r="7" />
           <circle class="pin" id="pinOp"     cx="1280" cy="238" r="7" />
           <circle class="pin" id="pinRaddrA" cx="1280" cy="350" r="7" />
           <circle class="pin" id="pinRaddrB" cx="1280" cy="462" r="7" />
           <circle class="pin" id="pinWaddr"  cx="1280" cy="574" r="7" />
-          <text class="tlabel-small" x="1298" y="86"  text-anchor="start">→ Branch</text>
-          <text class="tlabel-small" x="1298" y="136" text-anchor="start">→ memToReg</text>
-          <text class="tlabel-small" x="1298" y="186" text-anchor="start">→ memWrite</text>
+          <text class="tlabel-small" x="1298" y="75"  text-anchor="start">→ Branch</text>
+          <text class="tlabel-small" x="1298" y="118" text-anchor="start">→ Jump</text>
+          <text class="tlabel-small" x="1298" y="161" text-anchor="start">→ memToReg</text>
+          <text class="tlabel-small" x="1298" y="204" text-anchor="start">→ memWrite</text>
           <text class="tlabel-small" x="1298" y="238" text-anchor="start">→ op</text>
           <text class="tlabel-small" x="1298" y="350" text-anchor="start">→ raddrA</text>
           <text class="tlabel-small" x="1298" y="462" text-anchor="start">→ raddrB</text>

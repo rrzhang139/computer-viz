@@ -90,6 +90,8 @@ if (ready) {
   mk("wRegD3", "zero", [H(REG.pinD3, 990), REG.pinD3]);
   // clock → the register's edge (over the top, from the page's left edge)
   R("wClk", [{ x: 60, y: 1160 }, { x: 1660, y: 1160 }, { x: 1660, y: 250 }, { x: REG.pinCLK!.x, y: 250 }, REG.pinCLK], [REG.pinCLK]);
+  // the link tap: the PC+1 bus also leaves the block (a jump writes it back)
+  R("wPcp1", [{ x: 560, y: MX.pinIn0!.y }, { x: 560, y: 1060 }, { x: 1700, y: 1060 }, { x: 1700, y: 980 }]);
   // Q → address out + the feedback loops into BOTH adders' A inputs
   P("pinA1", { x: 1490, y: REG.pinQ1!.y }); P("pinA0", { x: 1490, y: REG.pinQ0!.y });
   R("wQ1out", [REG.pinQ1, { x: 1490, y: REG.pinQ1!.y }]);

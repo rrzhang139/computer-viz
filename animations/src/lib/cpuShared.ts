@@ -26,7 +26,8 @@ export const decodeInstr = (w: string): Instr => {
   };
 };
 export const ctrlOf = (i: Instr) => ({
-  branch:   (i.opc === 1 ? 1 : 0) as Bit,   // BEQ: raise Branch, force ALU compare
+  branch:   (i.opc === 1 && i.op <= 1 ? 1 : 0) as Bit,  // 01,f0x: BEQ/BNE — conditional
+  jump:     (i.opc === 1 && i.op === 2 ? 1 : 0) as Bit, // 01,f10: JAL — unconditional, links
   memToReg: (i.opc === 2 ? 1 : 0) as Bit,   // LW: write-back comes from memory
   memWrite: (i.opc === 3 ? 1 : 0) as Bit,   // SW: arm the memory write port
 });
@@ -146,10 +147,10 @@ export function renderCpuTrunk(tk: Toolkit, s: TrunkState) {
   lightEmbed("idecodeDetail", {
     instr: 1, opcode: (oc1 || oc0) as Bit, op: (op1 || op0) as Bit,
     raddrA: (rs1h || rs1l) as Bit, raddrB: (rs2h || rs2l) as Bit, waddr: (rd1 || rd0) as Bit,
-    memtoreg: ctl.memToReg, memwrite: ctl.memWrite, branch: ctl.branch,
+    memtoreg: ctl.memToReg, memwrite: ctl.memWrite, branch: ctl.branch, jump: ctl.jump,
   }, {
     gBitOc1: oc1, gBitOc0: oc0, gBitOp1: op1, gBitOp0: op0, gBitA1: rs1h, gBitA0: rs1l, gBitB1: rs2h, gBitB0: rs2l, gBitW1: rd1, gBitW0: rd0,
-    gCtlMemToReg: ctl.memToReg, gCtlMemWrite: ctl.memWrite, gCtlBranch: ctl.branch,
+    gCtlMemToReg: ctl.memToReg, gCtlMemWrite: ctl.memWrite, gCtlBranch: ctl.branch, gCtlJump: ctl.jump,
   });
   lightEmbed("regfileDetail", {
     raddrA1: rs1h, raddrA0: rs1l, raddrB1: rs2h, raddrB0: rs2l,
