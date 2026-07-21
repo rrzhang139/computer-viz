@@ -108,18 +108,18 @@
           same mechanism datapath.html uses). Toy R-type ISA (op|rs1|rs2|rd),
           1-bit data. Wireframe: wire_sketches/layer18_cpu.md.
         -->
-        <svg id="cpu" viewBox="-120 -30 4360 1460" role="img"
+        <svg id="cpu" viewBox="-120 -30 4980 1460" role="img"
              aria-label="load/store CPU datapath: fetch, decode, execute, memory, write-back"
              preserveAspectRatio="xMidYMid meet">
-          <polyline class="rail" data-net="Vdd" points="0,8 4100,8" />
-          <polyline class="rail" data-net="GND" points="0,1400 4100,1400" />
+          <polyline class="rail" data-net="Vdd" points="0,8 4800,8" />
+          <polyline class="rail" data-net="GND" points="0,1400 4800,1400" />
 
           <!-- stage headers -->
           <text class="stage-head" x="260"  y="18">IF · fetch</text>
           <text class="stage-head" x="1020" y="18">ID · decode</text>
           <text class="stage-head" x="3600" y="18">EX · execute</text>
-          <text class="stage-head" x="1000" y="1066">MEM · data memory</text>
-          <text class="stage-head" x="3560" y="1066">WB · write-back</text>
+          <text class="stage-head" x="3440" y="1066">MEM · data memory</text>
+          <text class="stage-head" x="4340" y="1066">WB · write-back</text>
 
           <!-- ── source / sink terminals (CPU-level constants + clock) ─────── -->
           <circle class="pin" id="pinClk"  cx="-100" cy="1200" r="7" /><text class="tlabel-small" data-pin="pinClk"  text-anchor="end" x="-118" y="1200">clk</text>
@@ -128,9 +128,9 @@
           <!-- ALU carry-out (unused by 1-bit ops) -->
           <circle class="pin" id="coutTerm" cx="4090" cy="560" r="6" /><text class="tlabel-small" data-pin="coutTerm" text-anchor="start" x="4080" y="530">Cout</text>
           <!-- control signals (decoded from the opcode) + a 0 for the memory high address bit -->
-          <circle class="pin" id="pinMemWrite" cx="540" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="522" y="1240">memWrite</text>
-          <circle class="pin" id="pinMemToReg" cx="3120" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3102" y="1330">memToReg</text>
-          <circle class="pin" id="pinZero2"    cx="560" cy="1120" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="542" y="1120">0</text>
+          <circle class="pin" id="pinMemWrite" cx="3060" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="3042" y="1240">memWrite</text>
+          <circle class="pin" id="pinMemToReg" cx="3860" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3842" y="1330">memToReg</text>
+          <circle class="pin" id="pinZero2"    cx="3080" cy="1030" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="3062" y="1030">0</text>
           <!-- dotted control lines (decoder's control-unit pins → consumer);
                schematic, free to cross components. Solid stubs leave the
                embedded decoder's real memWrite/memToReg pins (src/cpu_ldst.ts
@@ -254,15 +254,15 @@
           <!-- MEM: data memory (read + write) — exact embed of /dmem.html -->
           <g class="child-slot" id="slot-dmem" tabindex="0" role="button" aria-label="data memory"
              data-embed-page="/dmem.html" data-embed-svg="dmem">
-            <rect class="tbody simple-body" id="gDmem" x="700" y="1082" width="600" height="300" rx="12" />
-            <text class="tlabel simple-label" x="1000" y="1232">data memory</text>
+            <rect class="tbody simple-body" id="gDmem" x="3140" y="1082" width="600" height="300" rx="12" />
+            <text class="tlabel simple-label" x="3440" y="1232">data memory</text>
             <g class="detailed" id="dmemDetail"></g>
           </g>
           <!-- WB: write-back MUX — exact embed of /mux.html (ALU result vs loaded data) -->
           <g class="child-slot" id="slot-wbmux" tabindex="0" role="button" aria-label="write-back MUX"
              data-embed-page="/mux.html" data-embed-svg="mux">
-            <rect class="tbody simple-body" id="gWbmux" x="3200" y="1090" width="720" height="270" rx="12" />
-            <text class="tlabel simple-label" x="3560" y="1225">write-back</text>
+            <rect class="tbody simple-body" id="gWbmux" x="3980" y="1090" width="720" height="270" rx="12" />
+            <text class="tlabel simple-label" x="4340" y="1225">write-back</text>
             <g class="detailed" id="wbmuxDetail"></g>
           </g>
         </svg>

@@ -25,7 +25,7 @@ exactly like `cpu`. Widen every block to 32 bits, compute the address as
 this is a real RV32I core running `lw`/`sw`.
 
 ## Scene bounds
-x ∈ [-23, 21], y ∈ [-10, 10]
+x ∈ [-23, 26], y ∈ [-10, 10]
 
 ## External terminals
 
@@ -58,8 +58,8 @@ own page).
 | control  | ctrlbox     | ( -3.0,  7.5)   | 5.0 × 3.0   |
 | regfile  | rfbox       | ( -3.0,  0.0)   | 6.0 × 9.0   |
 | alu      | alubox      | (  8.0,  1.0)   | 4.0 × 5.0   |
-| dmem     | dmembox     | (  8.0, -6.0)   | 5.0 × 3.0   |
-| wbmux    | wbmuxbox    | ( 16.0, -6.0)   | 3.0 × 4.0   |
+| dmem     | dmembox     | ( 13.5, -6.0)   | 5.0 × 3.0   |
+| wbmux    | wbmuxbox    | ( 21.5, -6.0)   | 3.0 × 4.0   |
 
 - `pc` program counter + `imem` instruction memory — the **fetch** stage.
 - `control` (a decoder of the opcode) + `regfile` (2 read ports, 1 write) — **decode**.
@@ -102,20 +102,20 @@ ALU `alu` (x∈[6,10], y∈[-1.5,3.5]):
 - `alu_op_in`  (6.0,  3.0)  ← LEFT
 - `alu_y_out`  (10.0, 1.0)  ← RIGHT
 
-Data memory `dmem` (x∈[5.5,10.5], y∈[-7.5,-4.5]):
+Data memory `dmem` (x∈[11,16], y∈[-7.5,-4.5]):
 
-- `dmem_addr_in`  ( 8.0, -4.5)  ← TOP
-- `dmem_wdata_in` ( 5.5, -6.0)  ← LEFT
-- `dmem_we_in`    ( 5.5, -6.8)  ← LEFT
-- `dmem_clk_in`   ( 5.5, -7.2)  ← LEFT
-- `dmem_rdata_out`(10.5, -6.0)  ← RIGHT
+- `dmem_addr_in`  (13.5, -4.5)  ← TOP
+- `dmem_wdata_in` (11.0, -6.0)  ← LEFT
+- `dmem_we_in`    (11.0, -6.8)  ← LEFT
+- `dmem_clk_in`   (11.0, -7.2)  ← LEFT
+- `dmem_rdata_out`(16.0, -6.0)  ← RIGHT
 
-Write-back MUX `wbmux` (x∈[14.5,17.5], y∈[-8,-4]):
+Write-back MUX `wbmux` (x∈[20,23], y∈[-8,-4]):
 
-- `wbmux_in0_in` (14.5, -5.0)  ← LEFT
-- `wbmux_in1_in` (14.5, -6.5)  ← LEFT
-- `wbmux_sel_in` (16.0, -4.0)  ← TOP
-- `wbmux_out`    (17.5, -6.0)  ← RIGHT
+- `wbmux_in0_in` (20.0, -5.0)  ← LEFT
+- `wbmux_in1_in` (20.0, -6.5)  ← LEFT
+- `wbmux_sel_in` (21.5, -4.0)  ← TOP
+- `wbmux_out`    (23.0, -6.0)  ← RIGHT
 
 ## Internal nets
 
@@ -140,19 +140,19 @@ Write-back MUX `wbmux` (x∈[14.5,17.5], y∈[-8,-4]):
 |----------------|---------------|------------------------------------------------------|----------|
 | clk_in         | pc_clk_in     | (-22.4, -8.0), (-22.4, 1.5), (-19.0, 1.5)            | clk      |
 | clk_in         | rf_clk_in     | (-3.0, -8.0)                                         | clk      |
-| clk_in         | dmem_clk_in   | (4.5, -8.0), (4.5, -7.2)                             | clk      |
+| clk_in         | dmem_clk_in   | (10.4, -8.0), (10.4, -7.2)                           | clk      |
 | pc_addr_out    | imem_addr_in  | (-16.0, 4.0), (-16.0, 0.5), (-19.0, 0.5)             | addr1    |
 | imem_instr_out | rf_instr_in   | (-8.0, -3.0), (-8.0, 2.0)                            | instr    |
 | imem_instr_out | ctrl_op_in    | (-12.0, -3.0), (-12.0, 7.5)                          | instr    |
 | ctrl_out       | alu_op_in     | (2.0, 7.5), (2.0, 3.0)                               | op1      |
-| ctrl_mem_out   | wbmux_sel_in  | (3.5, 6.5), (3.5, -3.0), (16.0, -3.0)                | memtoreg |
+| ctrl_mem_out   | wbmux_sel_in  | (3.5, 6.5), (3.5, -3.0), (21.5, -3.0)                | memtoreg |
 | ctrl_mem_out   | dmem_we_in    | (4.0, 6.5), (4.0, -6.8)                              | memwrite |
 | rf_rdata_out   | alu_a_in      | (3.0, 0.0), (3.0, 1.0)                               | rdataA   |
-| rf_wdata_out   | dmem_wdata_in | (1.5, -2.0), (1.5, -6.0)                             | rdataB   |
-| alu_y_out      | dmem_addr_in  | (11.5, 1.0), (11.5, -3.5), (8.0, -3.5)               | aluY     |
-| alu_y_out      | wbmux_in0_in  | (13.0, 1.0), (13.0, -5.0)                            | aluY     |
-| dmem_rdata_out | wbmux_in1_in  | (12.5, -6.0), (12.5, -6.5)                           | memdata  |
-| wbmux_out      | rf_wb_in      | (19.5, -6.0), (19.5, -9.0), (-1.5, -9.0)             | wb       |
+| rf_wdata_out   | dmem_wdata_in | (10.2, -2.0), (10.2, -6.0)                           | rdataB   |
+| alu_y_out      | dmem_addr_in  | (11.5, 1.0), (11.5, -3.8), (13.5, -3.8)              | aluY     |
+| alu_y_out      | wbmux_in0_in  | (10.8, 1.0), (10.8, -2.5), (19.0, -2.5), (19.0, -5.0)| aluY     |
+| dmem_rdata_out | wbmux_in1_in  | (18.0, -6.0), (18.0, -6.5)                           | memdata  |
+| wbmux_out      | rf_wb_in      | (24.5, -6.0), (24.5, -9.3), (-1.5, -9.3)             | wb       |
 
 The fetch front sits at the far left: the PC's value drops into the
 instruction memory's address, the fetched word leaves on the right and fans to

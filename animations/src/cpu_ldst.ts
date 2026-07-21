@@ -6,7 +6,7 @@ import { initSteps } from "./steps";
 import { initCanvasZoom } from "./canvasZoom";
 import { applyWireColors } from "./wireColors";
 import { initProseHighlight } from "./proseHighlight";
-import { datapath, x, y, type Bit, type Pt } from "./lib/datapath";
+import { datapath, x, type Bit, type Pt } from "./lib/datapath";
 import {
   CPU_BASE_COLORS, CPU_TERMS, SEED, asBits4, ctrlOf, decodeInstr, annotateImemProgram,
   routeCpuTrunk, renderCpuTrunk, renderReadout, bindCpuControls, bindTrunkDrills,
@@ -69,8 +69,8 @@ const MX: Record<string, Pt> = embeds.get("slot-wbmux") || {};
 
 // page-specific source/sink terminals (fixed in cpu_ldst.html).
 const { CLK } = CPU_TERMS;
-const ZERO2 = { x: 560, y: 1120 };
-const MEMWRITE = { x: 540, y: 1240 }, MEMTOREG = { x: 3120, y: 1330 };
+const ZERO2 = { x: 3080, y: 1030 };
+const MEMWRITE = { x: 3060, y: 1240 }, MEMTOREG = { x: 3860, y: 1330 };
 
 routeCpuTrunk(R, { IM, IDEC, RF, AL });
 
@@ -81,23 +81,23 @@ routeCpuTrunk(R, { IM, IDEC, RF, AL });
 // below the data-memory box at 1082–1382); the MUX's own returns ride just
 // below the MUX (y 1368/1376, below its box at 1090–1360).
 // ALU result → write-back MUX in0 (down the right edge, under the MUX).
-R("wAluY", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1368 }, { x: 3160, y: 1368 }, x(3160, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
+R("wAluY", [AL.pinY, x(4100, AL.pinY), { x: 4100, y: 1060 }, { x: 3940, y: 1060 }, x(3940, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
 // ALU result → data-memory address (a second branch; mem ops: ALU passes rs1).
-R("wAluAddr", [AL.pinY, x(4140, AL.pinY), { x: 4140, y: 1396 }, { x: 600, y: 1396 }, x(600, DM.pinAddr0), DM.pinAddr0], [DM.pinAddr0]);
+R("wAluAddr", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1076 }, DM.pinAddr0 && { x: DM.pinAddr0.x, y: 1076 }, DM.pinAddr0], [DM.pinAddr0]);
 // data-memory high address bit ties to 0 (1-bit data → only cells 0/1 used).
-R("wDmAddr1", [ZERO2, x(660, ZERO2), x(660, DM.pinAddr1), DM.pinAddr1], [DM.pinAddr1]);
+R("wDmAddr1", [ZERO2, DM.pinAddr1 && { x: DM.pinAddr1.x, y: 1030 }, DM.pinAddr1], [DM.pinAddr1]);
 // rs2 read → data-memory write data (a store sends a register value to memory).
-R("wDmWdata", [RF.pinRdataB, x(3040, RF.pinRdataB), { x: 3040, y: 1388 }, { x: 680, y: 1388 }, x(680, DM.pinWdata), DM.pinWdata], [DM.pinWdata]);
+R("wDmWdata", [RF.pinRdataB, x(3050, RF.pinRdataB), { x: 3050, y: DM.pinWdata ? DM.pinWdata.y : 0 }, DM.pinWdata], [DM.pinWdata]);
 // control: memWrite → data-memory write enable; clock → data memory.
-R("wDmWe", [MEMWRITE, x(640, MEMWRITE), x(640, DM.pinWe), DM.pinWe], [DM.pinWe]);
-R("wDmClk", [CLK, x(620, CLK), x(620, DM.pinClk), DM.pinClk], [DM.pinClk]);
+R("wDmWe", [MEMWRITE, x(3120, MEMWRITE), x(3120, DM.pinWe), DM.pinWe], [DM.pinWe]);
+R("wDmClk", [CLK, { x: -76, y: 1200 }, { x: -76, y: 1420 }, { x: 3108, y: 1420 }, x(3108, DM.pinClk), DM.pinClk], [DM.pinClk]);
 // data-memory read out → write-back MUX in1 (the loaded value), via the gap.
-R("wDmRdata", [DM.pinRdata, x(1360, DM.pinRdata), { x: 1360, y: 1268 }, { x: 3160, y: 1268 }, x(3160, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
+R("wDmRdata", [DM.pinRdata, x(3900, DM.pinRdata), x(3900, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
 // MUX unused inputs + high select tie to 0; low select = memToReg control.
-stub("wMuxIn2", MX.pinIn2, "0", 3150);
-stub("wMuxIn3", MX.pinIn3, "0", 3150);
-stub("wMuxS1", MX.pinS1, "0", 3150);
-R("wMuxS0", [MEMTOREG, x(3120, MX.pinS0), MX.pinS0], [MX.pinS0]);
+stub("wMuxIn2", MX.pinIn2, "0", 3930);
+stub("wMuxIn3", MX.pinIn3, "0", 3930);
+stub("wMuxS1", MX.pinS1, "0", 3930);
+R("wMuxS0", [MEMTOREG, x(3860, MX.pinS0), MX.pinS0], [MX.pinS0]);
 // Control lines are BORN in the decoder (its control unit decodes type+f0):
 // a short solid stub leaves each embedded control pin, then a dotted schematic
 // line runs from the stub to its consumer terminal, free to cross components.
@@ -113,7 +113,7 @@ if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
   R("ctrlMemToReg", [mr, MEMTOREG]);
 }
 // write-back MUX out → register-file write-data port (loop home, below the MUX).
-R("wWdata", [MX.pinOut, x(3960, MX.pinOut), { x: 3960, y: 1376 }, y(1376, { x: 1478, y: 0 }), x(1478, RF.pinWdata), RF.pinWdata], [MX.pinOut, RF.pinWdata]);
+R("wWdata", [MX.pinOut, x(4760, MX.pinOut), { x: 4760, y: 1400 }, { x: 1478, y: 1400 }, x(1478, RF.pinWdata), RF.pinWdata], [MX.pinOut, RF.pinWdata]);
 
 setupPulses();
 applyWireColors(svg, {
