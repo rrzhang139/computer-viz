@@ -93,7 +93,7 @@ if (FA.pinA && FA.pinB && FA.pinCin && FA.pinS && FA.pinCout
 
   // op-MUX: each compute block's result → its projected data input; op selects
   // → s1/s0; output → Y. (add=in0 … xor=in3.)
-  set('addWire', `${FA.pinS.x},${FA.pinS.y} 700,${FA.pinS.y} 700,${MUX.pinIn0.y} ${MUX.pinIn0.x},${MUX.pinIn0.y}`);
+  set('addWire', `${FA.pinS.x},${FA.pinS.y} 640,${FA.pinS.y} 640,${MUX.pinIn0.y} ${MUX.pinIn0.x},${MUX.pinIn0.y}`);
   set('andWire', `595,385 820,385 820,${MUX.pinIn1.y} ${MUX.pinIn1.x},${MUX.pinIn1.y}`);
   set('orWire',  `595,595 756,595 756,${MUX.pinIn2.y} ${MUX.pinIn2.x},${MUX.pinIn2.y}`);
   set('xorWire', `595,805 784,805 784,${MUX.pinIn3.y} ${MUX.pinIn3.x},${MUX.pinIn3.y}`);

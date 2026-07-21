@@ -59,7 +59,7 @@ own page).
 | alu      | alubox      | (  8.0,  1.0)   | 4.0 × 5.0   |
 | pcsrc    | pcsrcbox    | ( 13.0,  4.0)   | 2.0 × 2.0   |
 | dmem     | dmembox     | ( 13.5, -6.0)   | 5.0 × 3.0   |
-| wbmux    | wbmuxbox    | ( 21.5, -6.0)   | 3.0 × 4.0   |
+| wbmux    | wbmuxbox    | ( 18.5,  1.0)   | 3.0 × 4.0   |
 
 - `pc` program counter (now: +1 adder, **PC-source MUX**, register) + `imem`
   instruction memory — the **fetch** stage.
@@ -120,12 +120,13 @@ Data memory `dmem` (x∈[11,16], y∈[-7.5,-4.5]):
 - `dmem_clk_in`   (11.0, -7.2)  ← LEFT
 - `dmem_rdata_out`(16.0, -6.0)  ← RIGHT
 
-Write-back MUX `wbmux` (x∈[20,23], y∈[-8,-4]):
+Write-back MUX `wbmux` (x∈[17,20], y∈[-1,3]) — directly right of the ALU, in
+stage order:
 
-- `wbmux_in0_in` (20.0, -5.0)  ← LEFT
-- `wbmux_in1_in` (20.0, -6.5)  ← LEFT
-- `wbmux_sel_in` (21.5, -4.0)  ← TOP
-- `wbmux_out`    (23.0, -6.0)  ← RIGHT
+- `wbmux_in0_in` (17.0,  0.5)  ← LEFT
+- `wbmux_in1_in` (17.0, -0.5)  ← LEFT
+- `wbmux_sel_in` (18.5,  3.0)  ← TOP
+- `wbmux_out`    (20.0,  1.0)  ← RIGHT
 
 ## Internal nets
 
@@ -160,16 +161,16 @@ Write-back MUX `wbmux` (x∈[20,23], y∈[-8,-4]):
 | imem_instr_out | pc_target_in  | (-13.0, -3.0), (-13.0, 1.8), (-22.8, 1.8), (-22.8, 3.0) | target |
 | ctrl_out       | alu_op_in     | (2.0, 7.5), (2.0, 3.0)                               | op1      |
 | ctrl_branch_out| pcsrc_br_in   | (11.0, 8.5), (11.0, 4.5)                             | branch   |
-| ctrl_mem_out   | wbmux_sel_in  | (3.5, 6.5), (3.5, -3.0), (21.5, -3.0)                | memtoreg |
+| ctrl_mem_out   | wbmux_sel_in  | (3.5, 6.5), (3.5, 5.8), (18.5, 5.8)                  | memtoreg |
 | ctrl_mem_out   | dmem_we_in    | (4.0, 6.5), (4.0, -6.8)                              | memwrite |
 | rf_rdata_out   | alu_a_in      | (3.0, 0.0), (3.0, 1.0)                               | rdataA   |
 | rf_wdata_out   | dmem_wdata_in | (10.2, -2.0), (10.2, -6.0)                           | rdataB   |
 | alu_y_out      | pcsrc_y_in    | (10.8, 1.0), (10.8, 3.5)                             | aluY     |
 | alu_y_out      | dmem_addr_in  | (11.5, 1.0), (11.5, -3.8), (13.5, -3.8)              | aluY     |
-| alu_y_out      | wbmux_in0_in  | (10.8, 1.0), (10.8, -2.5), (19.0, -2.5), (19.0, -5.0)| aluY     |
+| alu_y_out      | wbmux_in0_in  | (10.8, 1.0), (10.8, 0.5)                             | aluY     |
 | pcsrc_out      | pc_pcsrc_in   | (14.5, 4.0), (14.5, 9.5), (-22.0, 9.5), (-22.0, 5.0) | pcsrc    |
-| dmem_rdata_out | wbmux_in1_in  | (18.0, -6.0), (18.0, -6.5)                           | memdata  |
-| wbmux_out      | rf_wb_in      | (24.5, -6.0), (24.5, -9.3), (-1.5, -9.3)             | wb       |
+| dmem_rdata_out | wbmux_in1_in  | (16.5, -6.0), (16.5, -0.5)                           | memdata  |
+| wbmux_out      | rf_wb_in      | (21.0, 1.0), (21.0, -9.3), (-1.5, -9.3)              | wb       |
 
 The fetch front is where the story is. The PC still drops its value into the
 instruction memory's address — but the PC box now hides an opened loop: +1
@@ -193,9 +194,12 @@ page, and the point of the lesson: *execute reaches back into fetch.*
 - The taken decision rides the y=9.5 lane above every block from the taken
   block back to the PC's left edge; the target field rides the y=1.8 lane
   below the PC box. Neither crosses a foreign box interior.
-- The ALU result fans right of the ALU (x≥10.8) into three vertical runs —
-  the PCSrc block, the data memory's address, and the MUX's in0 — so no wire
-  crosses a foreign box's interior.
+- The ALU result fans right of the ALU (x≥10.8) into three short runs — up
+  to the PCSrc block, down to the data memory's address, and straight across
+  into the write-back MUX's in0 — so no wire crosses a foreign box's interior.
+- The write-back MUX sits directly right of the ALU (stage order EX → WB on
+  one row); the loaded data climbs out of the MEM row at x=16.5 into its in1,
+  and its output drops down the far right edge to the write-back bottom lane.
 
 ## Embedding contract
 

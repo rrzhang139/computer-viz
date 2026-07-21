@@ -48,7 +48,7 @@ const WORD_LANE = [700, 660, 660, 700]; // vertical lane x per word (avoid colin
 if (MUX.pinS1 && MUX.pinS0 && MUX.pinIn0 && MUX.pinIn1 && MUX.pinIn2 && MUX.pinIn3 && MUX.pinOut) {
   // address → MUX select (routed over the top of the word table)
   setW('wAddr1', `0,80 840,80 840,${MUX.pinS1.y} ${MUX.pinS1.x},${MUX.pinS1.y}`);
-  setW('wAddr0', `0,160 40,160 40,60 810,60 810,${MUX.pinS0.y} ${MUX.pinS0.x},${MUX.pinS0.y}`);
+  setW('wAddr0', `0,160 40,160 40,44 810,44 810,${MUX.pinS0.y} ${MUX.pinS0.x},${MUX.pinS0.y}`);
   // word_k → MUX in_k (bend from the cell's right edge into the data input)
   const inPin = [MUX.pinIn0, MUX.pinIn1, MUX.pinIn2, MUX.pinIn3];
   for (let k = 0; k < 4; k++) {

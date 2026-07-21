@@ -76,7 +76,8 @@ const PC: Record<string, Pt> = embeds.get("slot-pc") || {};
 
 const { CLK } = CPU_TERMS;
 const ZERO2 = { x: 3080, y: 1030 };
-const MEMWRITE = { x: 3060, y: 1240 }, MEMTOREG = { x: 3860, y: 1330 };
+const MEMWRITE = { x: 3060, y: 1240 }, MEMTOREG = { x: 4162, y: 1330 };
+const JUMPWB = { x: 4184, y: 720 };
 
 routeCpuTrunk(R, { IM, IDEC, RF, AL, PC });
 
@@ -96,7 +97,7 @@ if (IDEC.pinJump && PS.pinJump) {
   R("ctrlJump", [jStub, { x: 3216, y: jStub.y }, { x: 3216, y: jIn.y }, jIn]);
   R("wPcsrcJm", [jIn, PS.pinJump], [PS.pinJump]);
   // ...and the same Jump line selects the link at the write-back MUX (s1)
-  R("ctrlJumpWb", [jStub, { x: 3940, y: jStub.y }, { x: 3940, y: 1044 }]);
+  R("ctrlJumpWb", [jStub, { x: JUMPWB.x, y: jStub.y }, JUMPWB]);
 }
 if (IDEC.pinBranch && PS.pinBranch) {
   const bStub = { x: 1440, y: IDEC.pinBranch.y };
@@ -119,24 +120,29 @@ if (PS.pinPcsrc && PC.pinPcsrc) {
 R("wImm1", [IDEC.pinWaddr, x(1486, IDEC.pinWaddr), { x: 1486, y: 500 }, { x: 20, y: 500 }, PC.pinImm1 && y(PC.pinImm1.y, { x: 20, y: 0 }), PC.pinImm1], [PC.pinImm1]);
 R("wImm0", [{ x: 1486, y: 512 }, { x: 8, y: 512 }, PC.pinImm0 && y(PC.pinImm0.y, { x: 8, y: 0 }), PC.pinImm0], [PC.pinImm0]);
 
-// ── MEM (data memory) + write-back MUX — carried over from cpu_ldst ────────
-R("wAluY", [AL.pinY, x(4100, AL.pinY), { x: 4100, y: 1060 }, { x: 3940, y: 1060 }, x(3940, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
+// ── MEM (data memory) + write-back MUX (right of the ALU, in stage order) ──
+// The corridor between the ALU's right edge (x=4060) and the MUX slot
+// (x=4200) carries one vertical lane per signal: aluY 4096, memaddr 4120,
+// memdata 4144, link 4150, memToReg 4162, jump 4184. Lanes that share the
+// corridor never overlap the same y-range on distinct nets.
+R("wAluY", [AL.pinY, x(4096, AL.pinY), x(4096, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
 R("wAluAddr", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1076 }, DM.pinAddr0 && { x: DM.pinAddr0.x, y: 1076 }, DM.pinAddr0], [DM.pinAddr0]);
 R("wDmAddr1", [ZERO2, DM.pinAddr1 && { x: DM.pinAddr1.x, y: 1030 }, DM.pinAddr1], [DM.pinAddr1]);
 R("wDmWdata", [RF.pinRdataB, x(3050, RF.pinRdataB), { x: 3050, y: DM.pinWdata ? DM.pinWdata.y : 0 }, DM.pinWdata], [DM.pinWdata]);
 R("wDmWe", [MEMWRITE, x(3120, MEMWRITE), x(3120, DM.pinWe), DM.pinWe], [DM.pinWe]);
 R("wDmClk", [CLK, { x: -76, y: 1200 }, { x: -76, y: 1420 }, { x: 3108, y: 1420 }, x(3108, DM.pinClk), DM.pinClk], [DM.pinClk]);
-R("wDmRdata", [DM.pinRdata, x(3900, DM.pinRdata), x(3900, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
+R("wDmRdata", [DM.pinRdata, x(4144, DM.pinRdata), x(4144, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
 if (PC.pinPcnext && MX.pinIn2) {
-  // the link: PC+1 leaves the PC block and rides forward to the spare
-  // write-back input that every page so far honestly tied to 0
-  R("wLink", [PC.pinPcnext, x(544, PC.pinPcnext), { x: 544, y: 92 }, { x: 3128, y: 92 }, { x: 3128, y: 1390 }, { x: 3948, y: 1390 }, x(3948, MX.pinIn2), MX.pinIn2], [PC.pinPcnext, MX.pinIn2]);
+  // the link: PC+1 leaves the PC block, rides the y=92 lane above the whole
+  // datapath, and drops into the spare write-back input that every page so
+  // far honestly tied to 0
+  R("wLink", [PC.pinPcnext, x(544, PC.pinPcnext), { x: 544, y: 92 }, { x: 4150, y: 92 }, x(4150, MX.pinIn2), MX.pinIn2], [PC.pinPcnext, MX.pinIn2]);
 } else {
-  stub("wMuxIn2", MX.pinIn2, "0", 3930);
+  stub("wMuxIn2", MX.pinIn2, "0", 4132);
 }
-stub("wMuxIn3", MX.pinIn3, "0", 3930);
-R("wMuxS1", [{ x: 3940, y: 1044 }, x(3940, MX.pinS1), MX.pinS1], [MX.pinS1]);
-R("wMuxS0", [MEMTOREG, x(3860, MX.pinS0), MX.pinS0], [MX.pinS0]);
+stub("wMuxIn3", MX.pinIn3, "0", 4132);
+R("wMuxS1", [JUMPWB, x(JUMPWB.x, MX.pinS1), MX.pinS1], [MX.pinS1]);
+R("wMuxS0", [MEMTOREG, x(MEMTOREG.x, MX.pinS0), MX.pinS0], [MX.pinS0]);
 if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
   const mw = { x: 1408, y: IDEC.pinMemWrite.y }, mr = { x: 1424, y: IDEC.pinMemToReg.y };
   R("wCtlMemWrite", [IDEC.pinMemWrite, mw]);
@@ -145,6 +151,7 @@ if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
   R("ctrlMemToReg", [mr, MEMTOREG]);
 }
 R("wWdata", [MX.pinOut, x(4760, MX.pinOut), { x: 4760, y: 1400 }, { x: 1478, y: 1400 }, x(1478, RF.pinWdata), RF.pinWdata], [MX.pinOut, RF.pinWdata]);
+
 
 setupPulses();
 applyWireColors(svg, {

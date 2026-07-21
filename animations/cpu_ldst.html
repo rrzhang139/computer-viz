@@ -118,8 +118,8 @@
           <text class="stage-head" x="260"  y="18">IF · fetch</text>
           <text class="stage-head" x="1020" y="18">ID · decode</text>
           <text class="stage-head" x="3600" y="18">EX · execute</text>
+          <text class="stage-head" x="4450" y="18">WB · write-back</text>
           <text class="stage-head" x="3440" y="1066">MEM · data memory</text>
-          <text class="stage-head" x="4340" y="1066">WB · write-back</text>
 
           <!-- ── source / sink terminals (CPU-level constants + clock) ─────── -->
           <circle class="pin" id="pinClk"  cx="-100" cy="1200" r="7" /><text class="tlabel-small" data-pin="pinClk"  text-anchor="end" x="-118" y="1200">clk</text>
@@ -129,7 +129,7 @@
           <circle class="pin" id="coutTerm" cx="4090" cy="560" r="6" /><text class="tlabel-small" data-pin="coutTerm" text-anchor="start" x="4080" y="530">Cout</text>
           <!-- control signals (decoded from the opcode) + a 0 for the memory high address bit -->
           <circle class="pin" id="pinMemWrite" cx="3060" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="3042" y="1240">memWrite</text>
-          <circle class="pin" id="pinMemToReg" cx="3860" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="3842" y="1330">memToReg</text>
+          <circle class="pin" id="pinMemToReg" cx="4168" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="4150" y="1330">memToReg</text>
           <circle class="pin" id="pinZero2"    cx="3080" cy="1030" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="3062" y="1030">0</text>
           <!-- dotted control lines (decoder's control-unit pins → consumer);
                schematic, free to cross components. Solid stubs leave the
@@ -259,11 +259,12 @@
             <text class="tlabel simple-label" x="3440" y="1232">data memory</text>
             <g class="detailed" id="dmemDetail"></g>
           </g>
-          <!-- WB: write-back MUX — exact embed of /mux.html (ALU result vs loaded data) -->
+          <!-- WB: write-back MUX — exact embed of /mux.html (ALU result vs
+               loaded data), directly right of the ALU in stage order. -->
           <g class="child-slot" id="slot-wbmux" tabindex="0" role="button" aria-label="write-back MUX"
              data-embed-page="/mux.html" data-embed-svg="mux">
-            <rect class="tbody simple-body" id="gWbmux" x="3980" y="1090" width="720" height="270" rx="12" />
-            <text class="tlabel simple-label" x="4340" y="1225">write-back</text>
+            <rect class="tbody simple-body" id="gWbmux" x="4200" y="520" width="500" height="340" rx="12" />
+            <text class="tlabel simple-label" x="4450" y="700">write-back</text>
             <g class="detailed" id="wbmuxDetail"></g>
           </g>
         </svg>
@@ -303,7 +304,7 @@
             <p data-hl="open:gPc open:gImem net:addr0 net:addr1 net:instr"><strong>1 · fetch.</strong> The <kbd>PC</kbd> (<kbd>01</kbd>) fetches the <kbd>LW</kbd> word on the violet <kbd class="wt-instr">instr</kbd> bus.</p>
             <p data-hl="open:gIdecode net:instr net:op0 net:op1 net:rs1h net:rs1l net:rd0 net:rd1 net:memtoreg"><strong>2 · decode.</strong> opcode=<kbd>10</kbd> (a load): <kbd class="wt-rdataA">rs1</kbd>=r0 (the address), <kbd>rd</kbd>=r2 (the destination). This time the control unit matches its <kbd>10 · load</kbd> row and raises <kbd class="wt-memtoreg">memToReg</kbd>: the write-back must come from memory, not the ALU.</p>
             <p data-hl="open:gRegfile net:rdataA open:gAlu net:memaddr"><strong>3 · read + address.</strong> <kbd class="wt-rdataA">r0</kbd>=1 is read, and the <kbd>ALU</kbd> passes it as the address — cell 1.</p>
-            <p data-hl="open:gDmem net:memaddr net:memdata box:gWbmux"><strong>4 · data memory read.</strong> Address 1 selects cell <kbd>M1</kbd>; its stored <kbd>1</kbd> rides out on the light-blue <kbd class="wt-memdata">loaded-data</kbd> wire, all the way across to the <kbd>write-back</kbd> MUX on the far right.</p>
+            <p data-hl="open:gDmem net:memaddr net:memdata box:gWbmux"><strong>4 · data memory read.</strong> Address 1 selects cell <kbd>M1</kbd>; its stored <kbd>1</kbd> rides out on the light-blue <kbd class="wt-memdata">loaded-data</kbd> wire and climbs up to the <kbd>write-back</kbd> MUX beside the ALU.</p>
             <p data-hl="open:gWbmux net:memdata net:memtoreg net:wb box:gDmem"><strong>5 · write-back MUX.</strong> With <kbd class="wt-memtoreg">memToReg</kbd>=1 the MUX takes its <kbd>in1</kbd> (loaded data) instead of <kbd>in0</kbd> (the ALU result), and routes it to <kbd>r2</kbd>'s write port. Click <kbd>next →</kbd> to commit it.</p>
           </article>
           <article class="step" hidden data-stage="lrun" data-focus="#gWbmux,#gRegfile" data-gate="#btnStep" data-pc="1">

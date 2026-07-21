@@ -70,18 +70,17 @@ const MX: Record<string, Pt> = embeds.get("slot-wbmux") || {};
 // page-specific source/sink terminals (fixed in cpu_ldst.html).
 const { CLK } = CPU_TERMS;
 const ZERO2 = { x: 3080, y: 1030 };
-const MEMWRITE = { x: 3060, y: 1240 }, MEMTOREG = { x: 3860, y: 1330 };
+const MEMWRITE = { x: 3060, y: 1240 }, MEMTOREG = { x: 4168, y: 1330 };
 
 routeCpuTrunk(R, { IM, IDEC, RF, AL });
 
-// ── MEM (data memory, bottom-left) + write-back MUX (bottom-right) ───────────
-// Routing avoids crossing any block interior. Cross-gap reads use the clear
-// middle band (y 1260–1280, below the register file, between the two blocks);
-// long left-going feeds to the data memory ride the bottom lanes (y 1388/1396,
-// below the data-memory box at 1082–1382); the MUX's own returns ride just
-// below the MUX (y 1368/1376, below its box at 1090–1360).
-// ALU result → write-back MUX in0 (down the right edge, under the MUX).
-R("wAluY", [AL.pinY, x(4100, AL.pinY), { x: 4100, y: 1060 }, { x: 3940, y: 1060 }, x(3940, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
+// ── MEM (data memory, below the ALU) + write-back MUX (right of the ALU) ────
+// The corridor between the ALU's right edge (x=4060) and the MUX slot
+// (x=4200) carries one vertical lane per signal: aluY 4096, memaddr 4120,
+// memdata 4144, memToReg 4168. Lanes that share the corridor never overlap
+// the same y-range on distinct nets.
+// ALU result → write-back MUX in0 (one short hop right).
+R("wAluY", [AL.pinY, x(4096, AL.pinY), x(4096, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
 // ALU result → data-memory address (a second branch; mem ops: ALU passes rs1).
 R("wAluAddr", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1076 }, DM.pinAddr0 && { x: DM.pinAddr0.x, y: 1076 }, DM.pinAddr0], [DM.pinAddr0]);
 // data-memory high address bit ties to 0 (1-bit data → only cells 0/1 used).
@@ -91,13 +90,14 @@ R("wDmWdata", [RF.pinRdataB, x(3050, RF.pinRdataB), { x: 3050, y: DM.pinWdata ? 
 // control: memWrite → data-memory write enable; clock → data memory.
 R("wDmWe", [MEMWRITE, x(3120, MEMWRITE), x(3120, DM.pinWe), DM.pinWe], [DM.pinWe]);
 R("wDmClk", [CLK, { x: -76, y: 1200 }, { x: -76, y: 1420 }, { x: 3108, y: 1420 }, x(3108, DM.pinClk), DM.pinClk], [DM.pinClk]);
-// data-memory read out → write-back MUX in1 (the loaded value), via the gap.
-R("wDmRdata", [DM.pinRdata, x(3900, DM.pinRdata), x(3900, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
+// data-memory read out → write-back MUX in1 (the loaded value climbs the
+// corridor).
+R("wDmRdata", [DM.pinRdata, x(4144, DM.pinRdata), x(4144, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
 // MUX unused inputs + high select tie to 0; low select = memToReg control.
-stub("wMuxIn2", MX.pinIn2, "0", 3930);
-stub("wMuxIn3", MX.pinIn3, "0", 3930);
-stub("wMuxS1", MX.pinS1, "0", 3930);
-R("wMuxS0", [MEMTOREG, x(3860, MX.pinS0), MX.pinS0], [MX.pinS0]);
+stub("wMuxIn2", MX.pinIn2, "0", 4130);
+stub("wMuxIn3", MX.pinIn3, "0", 4130);
+stub("wMuxS1", MX.pinS1, "0", 4140);
+R("wMuxS0", [MEMTOREG, x(MEMTOREG.x, MX.pinS0), MX.pinS0], [MX.pinS0]);
 // Control lines are BORN in the decoder (its control unit decodes type+f0):
 // a short solid stub leaves each embedded control pin, then a dotted schematic
 // line runs from the stub to its consumer terminal, free to cross components.

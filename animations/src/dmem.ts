@@ -50,7 +50,7 @@ const WSEL_LANE = [30, 90, 120, 150];   // write-select lanes (spread, < cells x
 
 if (MUX.pinS1 && MUX.pinS0 && MUX.pinIn0 && MUX.pinIn1 && MUX.pinIn2 && MUX.pinIn3 && MUX.pinOut) {
   setW("wAddr1", `0,100 0,50 840,50 840,${MUX.pinS1.y} ${MUX.pinS1.x},${MUX.pinS1.y}`);
-  setW("wAddr0", `0,180 20,180 20,30 1080,30 1080,${MUX.pinS0.y} ${MUX.pinS0.x},${MUX.pinS0.y}`);
+  setW("wAddr0", `0,180 32,180 32,14 1080,14 1080,${MUX.pinS0.y} ${MUX.pinS0.x},${MUX.pinS0.y}`);
   const inPin = [MUX.pinIn0, MUX.pinIn1, MUX.pinIn2, MUX.pinIn3];
   for (let k = 0; k < 4; k++) {
     const lane = WORD_LANE[k], yy = WORD_Y[k], p = inPin[k];
