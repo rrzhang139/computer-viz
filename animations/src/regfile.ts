@@ -123,14 +123,14 @@ if (rfReady) {
   // each register's Q̄ is unused → short honest stub off the pin.
   for (let i = 0; i < 4; i++) setWirePoints(`qbStub${i}`, `${REG[i].pinQB.x},${REG[i].pinQB.y} 952,${REG[i].pinQB.y}`);
   // read addresses → each MUX's s1/s0 select pins.
-  setWirePoints('raddrA1', `0,28 990,28 990,${MUXA.pinS1.y} ${MUXA.pinS1.x},${MUXA.pinS1.y}`);
-  setWirePoints('raddrA0', `0,48 1000,48 1000,${MUXA.pinS0.y} ${MUXA.pinS0.x},${MUXA.pinS0.y}`);
+  setWirePoints('raddrA1', `0,28 996,28 996,${MUXA.pinS1.y} ${MUXA.pinS1.x},${MUXA.pinS1.y}`);
+  setWirePoints('raddrA0', `0,48 1006,48 1006,${MUXA.pinS0.y} ${MUXA.pinS0.x},${MUXA.pinS0.y}`);
   setWirePoints('raddrB1', `0,92 974,92 974,${MUXB.pinS1.y} ${MUXB.pinS1.x},${MUXB.pinS1.y}`);
   setWirePoints('raddrB0', `0,112 984,112 984,${MUXB.pinS0.y} ${MUXB.pinS0.x},${MUXB.pinS0.y}`);
   // register outputs (Q pin) fan to BOTH read MUXes' data input pins.
   const inKey = ['pinIn0', 'pinIn1', 'pinIn2', 'pinIn3'] as const;
-  const laneA: Record<number, number> = { 3: 952, 2: 958, 1: 958, 0: 952 };
-  const laneB: Record<number, number> = { 3: 946, 2: 964, 1: 964, 0: 946 };
+  const laneA: Record<number, number> = { 3: 946, 2: 955, 1: 964, 0: 937 };
+  const laneB: Record<number, number> = { 3: 946, 2: 955, 1: 964, 0: 937 };
   for (let i = 0; i < 4; i++) {
     const q = REG[i].pinQ, a = MUXA[inKey[i]], b = MUXB[inKey[i]];
     setWirePoints(`q${i}`,  `${q.x},${q.y} ${laneA[i]},${q.y} ${laneA[i]},${a.y} ${a.x},${a.y}`);
