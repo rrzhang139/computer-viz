@@ -57,6 +57,17 @@ const OVERRIDE_CSS = `
    fixed panel. Then let the SVG fill all remaining vertical space. */
 body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
 
+/* Wide, short diagrams (the CPU datapaths) can't fill the full height at
+   100% width — center the whole column in the space above the panel so
+   leftover room becomes even top/bottom framing instead of one dead black
+   band between the diagram and the panel. Tall pages have no free space,
+   so this is a no-op for them. */
+.page-layout {
+  min-height: calc(100vh - ${PANEL_HEIGHT_PX}px);
+  justify-content: center;
+  box-sizing: border-box;
+}
+
 .canvas-col { width: 100%; }
 .canvas-col svg {
   max-height: calc(100vh - ${PANEL_HEIGHT_PX + 110}px) !important;
@@ -68,6 +79,7 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
 @media (max-width: 900px) {
   .step-panel { padding: 14px 18px 16px !important; height: 240px !important; }
   body { padding-bottom: 240px; }
+  .page-layout { min-height: calc(100vh - 240px); }
   .canvas-col svg {
     max-height: calc(100vh - 360px) !important;
     min-height: 200px;
@@ -77,6 +89,7 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
 @media (max-width: 600px) {
   .step-panel { height: 260px !important; }
   body { padding-bottom: 260px; }
+  .page-layout { min-height: calc(100vh - 260px); }
   .step h3 { font-size: 17px !important; }
   .step p { font-size: 16px !important; }
   .canvas-col svg {
@@ -91,6 +104,7 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
 @media (max-height: 500px) {
   .step-panel { height: 140px !important; padding: 8px 14px 10px !important; }
   body { padding-bottom: 140px; }
+  .page-layout { min-height: calc(100vh - 140px); }
   .step h3 { font-size: 13px !important; margin: 0 0 5px !important; }
   .step p { font-size: 12px !important; line-height: 1.35 !important; margin: 0 0 5px !important; }
   .step-meta { font-size: 10px !important; margin: 0 0 5px !important; }
