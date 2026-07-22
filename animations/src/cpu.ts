@@ -81,7 +81,7 @@ if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
 // An R-type result has one source, so it just turns the corner and loops back
 // along the bottom: out the ALU's right, down to the bottom lane, left to the
 // write-data lane, up onto the register file's write-data pin.
-R("wWdata", [AL.pinY, x(4100, AL.pinY), { x: 4100, y: 1395 }, y(1395, { x: 1478, y: 0 }), x(1478, RF.pinWdata), RF.pinWdata], [AL.pinY, RF.pinWdata]);
+R("wWdata", [AL.pinY, x(4100, AL.pinY), { x: 4100, y: 1515 }, y(1515, { x: 1478, y: 0 }), x(1478, RF.pinWdata), RF.pinWdata], [AL.pinY, RF.pinWdata]);
 
 setupPulses();                          // flow overlays (after every wire is routed)
 applyWireColors(svg, CPU_BASE_COLORS);  // colour each signal a distinct hue (dense datapath)

@@ -101,17 +101,17 @@
           same mechanism datapath.html uses). Toy R-type ISA (op|rs1|rs2|rd),
           1-bit data. Wireframe: wire_sketches/layer18_cpu.md.
         -->
-        <svg id="cpu" viewBox="-120 -30 4360 1460" role="img"
+        <svg id="cpu" viewBox="-120 -30 4270 1580" role="img"
              aria-label="CPU single-cycle datapath: fetch, decode, execute, write-back"
              preserveAspectRatio="xMidYMid meet">
           <polyline class="rail" data-net="Vdd" points="0,8 4100,8" />
-          <polyline class="rail" data-net="GND" points="0,1400 4100,1400" />
+          <polyline class="rail" data-net="GND" points="0,1520 4100,1520" />
 
           <!-- stage headers -->
           <text class="stage-head" x="260"  y="18">IF · fetch</text>
           <text class="stage-head" x="1020" y="18">ID · decode</text>
           <text class="stage-head" x="3600" y="18">EX · execute</text>
-          <text class="stage-head" x="3560" y="1080">WB · write-back</text>
+          <text class="stage-head" x="3560" y="1180">WB · write-back</text>
 
           <!-- ── source / sink terminals (CPU-level constants + clock) ─────── -->
           <circle class="pin" id="pinClk"  cx="-100" cy="1200" r="7" /><text class="tlabel-small" data-pin="pinClk"  text-anchor="end" x="-118" y="1200">clk</text>
