@@ -109,30 +109,30 @@
           the ALU. Every block a LIVE drill into the page that builds it.
           Wireframe: wire_sketches/layer20_cpubranch.md.
         -->
-        <svg id="cpu" viewBox="-120 -30 4980 1460" role="img"
+        <svg id="cpu" viewBox="-120 -30 4900 1700" role="img"
              aria-label="branch CPU datapath: fetch with PC-source MUX, decode, execute, taken logic, memory, write-back"
              preserveAspectRatio="xMidYMid meet">
-          <polyline class="rail" data-net="Vdd" points="0,8 4800,8" />
-          <polyline class="rail" data-net="GND" points="0,1400 4800,1400" />
+          <polyline class="rail" data-net="Vdd" points="0,8 4770,8" />
+          <polyline class="rail" data-net="GND" points="0,1640 4770,1640" />
 
           <!-- stage headers -->
           <text class="stage-head" x="260"  y="18">IF · fetch</text>
           <text class="stage-head" x="1020" y="18">ID · decode</text>
           <text class="stage-head" x="3600" y="18">EX · execute</text>
           <text class="stage-head" x="4450" y="18">WB · write-back</text>
-          <text class="stage-head" x="3440" y="1066">MEM · data memory</text>
+          <text class="stage-head" x="3440" y="1306">MEM · data memory</text>
 
           <!-- ── source / sink terminals (CPU-level constants + clock) ─────── -->
           <circle class="pin" id="pinClk"  cx="-100" cy="1200" r="7" /><text class="tlabel-small" data-pin="pinClk"  text-anchor="end" x="-118" y="1200">clk</text>
           <circle class="pin" id="pinOne"  cx="1460" cy="410"  r="7" /><text class="tlabel-small" data-pin="pinOne"  text-anchor="middle" x="1460" y="388">1</text>
-          <circle class="pin" id="pinZero" cx="3090" cy="1080" r="7" /><text class="tlabel-small" data-pin="pinZero" text-anchor="middle" x="3090" y="1058">0</text>
+          <circle class="pin" id="pinZero" cx="3090" cy="1320" r="7" /><text class="tlabel-small" data-pin="pinZero" text-anchor="middle" x="3090" y="1298">0</text>
           <!-- ALU carry-out (unused by 1-bit ops) -->
           <circle class="pin" id="coutTerm" cx="4090" cy="560" r="6" /><text class="tlabel-small" data-pin="coutTerm" text-anchor="start" x="4080" y="530">Cout</text>
           <!-- control signals (decoded from the opcode) + a 0 for the memory high address bit -->
-          <circle class="pin" id="pinMemWrite" cx="3060" cy="1240" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="3042" y="1240">memWrite</text>
+          <circle class="pin" id="pinMemWrite" cx="3060" cy="1480" r="7" /><text class="tlabel-small" data-pin="pinMemWrite" text-anchor="end" x="3042" y="1480">memWrite</text>
           <circle class="pin" id="pinJumpWb" cx="4184" cy="720" r="7" />
-          <circle class="pin" id="pinMemToReg" cx="4162" cy="1330" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="4144" y="1330">memToReg</text>
-          <circle class="pin" id="pinZero2"    cx="3080" cy="1030" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="3062" y="1030">0</text>
+          <circle class="pin" id="pinMemToReg" cx="4162" cy="1570" r="7" /><text class="tlabel-small" data-pin="pinMemToReg" text-anchor="end" x="4144" y="1570">memToReg</text>
+          <circle class="pin" id="pinZero2"    cx="3080" cy="1270" r="7" /><text class="tlabel-small" data-pin="pinZero2" text-anchor="end" x="3062" y="1270">0</text>
           <!-- the decoder's Branch control line is born at the embedded
                decoder's real pin (01·beq truth-table row); src/cpu_branch.ts
                routes the solid stub + dotted run to the PCSrc block. -->
@@ -253,8 +253,8 @@
           <!-- MEM: data memory (read + write) — exact embed of /dmem.html -->
           <g class="child-slot" id="slot-dmem" tabindex="0" role="button" aria-label="data memory"
              data-embed-page="/dmem.html" data-embed-svg="dmem">
-            <rect class="tbody simple-body" id="gDmem" x="3140" y="1082" width="600" height="300" rx="12" />
-            <text class="tlabel simple-label" x="3440" y="1232">data memory</text>
+            <rect class="tbody simple-body" id="gDmem" x="3140" y="1322" width="600" height="300" rx="12" />
+            <text class="tlabel simple-label" x="3440" y="1472">data memory</text>
             <g class="detailed" id="dmemDetail"></g>
           </g>
           <!-- WB: write-back MUX — exact embed of /mux.html, directly right of

@@ -75,8 +75,8 @@ const PS: Record<string, Pt> = embeds.get("slot-pcsrc") || {};
 const PC: Record<string, Pt> = embeds.get("slot-pc") || {};
 
 const { CLK } = CPU_TERMS;
-const ZERO2 = { x: 3080, y: 1030 };
-const MEMWRITE = { x: 3060, y: 1240 }, MEMTOREG = { x: 4162, y: 1330 };
+const ZERO2 = { x: 3080, y: 1270 };
+const MEMWRITE = { x: 3060, y: 1480 }, MEMTOREG = { x: 4162, y: 1570 };
 const JUMPWB = { x: 4184, y: 720 };
 
 routeCpuTrunk(R, { IM, IDEC, RF, AL, PC });
@@ -126,11 +126,11 @@ R("wImm0", [{ x: 1486, y: 512 }, { x: 8, y: 512 }, PC.pinImm0 && y(PC.pinImm0.y,
 // memdata 4144, link 4150, memToReg 4162, jump 4184. Lanes that share the
 // corridor never overlap the same y-range on distinct nets.
 R("wAluY", [AL.pinY, x(4096, AL.pinY), x(4096, MX.pinIn0), MX.pinIn0], [AL.pinY, MX.pinIn0]);
-R("wAluAddr", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1076 }, DM.pinAddr0 && { x: DM.pinAddr0.x, y: 1076 }, DM.pinAddr0], [DM.pinAddr0]);
-R("wDmAddr1", [ZERO2, DM.pinAddr1 && { x: DM.pinAddr1.x, y: 1030 }, DM.pinAddr1], [DM.pinAddr1]);
+R("wAluAddr", [AL.pinY, x(4120, AL.pinY), { x: 4120, y: 1316 }, DM.pinAddr0 && { x: DM.pinAddr0.x, y: 1316 }, DM.pinAddr0], [DM.pinAddr0]);
+R("wDmAddr1", [ZERO2, DM.pinAddr1 && { x: DM.pinAddr1.x, y: 1270 }, DM.pinAddr1], [DM.pinAddr1]);
 R("wDmWdata", [RF.pinRdataB, x(3050, RF.pinRdataB), { x: 3050, y: DM.pinWdata ? DM.pinWdata.y : 0 }, DM.pinWdata], [DM.pinWdata]);
 R("wDmWe", [MEMWRITE, x(3120, MEMWRITE), x(3120, DM.pinWe), DM.pinWe], [DM.pinWe]);
-R("wDmClk", [CLK, { x: -76, y: 1200 }, { x: -76, y: 1420 }, { x: 3108, y: 1420 }, x(3108, DM.pinClk), DM.pinClk], [DM.pinClk]);
+R("wDmClk", [CLK, { x: -76, y: 1200 }, { x: -76, y: 1660 }, { x: 3108, y: 1660 }, x(3108, DM.pinClk), DM.pinClk], [DM.pinClk]);
 R("wDmRdata", [DM.pinRdata, x(4144, DM.pinRdata), x(4144, MX.pinIn1), MX.pinIn1], [DM.pinRdata, MX.pinIn1]);
 if (PC.pinPcnext && MX.pinIn2) {
   // the link: PC+1 leaves the PC block, rides the y=92 lane above the whole
@@ -150,7 +150,7 @@ if (IDEC.pinMemWrite && IDEC.pinMemToReg) {
   R("ctrlMemWrite", [mw, MEMWRITE]);
   R("ctrlMemToReg", [mr, MEMTOREG]);
 }
-R("wWdata", [MX.pinOut, x(4760, MX.pinOut), { x: 4760, y: 1400 }, { x: 1478, y: 1400 }, x(1478, RF.pinWdata), RF.pinWdata], [MX.pinOut, RF.pinWdata]);
+R("wWdata", [MX.pinOut, x(4760, MX.pinOut), { x: 4760, y: 1640 }, { x: 1478, y: 1640 }, x(1478, RF.pinWdata), RF.pinWdata], [MX.pinOut, RF.pinWdata]);
 
 
 setupPulses();
