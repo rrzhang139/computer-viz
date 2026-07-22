@@ -68,13 +68,28 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
   box-sizing: border-box;
 }
 
-.canvas-col { width: 100%; }
+.canvas-col { width: 100%; flex: 1 1 auto; min-height: 0; }
 .canvas-col svg {
   max-height: calc(100vh - ${PANEL_HEIGHT_PX + 110}px) !important;
   min-height: 240px;
   height: auto !important;
   width: 100% !important;
 }
+/* The zoomable canvas surface extends all the way down to the prose card:
+   the wrap stretches to fill the leftover column height, gets a subtle
+   frame so it reads as the viz area (not dead page), and the svg centers
+   inside it. */
+.cv-canvas-wrap {
+  flex: 1 1 auto;
+  align-items: center;
+  min-height: 0;
+  border: 1px solid #1a1a1a;
+  border-radius: 14px;
+  background: #0c0c0c;
+}
+/* One uniform surface: the svg's own background would paint a darker
+   stripe inside the framed wrap. */
+.cv-canvas-wrap > svg { background: transparent !important; }
 
 @media (max-width: 900px) {
   .step-panel { padding: 14px 18px 16px !important; height: 240px !important; }
