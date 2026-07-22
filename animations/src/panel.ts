@@ -68,28 +68,27 @@ body { padding-bottom: ${PANEL_HEIGHT_PX}px; }
   box-sizing: border-box;
 }
 
+/* The svg IS the canvas: it fills the whole area between the readout and
+   the prose card, edge to edge, so every pixel of it is drag/zoomable.
+   The diagram centers inside (preserveAspectRatio meet). */
+.page-layout { padding: 10px 8px 0 !important; }
 .canvas-col { width: 100%; flex: 1 1 auto; min-height: 0; }
-.canvas-col svg {
-  max-height: calc(100vh - ${PANEL_HEIGHT_PX + 110}px) !important;
-  min-height: 240px;
-  height: auto !important;
-  width: 100% !important;
-}
-/* The zoomable canvas surface extends all the way down to the prose card:
-   the wrap stretches to fill the leftover column height, gets a subtle
-   frame so it reads as the viz area (not dead page), and the svg centers
-   inside it. */
 .cv-canvas-wrap {
   flex: 1 1 auto;
-  align-items: center;
-  min-height: 0;
-  border: 1px solid #1a1a1a;
-  border-radius: 14px;
-  background: #0c0c0c;
+  align-self: stretch;
+  min-height: 240px;
+  width: 100%;
 }
-/* One uniform surface: the svg's own background would paint a darker
-   stripe inside the framed wrap. */
-.cv-canvas-wrap > svg { background: transparent !important; }
+/* Absolute fill: percentage heights against a flex-grown box are unreliable,
+   so pin the svg to the wrap's edges — every pixel between the readout and
+   the prose card is the drag/zoomable canvas. */
+.cv-canvas-wrap > svg {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+}
 
 @media (max-width: 900px) {
   .step-panel { padding: 14px 18px 16px !important; height: 240px !important; }
