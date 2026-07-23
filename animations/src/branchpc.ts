@@ -89,8 +89,8 @@ if (ready) {
   // MUX out → the register's low D inputs; upper D tied 0
   R("wPcsel", [MX.pinOut, H(MX.pinOut, 1012), { x: 1012, y: REG.pinD0!.y }, REG.pinD0], [MX.pinOut, REG.pinD0]);
   R("wPcsel1", [{ x: 1000, y: 345 }, { x: 1022, y: 345 }, { x: 1022, y: REG.pinD1!.y }, REG.pinD1], [REG.pinD1]);
-  mk("wRegD2", "zero", [H(REG.pinD2, 990), REG.pinD2]);
-  mk("wRegD3", "zero", [H(REG.pinD3, 990), REG.pinD3]);
+  mk("wRegD2", "zero", [H(REG.pinD2, 1014), REG.pinD2]);
+  mk("wRegD3", "zero", [H(REG.pinD3, 1014), REG.pinD3]);
   // clock → the register's edge (over the top, from the page's left edge)
   R("wClk", [{ x: 60, y: 1160 }, { x: 1660, y: 1160 }, { x: 1660, y: 250 }, { x: REG.pinCLK!.x, y: 250 }, REG.pinCLK], [REG.pinCLK]);
   // the link tap: the PC+1 bus also leaves the block (a jump writes it back)
