@@ -44,8 +44,8 @@
       .tlabel { fill: #888; font-size: 26px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
       .tbody[data-on="1"] + .tlabel { fill: var(--on); }
       .tlabel-small { fill: #777; font-size: 19px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
-      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
-      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+      .pin, .srcpin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"], .srcpin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
 
       /* Drillable decoder: hover swaps the box for the real /decoder.html scene. */
       .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
@@ -125,7 +125,7 @@
           <!-- decoder inputs: opcode bits straight in; enable tied high -->
           <polyline class="wire" data-net="oc1" points="60,160 260,160" />
           <polyline class="wire" data-net="oc0" points="60,320 260,320" />
-          <circle class="pin" id="pinOne" cx="150" cy="240" r="7" data-on="1" />
+          <circle class="srcpin" id="pinOne" cx="150" cy="240" r="7" data-on="1" />
           <text class="tlabel-small" data-pin="pinOne" text-anchor="end" x="132" y="240">1</text>
           <polyline class="wire" data-net="one" points="150,240 260,240" />
 
@@ -137,7 +137,7 @@
           <polyline class="wire" data-net="fam" points="880,440 880,670 940,670" />
           <!-- 00 = R-type: matches no control line at all -->
           <polyline class="wire" data-net="r00" points="740,360 800,360" />
-          <circle class="pin" id="pinR" cx="800" cy="360" r="7" />
+          <circle class="srcpin" id="pinR" cx="800" cy="360" r="7" />
           <text class="tlabel-small" data-pin="pinR" text-anchor="start" x="818" y="360">R-type — no control line</text>
 
           <!-- funct refinement: Branch = fam · f̄₁ ; Jump = fam · f₁ · f̄₀ -->
