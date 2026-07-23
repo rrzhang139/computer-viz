@@ -132,27 +132,27 @@
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
-          <article class="step">
+          <article class="step" data-focus="all">
             <h3>where we are: the machine's only decision</h3>
             <p>Everything else in the CPU computes values. This little corner is the one place a <em>decision</em> is made: should the next instruction come from <kbd>PC + 1</kbd>, or from the branch target? The answer is a single wire called <span class="accent">PCSrc</span>, and it is built from just two gates.</p>
             <p>The names here are the standard ones from computer-architecture courses (Patterson &amp; Hennessy's single-cycle datapath): <kbd>Branch</kbd> is the control line the decoder raises for a branch opcode, <kbd>Zero</kbd> is the ALU's "the result was zero" flag, and <kbd>PCSrc = Branch AND Zero</kbd> selects the PC's source.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gZero">
             <h3>the Zero flag — how hardware asks "are these equal?"</h3>
             <p>Hardware never compares two numbers directly. It subtracts them and asks whether the result is zero: <kbd>A − B = 0</kbd> exactly when <kbd>A = B</kbd>. Our data is one bit wide, and one-bit subtraction is XOR — so the ALU's XOR result is the difference, and the <kbd>= 0 ?</kbd> block is just a NOT gate. In a 32-bit ALU the same block is a wide NOR across all 32 result bits, and its output pin is labeled <kbd>Zero</kbd> right on the ALU.</p>
             <p class="do">Click <kbd>result</kbd> to flip the ALU result and watch the <kbd>Zero</kbd> readout invert: result 0 means the values were equal, so Zero is 1.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gAnd">
             <h3>the AND gate — both conditions, or nothing</h3>
             <p>Being equal is not enough — most instructions are not branches, and their results are often zero. Wanting to branch is not enough either — a <kbd>beq</kbd> whose registers differ must fall through. So the two conditions meet at an AND gate: <kbd>PCSrc</kbd> fires only when the decoder said "this is a branch" <em>and</em> the ALU said "they were equal."</p>
             <p class="do">Turn on <kbd>Branch</kbd> while <kbd>result</kbd> is 0. Now both AND inputs are 1 and <kbd>PCSrc</kbd> goes to 1 — this is the only input combination that redirects the machine.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gOr">
             <h3>the OR gate — jumps don't ask</h3>
             <p>A conditional branch has to earn its redirect: Branch AND Zero. A <em>jump</em> (<kbd>jal</kbd>) doesn't — it always goes. So the decoder has one more control line, <kbd>Jump</kbd>, and it meets the AND gate's verdict at an OR: <kbd>PCSrc = (Branch AND Zero) OR Jump</kbd>. That is the complete equation in a real single-cycle RISC-V core.</p>
             <p class="do">Turn everything off, then click <kbd>Jump</kbd> alone. <kbd>PCSrc</kbd> goes straight to 1 — no comparison consulted. The machine redirects because the instruction said so, not because the data agreed.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="all">
             <h3>why this matters</h3>
             <p>That output wire runs back to the fetch stage and flips the PC-source MUX. Two gates decide whether the machine walks forward or leaps. Every <kbd>if</kbd>, <kbd>while</kbd>, and <kbd>for</kbd> in every program ultimately funnels through an AND gate exactly like this one.</p>
             <p>And notice the cost of the trip: the decision needs the instruction fetched, decoded, registers read, and the ALU finished — the longest path on the whole datapath — before fetch knows where to look next. Pipelined CPUs refuse to wait, guess the answer in advance, and pay a penalty when they guess wrong. That story is called the <em>control hazard</em>, and it starts right here.</p>

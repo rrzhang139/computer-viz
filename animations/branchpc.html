@@ -107,50 +107,54 @@
           <g class="child-slot" id="slot-add" tabindex="0" role="button" aria-label="+1 adder — the real 4-bit adder"
              data-embed-page="/adder4.html" data-embed-svg="adder4">
             <rect class="tbody simple-body" id="gAdd" x="140" y="150" width="380" height="410" rx="12" />
-            <text class="tlabel simple-label" x="330" y="340">+1 adder</text>
+            <text class="tlabel-small" x="330" y="128">+1</text>
+            <text class="tlabel simple-label" x="330" y="340">adder</text>
             <g class="detailed" id="addDetail"></g>
           </g>
           <!-- the branch-target adder (PC + imm) — the same 4-bit adder again -->
           <g class="child-slot" id="slot-tadd" tabindex="0" role="button" aria-label="branch-target adder — PC + imm"
              data-embed-page="/adder4.html" data-embed-svg="adder4">
             <rect class="tbody simple-body" id="gTAdd" x="140" y="680" width="380" height="410" rx="12" />
-            <text class="tlabel simple-label" x="330" y="870">PC + imm</text>
+            <text class="tlabel-small" x="330" y="658">PC + imm</text>
+            <text class="tlabel simple-label" x="330" y="870">adder</text>
             <g class="detailed" id="taddDetail"></g>
           </g>
           <!-- the PC-source MUX — the real 4-to-1 MUX page (per-bit slice) -->
           <g class="child-slot" id="slot-pcmux" tabindex="0" role="button" aria-label="PC-source MUX"
              data-embed-page="/mux.html" data-embed-svg="mux">
-            <rect class="tbody simple-body" id="gPcmux" x="640" y="330" width="300" height="360" rx="12" />
-            <text class="tlabel simple-label" x="790" y="500">select</text>
+            <rect class="tbody simple-body" id="gPcmux" x="640" y="381" width="380" height="258" rx="12" />
+            <text class="tlabel-small" x="830" y="359">PC source</text>
+            <text class="tlabel simple-label" x="830" y="514">MUX</text>
             <g class="detailed" id="pcmuxDetail"></g>
           </g>
           <!-- the PC itself — the real register (four DFFs) -->
           <g class="child-slot" id="slot-reg" tabindex="0" role="button" aria-label="the PC register — four flip-flops"
              data-embed-page="/register.html" data-embed-svg="register">
             <rect class="tbody simple-body" id="gReg" x="1030" y="300" width="380" height="410" rx="12" />
-            <text class="tlabel simple-label" x="1220" y="490">reg (the PC)</text>
+            <text class="tlabel-small" x="1140" y="278">the PC</text>
+            <text class="tlabel simple-label" x="1220" y="490">register</text>
             <g class="detailed" id="regDetail"></g>
           </g>
 
           <!-- bus-level schematic wires (the CPU page's mini preview shows these;
                src/branchpc.ts re-routes them onto the embedded components' real
                pins and adds the per-bit fans at runtime) -->
-          <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="60,60 590,60 590,505 640,505" />
+          <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="60,60 590,60 590,444 640,444" />
           <polyline class="wire" data-net="imm1"   id="wImm1" points="60,760 140,760" />
           <polyline class="wire" data-net="imm0"   id="wImm0" points="60,816 140,816" />
           <polyline class="wire" data-net="clk"    id="wClk" points="60,1160 1660,1160 1660,250 1220,250 1220,300" />
-          <polyline class="wire bus" data-net="pcnext" id="wPcnext" points="520,355 560,355 560,430 640,430" />
-          <text class="tlabel-small" x="592" y="404">/2</text>
-          <polyline class="wire bus" data-net="target" id="wTgt" points="520,885 604,885 604,590 640,590" />
-          <text class="tlabel-small" x="628" y="628">/2</text>
-          <polyline class="wire" data-net="pcsel"  id="wPcsel" points="940,510 1030,510" />
+          <polyline class="wire bus" data-net="pcnext" id="wPcnext" points="520,355 560,355 560,574 640,574" />
+          <text class="tlabel-small" x="584" y="470">/2</text>
+          <polyline class="wire bus" data-net="target" id="wTgt" points="520,885 604,885 604,542 640,542" />
+          <text class="tlabel-small" x="626" y="690">/2</text>
+          <polyline class="wire" data-net="pcsel"  id="wPcsel" points="1012,526 1030,526" />
           <polyline class="wire" data-net="addr1"  id="wQ1out" points="1410,540 1490,540" />
           <polyline class="wire" data-net="addr0"  id="wQ0out" points="1410,600 1490,600" />
           <polyline class="wire" data-net="addr1"  id="wFb" points="1410,540 1628,540 1628,1120 100,1120 100,355 140,355" />
           <polyline class="wire" data-net="addr1"  id="wFbT" points="100,885 140,885" />
 
           <!-- the link tap: PC+1 leaves the block for a jump's write-back -->
-          <polyline class="wire" data-net="pcnext" id="wPcp1" points="560,430 560,1060 1700,1060 1700,980" />
+          <polyline class="wire" data-net="pcnext" id="wPcp1" points="560,574 560,1060 1700,1060 1700,980" />
           <circle class="pin" id="pinPcnext" cx="1700" cy="980" r="7" />
           <text class="tlabel-small" data-pin="pinPcnext" text-anchor="start" x="1666" y="952">PC+1 (link)</text>
 
@@ -169,31 +173,31 @@
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
-          <article class="step">
+          <article class="step" data-focus="all">
             <h3>where we are: no black boxes left</h3>
             <p data-hl="open:gAdd open:gTAdd open:gPcmux open:gReg">Every block on this page is a component you already built, embedded live: two copies of the <em>4-bit adder</em>, the <em>4-to-1 MUX</em>, and the <em>register</em>. Hover any block to see its real internals; click it to descend — adder → full adder → half adder → NAND → transistors, or register → flip-flop → latch → NAND → transistors. Nothing here is a drawing of an idea. It is the idea.</p>
             <p>A program counter is not a special kind of circuit. It is an ordinary register whose <em>job</em> is special: it holds the address of the next instruction, and some machinery around it computes what that address should become.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gReg">
             <h3>the register IS the PC</h3>
             <p data-hl="open:gReg net:addr1 net:addr0 net:clk">Hover <kbd>reg</kbd>: four flip-flops, the exact register page you built in the memory chapter. The two low bits are our program counter (the upper two sit at zero — a real machine uses all 32). Its stored value leaves on the <kbd class="wt-addr1">address</kbd> wires to instruction memory, and nothing about the register itself knows it is "the PC" — the job comes from the wiring around it.</p>
             <p data-hl="net:clk">Its clock is the machine's heartbeat: once per cycle, whatever is staged at its D inputs becomes the new address. Everything else on this page exists to decide what to stage there.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gAdd">
             <h3>the +1 adder — and why not use the ALU?</h3>
             <p data-hl="open:gAdd net:pcnext net:addr1">Hover <kbd>+1 adder</kbd>: the real 4-bit ripple-carry adder, with its B input hardwired to the constant <kbd>0001</kbd> — so its output is always <kbd class="wt-pcnext">PC + 1</kbd>, recomputed live as the PC loops back into its A input.</p>
             <p>A fair question: the CPU already owns an adder — the ALU — so why build another one? Because both are needed <em>in the same cycle</em>: while the ALU computes the instruction's result, the PC must simultaneously compute its own next value. And adders are cheap — even the MOS 6502, a chip of only <em>3,510 transistors</em>, spent some of them on dedicated PC-increment circuitry. Every real CPU makes this same trade.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gTAdd">
             <h3>the target adder — PC + imm, with sign extension</h3>
             <p data-hl="open:gTAdd net:imm1 net:imm0 net:target net:addr1">The second adder computes the branch future: <kbd class="wt-target">PC + imm</kbd>. Its A input is the same looped-back PC; its B input is the instruction's signed offset. Watch the pink wires: <kbd class="wt-imm1">imm₁</kbd> — the sign bit — fans into <em>all</em> the upper B inputs. That copying is <em>sign extension</em>, exactly how a real RISC-V core widens a 12-bit branch offset to 32 bits: a negative offset must stay negative when it grows.</p>
           </article>
-          <article class="step" hidden data-gate="#btnPcsrc">
+          <article class="step" hidden data-gate="#btnPcsrc" data-focus="#gPcmux,#gReg">
             <h3>the MUX chooses; the clock commits</h3>
             <p data-hl="open:gPcmux net:pcnext net:target net:pcsrc net:pcsel">Both futures are always computed and always waiting at the MUX — the real 4-to-1 MUX page, used as a 2-way switch (spare inputs tied to 0). <kbd class="wt-pcsrc">PCSrc</kbd> selects which one reaches the register's door.</p>
             <p class="do" data-hl="net:pcsrc net:pcsel">Click <kbd>PCSrc</kbd> and watch the <kbd>MUX picks</kbd> readout flip between the two futures. Nothing is stored yet — then press <kbd>pulse CLK 0→1→0</kbd> and the register captures the chosen one. Combinational logic proposes; the clock edge disposes.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="all">
             <h3>why this matters</h3>
             <p>This is the fetch-front of every real CPU: a register of flip-flops, a dedicated incrementer, a branch-target adder with sign extension, and a PC-source MUX steered by <kbd>PCSrc = Branch AND Zero</kbd>. Jumps, calls, and exceptions each add one more input to the same MUX — more futures, same switch.</p>
             <p data-hl="open:gAdd open:gReg">And it is turtles all the way down, by construction: click into either adder or the register and keep descending. Four pages from here you are looking at individual transistors — and every layer in between is a page you have already read.</p>

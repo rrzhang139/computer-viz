@@ -169,7 +169,8 @@
              aria-label="read MUX — address selects one stored word; click to drill in"
              data-embed-page="/mux.html" data-embed-svg="mux">
             <rect class="tbody simple-body" id="gReadmux" x="920" y="400" width="480" height="320" rx="12" />
-            <text class="tlabel simple-label" x="1160" y="560">read MUX</text>
+            <text class="tlabel-small" x="1160" y="378">read</text>
+            <text class="tlabel simple-label" x="1160" y="560">MUX</text>
             <g class="detailed" id="readmuxDetail"></g>
           </g>
         </svg>
@@ -182,25 +183,25 @@
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
-          <article class="step">
+          <article class="step" data-focus="all">
             <h3>where we are: a table of words</h3>
             <p>Memory doesn't know whether it's holding instructions or data — it just stores <em>addressable words</em>. Give it an address, it hands back the word living there. That's the whole contract, and it's why this block is plain <kbd>mem</kbd>: the same hardware is the instruction memory on the fetch path and the data memory on the load/store path.</p>
             <p>On the left is the memory as a <em>table</em>: four 8-bit words at addresses <kbd>00, 01, 10, 11</kbd> (seeded here with a little program). On the right, a <kbd>read MUX</kbd> — the very multiplexer you already built — picks one. Toggle <kbd>addr1</kbd>/<kbd>addr0</kbd> and watch the addressed row light and ride out as <kbd>rdata</kbd>.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gWord3,#gWord0">
             <h3>address picks a row</h3>
             <p class="do">Click <kbd>addr0</kbd> so the address is <kbd>01</kbd>.</p>
             <p>The MUX's select flips and the <em>second</em> word lights up — its bits flow across into the MUX and out as <kbd>rdata</kbd>. Reading is purely combinational: no clock, the word appears the instant the address settles. An address is just a row number in binary: <kbd>00→</kbd>row 0, <kbd>01→</kbd>row 1, <kbd>10→</kbd>row 2, <kbd>11→</kbd>row 3.</p>
             <p class="do">Walk the address through <kbd>00, 01, 10, 11</kbd> and watch the lit row slide down the table.</p>
             <p>Four words, one address, one selected — that's memory. The other three words sit untouched; only the addressed one is read.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gReadmux">
             <h3>the read MUX is the picker</h3>
             <p class="do">Hover the <kbd>read MUX</kbd> and hold still.</p>
             <p>It swaps for the real <kbd>/mux.html</kbd> — the same 4-to-1 multiplexer, here choosing among the four stored words instead of four loose bits. The address drives its select lines; the decoder inside raises one, opening exactly one path so the addressed word flows through. (Click to drill all the way in.)</p>
             <p>A real memory is this, vastly bigger — millions of words, the address widened to dozens of bits driving a tree of MUXes — plus a <em>write</em> port (an address decoder gating the clock to one word) so you can store as well as load. We'll add that port when we reach loads and stores; for fetch we only ever read.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="all">
             <h3>why this matters</h3>
             <p>This is where the program lives. Point the <kbd>address</kbd> at a row and out comes a word — and when that word is an <em>instruction</em>, this block is the <span class="accent">instruction memory</span> on the fetch path. Feed it the program counter as the address, and each cycle it hands back the next instruction to run.</p>
             <p>Same block, different job: address it with an <em>ALU result</em> instead and the words it returns are <em>data</em> — that's the data memory a load reads or a store writes. One <kbd>mem</kbd>, two roles. Next we wire a program counter to its address input and let it step through the program — that's <em>fetch</em>.</p>

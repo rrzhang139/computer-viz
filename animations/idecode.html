@@ -262,24 +262,24 @@
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
-          <article class="step">
+          <article class="step" data-focus="all">
             <h3>where we are: the instruction IS the control</h3>
             <p>On the datapath you set <kbd>op</kbd>, <kbd>raddrA</kbd>, <kbd>raddrB</kbd>, <kbd>waddr</kbd> by hand. A CPU sets them from the <em>instruction</em> — and here's the surprise: it barely does any work. A RISC-V instruction carries the register numbers and the operation as plain <em>bit-fields</em>, so "decoding" is mostly <em>slicing the word and wiring each field to the block that uses it</em> — plus one small block of real logic, the <em>control unit</em>.</p>
             <p>The 10-bit instruction word on the left splits into five 2-bit fields — <kbd>opcode</kbd> (what KIND of instruction: <kbd>00</kbd> register op, <kbd>10</kbd> load, <kbd>11</kbd> store), <kbd>func</kbd> (which ALU operation), <kbd>rs1</kbd>, <kbd>rs2</kbd>, <kbd>rd</kbd>. The register and func fields flow <em>straight across</em> to their datapath inputs. Toggle any bit and watch its wire light end to end.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gBitOc1,#gBitW0">
             <h3>slice the word, name the fields</h3>
             <p class="do">Set <kbd>rs1 = 10</kbd> (click <kbd>rs1₁</kbd>) and <kbd>rd = 11</kbd> (click <kbd>rd₁</kbd> and <kbd>rd₀</kbd>).</p>
             <p>Follow the lit wires: the <kbd>rs1</kbd> field rides straight out to <kbd>raddrA</kbd> (the datapath's first read address), and <kbd>rd</kbd> rides out to <kbd>waddr</kbd> (the write address). The instruction literally said "read register 2, write register 3," and those numbers are now sitting on the exact wires the register file reads. Nothing computed them — they're just <em>bits of the instruction</em>, relabeled.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gCtlBranch,#gCtlMemWrite">
             <h3>the control unit — where the two control bits come from</h3>
             <p class="do">Click <kbd>oc₁</kbd> to set <kbd>opcode = 10</kbd> (a load), and read the <kbd>control</kbd> readout.</p>
             <p>The <kbd>opcode</kbd> bundle runs into the <kbd>control</kbd> block — never out to the datapath. Each row of the block is one line of a <em>truth table</em>: the word matches row <kbd>10</kbd>, so the row lights and raises <kbd>memToReg</kbd> — "route memory's data, not the ALU's, into the register write port."</p>
             <p class="do">Now click <kbd>oc₀</kbd>. <kbd>opcode = 11</kbd> is a store: the <kbd>11</kbd> row lights instead, raising <kbd>memWrite</kbd> — "arm the data memory's write port." Two different consumers, two different lines. An opcode of <kbd>01</kbd> matches the top row and raises <kbd>Branch</kbd> — "this instruction may change where the program goes next." An opcode of <kbd>00</kbd> matches no row: register ops leave every line at 0.</p>
             <p>This is exactly a real CPU's shape: the opcode feeds a <em>combinational control unit</em> — a truth table in gates — whose named outputs (<kbd>RegWrite</kbd>, <kbd>ALUSrc</kbd>, <kbd>MemWrite</kbd>, <kbd>MemtoReg</kbd>, <kbd>Branch</kbd>…) fan out across the datapath, while <kbd>func</kbd> goes separately to the ALU (RISC-V's opcode / funct split). Ours decodes the three lines our CPUs consume: <kbd>Branch</kbd>, <kbd>memToReg</kbd>, <kbd>memWrite</kbd>.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="all">
             <h3>why this matters</h3>
             <p>This little block is the bridge from "an instruction" to "the datapath running it." Its eight outputs are, top to bottom, the datapath's eight left-edge inputs in the same order — so the next page just drops this decoder beside the datapath and connects them with eight straight wires. Instruction in, control out, datapath obeys.</p>
             <p>Widen everything to 32 bits, fix the field positions to the real RV32I layout, and add the bit of control logic this page leaves as bare wire, and you have an actual instruction decoder. What's still missing is <em>where the instruction comes from</em> — the program has to live somewhere and a program counter has to step through it. That's the next thing we build.</p>

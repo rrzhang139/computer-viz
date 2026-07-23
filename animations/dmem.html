@@ -196,7 +196,8 @@
              aria-label="read MUX — address selects one stored cell; click to drill in"
              data-embed-page="/mux.html" data-embed-svg="mux">
             <rect class="tbody simple-body" id="gReadmux" x="920" y="320" width="480" height="320" rx="12" />
-            <text class="tlabel simple-label" x="1160" y="480">read MUX</text>
+            <text class="tlabel-small" x="1160" y="298">read</text>
+            <text class="tlabel simple-label" x="1160" y="480">MUX</text>
             <g class="detailed" id="readmuxDetail"></g>
           </g>
         </svg>
@@ -209,22 +210,22 @@
           <button class="btn" id="stepNext">next →</button>
         </div>
         <div class="step-bodies">
-          <article class="step">
+          <article class="step" data-focus="all">
             <h3>where we are: memory you can write</h3>
             <p>This is <kbd>mem</kbd> with a second door. The <em>read</em> path is exactly the page you already built — a 2-bit <kbd>address</kbd> picks one of four cells and the <kbd>read MUX</kbd> forwards it as <kbd>rdata</kbd>, no clock. What's new is the <em>write</em> path along the bottom: a <kbd>write port</kbd> that, on a clock edge, stores a value into one cell.</p>
             <p>That's the difference between instruction memory (read-only, on the fetch path) and <span class="accent">data memory</span> (read <em>and</em> write, on the load/store path). A <kbd>load</kbd> reads a cell; a <kbd>store</kbd> writes one.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gWord3,#gWord0,#gReadmux">
             <h3>read a cell (load)</h3>
             <p class="do">Walk the <kbd>address</kbd> through <kbd>00, 01, 10, 11</kbd>.</p>
             <p>The addressed cell lights and its bit rides through the <kbd>read MUX</kbd> out as <kbd>rdata</kbd> — instantly, no clock. This is the load path: give the address, get the stored value back. The other three cells sit untouched.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="#gWritePort,#gWord3,#gWord0">
             <h3>write a cell (store)</h3>
             <p class="do">Set <kbd>wdata 1</kbd>, point the <kbd>address</kbd> at <kbd>01</kbd>, turn <kbd>we 1</kbd>, then press <kbd>↻ clock</kbd>.</p>
             <p>On the clock edge the <kbd>write port</kbd>'s decoder routes <kbd>wdata</kbd> into the one addressed cell and it flips to <kbd>1</kbd> — and stays, even after you drop <kbd>we</kbd>. Storing needs all three to line up: an address, <kbd>we = 1</kbd>, and a clock edge. With <kbd>we = 0</kbd> the clock does nothing — that's how a load leaves memory unchanged.</p>
           </article>
-          <article class="step" hidden>
+          <article class="step" hidden data-focus="all">
             <h3>why this matters</h3>
             <p>One block, two ports. The read port makes data available the instant you address it; the write port commits a new value on a clock edge. Address it with an <kbd>ALU result</kbd> and this is the data memory a <kbd>load</kbd> reads and a <kbd>store</kbd> writes.</p>
             <p>Widen the cell from 1 bit to a 32-bit word and add address bits and this is real RAM. Next we wire it onto the datapath, beside the register file, so loads and stores have somewhere to go.</p>

@@ -84,7 +84,7 @@ if (ready) {
   mk("wTaS2", "nc", [TA.pinS2, H(TA.pinS2, 552)]); srcTerm({ x: 576, y: TA.pinS2!.y }, "n/c");
   mk("wTaS3", "nc", [TA.pinS3, H(TA.pinS3, 552)]); srcTerm({ x: 576, y: TA.pinS3!.y }, "n/c");
   // MUX out → the register's low D inputs; upper D tied 0
-  R("wPcsel", [MX.pinOut, H(MX.pinOut, 985), { x: 985, y: REG.pinD0!.y }, REG.pinD0], [MX.pinOut, REG.pinD0]);
+  R("wPcsel", [MX.pinOut, H(MX.pinOut, 1024), { x: 1024, y: REG.pinD0!.y }, REG.pinD0], [MX.pinOut, REG.pinD0]);
   mk("wPcsel1", "pcsel", [{ x: 985, y: REG.pinD0!.y }, { x: 985, y: REG.pinD1!.y }, REG.pinD1]);
   mk("wRegD2", "zero", [H(REG.pinD2, 990), REG.pinD2]);
   mk("wRegD3", "zero", [H(REG.pinD3, 990), REG.pinD3]);
