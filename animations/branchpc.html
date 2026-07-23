@@ -119,12 +119,19 @@
             <text class="tlabel simple-label" x="330" y="870">adder</text>
             <g class="detailed" id="taddDetail"></g>
           </g>
+          <!-- the PC-source MUX: our PC is 2 bits, and a MUX slice carries ONE
+               bit — so there are two slices. Bit 0 is the live drillable embed;
+               bit 1 is its twin above (same circuit, next bit). -->
+          <text class="tlabel-small" x="820" y="278">PC source — one MUX slice per bit</text>
+          <rect class="tbody" id="gPcmux1" x="640" y="300" width="360" height="90" rx="12" />
+          <text class="tlabel" x="820" y="345">MUX</text>
+          <text class="tlabel-small" x="960" y="318">bit 1</text>
           <!-- the PC-source MUX — the real 4-to-1 MUX page (per-bit slice) -->
           <g class="child-slot" id="slot-pcmux" tabindex="0" role="button" aria-label="PC-source MUX"
              data-embed-page="/mux.html" data-embed-svg="mux">
-            <rect class="tbody simple-body" id="gPcmux" x="640" y="381" width="380" height="258" rx="12" />
-            <text class="tlabel-small" x="830" y="359">PC source</text>
-            <text class="tlabel simple-label" x="830" y="514">MUX</text>
+            <rect class="tbody simple-body" id="gPcmux" x="640" y="430" width="360" height="258" rx="12" />
+            <text class="tlabel-small simple-label" x="960" y="448">bit 0</text>
+            <text class="tlabel simple-label" x="820" y="560">MUX</text>
             <g class="detailed" id="pcmuxDetail"></g>
           </g>
           <!-- the PC itself — the real register (four DFFs) -->
@@ -139,22 +146,24 @@
           <!-- bus-level schematic wires (the CPU page's mini preview shows these;
                src/branchpc.ts re-routes them onto the embedded components' real
                pins and adds the per-bit fans at runtime) -->
-          <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="60,60 590,60 590,444 640,444" />
+          <polyline class="wire" data-net="pcsrc"  id="wPcsrcSel" points="60,60 590,60 590,492 640,492" />
+          <polyline class="wire" data-net="pcsrc"  id="wSel1" points="590,312 640,312" />
           <polyline class="wire" data-net="imm1"   id="wImm1" points="60,760 140,760" />
           <polyline class="wire" data-net="imm0"   id="wImm0" points="60,816 140,816" />
           <polyline class="wire" data-net="clk"    id="wClk" points="60,1160 1660,1160 1660,250 1220,250 1220,300" />
-          <polyline class="wire bus" data-net="pcnext" id="wPcnext" points="520,355 560,355 560,574 640,574" />
-          <text class="tlabel-small" x="584" y="470">/2</text>
-          <polyline class="wire bus" data-net="target" id="wTgt" points="520,885 604,885 604,542 640,542" />
-          <text class="tlabel-small" x="626" y="690">/2</text>
-          <polyline class="wire" data-net="pcsel"  id="wPcsel" points="1012,526 1030,526" />
+          <polyline class="wire" data-net="pcnext" id="wPcnext1" points="520,300 548,300 548,338 640,338" />
+          <polyline class="wire" data-net="pcnext" id="wPcnext" points="520,355 572,355 572,611 640,611" />
+          <polyline class="wire" data-net="target" id="wTgt1" points="520,830 604,830 604,364 640,364" />
+          <polyline class="wire" data-net="target" id="wTgt" points="520,885 620,885 620,582 640,582" />
+          <polyline class="wire" data-net="pcsel"  id="wPcsel1" points="1000,345 1022,345 1022,466 1030,466" />
+          <polyline class="wire" data-net="pcsel"  id="wPcsel" points="979,567 1012,567 1012,526 1030,526" />
           <polyline class="wire" data-net="addr1"  id="wQ1out" points="1410,540 1490,540" />
           <polyline class="wire" data-net="addr0"  id="wQ0out" points="1410,600 1490,600" />
           <polyline class="wire" data-net="addr1"  id="wFb" points="1410,540 1628,540 1628,1120 100,1120 100,355 140,355" />
           <polyline class="wire" data-net="addr1"  id="wFbT" points="100,885 140,885" />
 
           <!-- the link tap: PC+1 leaves the block for a jump's write-back -->
-          <polyline class="wire" data-net="pcnext" id="wPcp1" points="560,574 560,1060 1700,1060 1700,980" />
+          <polyline class="wire" data-net="pcnext" id="wPcp1" points="572,611 572,1060 1700,1060 1700,980" />
           <circle class="pin" id="pinPcnext" cx="1700" cy="980" r="7" />
           <text class="tlabel-small" data-pin="pinPcnext" text-anchor="start" x="1666" y="952">PC+1 (link)</text>
 
@@ -192,7 +201,7 @@
             <h3>the target adder — PC + imm, with sign extension</h3>
             <p data-hl="open:gTAdd net:imm1 net:imm0 net:target net:addr1">The second adder computes the branch future: <kbd class="wt-target">PC + imm</kbd>. Its A input is the same looped-back PC; its B input is the instruction's signed offset. Watch the pink wires: <kbd class="wt-imm1">imm₁</kbd> — the sign bit — fans into <em>all</em> the upper B inputs. That copying is <em>sign extension</em>, exactly how a real RISC-V core widens a 12-bit branch offset to 32 bits: a negative offset must stay negative when it grows.</p>
           </article>
-          <article class="step" hidden data-gate="#btnPcsrc" data-focus="#gPcmux,#gReg">
+          <article class="step" hidden data-gate="#btnPcsrc" data-focus="#gPcmux1,#gPcmux,#gReg">
             <h3>the MUX chooses; the clock commits</h3>
             <p data-hl="open:gPcmux net:pcnext net:target net:pcsrc net:pcsel">Both futures are always computed and always waiting at the MUX — the real 4-to-1 MUX page, used as a 2-way switch (spare inputs tied to 0). <kbd class="wt-pcsrc">PCSrc</kbd> selects which one reaches the register's door.</p>
             <p class="do" data-hl="net:pcsrc net:pcsel">Click <kbd>PCSrc</kbd> and watch the <kbd>MUX picks</kbd> readout flip between the two futures. Nothing is stored yet — then press <kbd>pulse CLK 0→1→0</kbd> and the register captures the chosen one. Combinational logic proposes; the clock edge disposes.</p>

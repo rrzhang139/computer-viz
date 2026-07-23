@@ -204,7 +204,7 @@ function render() {
     clk, pcsrc, imm1: (c.branch ? t1 : 0), imm0: (c.branch ? t0 : 0),
     target: c.branch, pcnext: 1, pcsel: 1,
     addr1: (pc >> 1) & 1, addr0: pc & 1, zero: 0,
-  }, { gAdd: 1, gTAdd: c.branch, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1 });
+  }, { gAdd: 1, gTAdd: c.branch, gReg: (pc !== 0 ? 1 : 0) as Bit, gPcmux: 1, gPcmux1: 1 });
   setCtrl("branch", c.branch); setCtrl("jump", c.jump); setCtrl("pcsrc", pcsrc);
   setBody("gPcsrc", pcsrc);
   setNet("pcsel", 1);

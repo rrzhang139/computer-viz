@@ -55,7 +55,9 @@ const ready = ["pinA0", "pinA1", "pinA2", "pinA3", "pinB0", "pinB1", "pinB2", "p
 if (ready) {
   const P = (id: string, p: Pt) => { const c = document.getElementById(id); if (c) { c.setAttribute("cx", String(p.x)); c.setAttribute("cy", String(p.y)); } };
   // select → the MUX's s0; spare select + inputs tied to 0
-  R("wPcsrcSel", [{ x: 60, y: 60 }, { x: 576, y: 60 }, H({ x: 0, y: MX.pinS0!.y }, 576)!, MX.pinS0], [MX.pinS0]);
+  R("wPcsrcSel", [{ x: 60, y: 60 }, { x: 590, y: 60 }, H({ x: 0, y: MX.pinS0!.y }, 590)!, MX.pinS0], [MX.pinS0]);
+  // the same select drives BOTH slices — a genuine control fan
+  R("wSel1", [{ x: 590, y: 312 }, { x: 640, y: 312 }]);
   mk("wMuxS1", "zero", [H(MX.pinS1, 610), MX.pinS1]); srcTerm({ x: 610, y: MX.pinS1!.y }, "0");
   mk("wMuxIn2", "zero", [H(MX.pinIn2, 610), MX.pinIn2]); srcTerm({ x: 610, y: MX.pinIn2!.y }, "0");
   mk("wMuxIn3", "zero", [H(MX.pinIn3, 610), MX.pinIn3]); srcTerm({ x: 610, y: MX.pinIn3!.y }, "0");
@@ -75,23 +77,24 @@ if (ready) {
   mk("wAddCout", "nc", [ADD.pinCout, H(ADD.pinCout, 552)]); srcTerm({ x: 576, y: ADD.pinCout!.y }, "n/c");
   // adder sums → the MUX (both low bits onto the per-bit slice's inputs);
   // upper sums honestly n/c (our PC is the low two bits)
-  R("wPcnext", [ADD.pinS0, H(ADD.pinS0, 560), { x: 560, y: MX.pinIn0!.y }, MX.pinIn0], [MX.pinIn0]);   // the /2 bus
-  mk("wPcnext1", "pcnext", [ADD.pinS1, H(ADD.pinS1, 544), { x: 544, y: ADD.pinS0!.y }]);   // S1 merges into the bus at the adder edge
+  // one wire per bit: S0 into the drillable bit-0 slice, S1 into its twin
+  R("wPcnext", [ADD.pinS0, H(ADD.pinS0, 572), { x: 572, y: MX.pinIn0!.y }, MX.pinIn0], [MX.pinIn0]);
+  R("wPcnext1", [ADD.pinS1, H(ADD.pinS1, 548), { x: 548, y: 338 }, { x: 640, y: 338 }]);
   mk("wAddS2", "nc", [ADD.pinS2, H(ADD.pinS2, 552)]); srcTerm({ x: 576, y: ADD.pinS2!.y }, "n/c");
   mk("wAddS3", "nc", [ADD.pinS3, H(ADD.pinS3, 552)]); srcTerm({ x: 576, y: ADD.pinS3!.y }, "n/c");
   R("wTgt", [TA.pinS0, H(TA.pinS0, 620), { x: 620, y: MX.pinIn1!.y }, MX.pinIn1], [MX.pinIn1]);
-  mk("wTgt1b", "target", [TA.pinS1, H(TA.pinS1, 544), { x: 544, y: TA.pinS0!.y }]);   // S1 merges into the bus at the adder edge
+  R("wTgt1", [TA.pinS1, H(TA.pinS1, 604), { x: 604, y: 364 }, { x: 640, y: 364 }]);
   mk("wTaS2", "nc", [TA.pinS2, H(TA.pinS2, 552)]); srcTerm({ x: 576, y: TA.pinS2!.y }, "n/c");
   mk("wTaS3", "nc", [TA.pinS3, H(TA.pinS3, 552)]); srcTerm({ x: 576, y: TA.pinS3!.y }, "n/c");
   // MUX out → the register's low D inputs; upper D tied 0
-  R("wPcsel", [MX.pinOut, H(MX.pinOut, 1024), { x: 1024, y: REG.pinD0!.y }, REG.pinD0], [MX.pinOut, REG.pinD0]);
-  mk("wPcsel1", "pcsel", [{ x: 985, y: REG.pinD0!.y }, { x: 985, y: REG.pinD1!.y }, REG.pinD1]);
+  R("wPcsel", [MX.pinOut, H(MX.pinOut, 1012), { x: 1012, y: REG.pinD0!.y }, REG.pinD0], [MX.pinOut, REG.pinD0]);
+  R("wPcsel1", [{ x: 1000, y: 345 }, { x: 1022, y: 345 }, { x: 1022, y: REG.pinD1!.y }, REG.pinD1], [REG.pinD1]);
   mk("wRegD2", "zero", [H(REG.pinD2, 990), REG.pinD2]);
   mk("wRegD3", "zero", [H(REG.pinD3, 990), REG.pinD3]);
   // clock → the register's edge (over the top, from the page's left edge)
   R("wClk", [{ x: 60, y: 1160 }, { x: 1660, y: 1160 }, { x: 1660, y: 250 }, { x: REG.pinCLK!.x, y: 250 }, REG.pinCLK], [REG.pinCLK]);
   // the link tap: the PC+1 bus also leaves the block (a jump writes it back)
-  R("wPcp1", [{ x: 560, y: MX.pinIn0!.y }, { x: 560, y: 1060 }, { x: 1700, y: 1060 }, { x: 1700, y: 980 }]);
+  R("wPcp1", [{ x: 572, y: MX.pinIn0!.y }, { x: 572, y: 1060 }, { x: 1700, y: 1060 }, { x: 1700, y: 980 }]);
   // Q → address out + the feedback loops into BOTH adders' A inputs
   P("pinA1", { x: 1490, y: REG.pinQ1!.y }); P("pinA0", { x: 1490, y: REG.pinQ0!.y });
   R("wQ1out", [REG.pinQ1, { x: 1490, y: REG.pinQ1!.y }]);
@@ -169,7 +172,7 @@ function render() {
   setNet("one", 1); setNet("zero", 0); setNet("cout", 0);
   setNet("addr1", a1); setPin("pinA1", a1);
   setNet("addr0", a0); setPin("pinA0", a0);
-  setBody("gAdd", 1); setBody("gTAdd", 1); setBody("gReg", 1); setBody("gPcmux", 1);
+  setBody("gAdd", 1); setBody("gTAdd", 1); setBody("gReg", 1); setBody("gPcmux", 1); setBody("gPcmux1", 1);
 
   // light the four real components to their logical state
   lightAdder("addDetail", [a0, a1, 0, 0], [1, 0, 0, 0], 0);
