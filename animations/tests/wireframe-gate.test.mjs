@@ -64,6 +64,7 @@ const LAYER_TO_PAGE = {
   cpuldst:    'cpu_ldst.html',
   cpubranch:  'cpu_branch.html',
   pcsrc:      'pcsrc.html',
+  ctrlunit:   'ctrlunit.html',
   branchpc:   'branchpc.html',
 };
 

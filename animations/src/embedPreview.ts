@@ -29,6 +29,7 @@ import memRaw from '../mem.html?raw';
 import dmemRaw from '../dmem.html?raw';
 import idecodeRaw from '../idecode.html?raw';
 import pcsrcRaw from '../pcsrc.html?raw';
+import ctrlunitRaw from '../ctrlunit.html?raw';
 import branchpcRaw from '../branchpc.html?raw';
 // Prose-holder parents: not embeddable scenes, but their walkthrough steps are
 // adopted by child pages drilled from them (steps.ts adoptParentSteps).
@@ -58,6 +59,7 @@ export const PAGE_RAW: Record<string, string> = {
   '/dmem.html': dmemRaw,
   '/idecode.html': idecodeRaw,
   '/pcsrc.html': pcsrcRaw,
+  '/ctrlunit.html': ctrlunitRaw,
   '/branchpc.html': branchpcRaw,
   '/cpu.html': cpuRaw,
   '/cpu_ldst.html': cpuLdstRaw,

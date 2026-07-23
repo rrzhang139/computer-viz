@@ -1,6 +1,7 @@
 import { initPanel } from "./panel";
 import { initToc } from "./toc";
-import { readBitParam, initDrillBreadcrumb, loadSnapshot, saveSnapshot, clearSnapshot } from "./drillContext";
+import { buildDrillUrl, readBitParam, initDrillBreadcrumb, loadSnapshot, saveSnapshot, clearSnapshot } from "./drillContext";
+import { autoFillEmbeds } from "./embedPreview";
 import { initSteps } from "./steps";
 import { initCanvasZoom } from "./canvasZoom";
 
@@ -33,6 +34,26 @@ type Snap = { v: Bit[] };
 const SNAP_KEY = 'idecode';
 const _snap = loadSnapshot<Snap>(SNAP_KEY);
 const v: Bit[] = BITS.map((b, i) => readBitParam(b.net, (_snap?.v?.[i] ?? 0) as Bit));
+
+// Embed the real control unit into the CONTROL slot, then re-land the
+// opcode/funct taps and the four control outputs on its projected pins.
+const embeds = autoFillEmbeds(svg);
+const CT = embeds.get('slot-ctrl') || {};
+const setW = (id: string, points: string) => {
+  const w = document.getElementById(id);
+  if (w) w.setAttribute('points', points);
+};
+if (CT.pinOc1 && CT.pinBranch) {
+  setW('wCtlOc1', `640,126 640,${CT.pinOc1.y} ${CT.pinOc1.x},${CT.pinOc1.y}`);
+  setW('wCtlOc0', `640,126 640,${CT.pinOc0.y} ${CT.pinOc0.x},${CT.pinOc0.y}`);
+  setW('wCtlF1', `620,238 620,${CT.pinF1.y} ${CT.pinF1.x},${CT.pinF1.y}`);
+  setW('wCtlF0', `620,238 620,${CT.pinF0.y} ${CT.pinF0.x},${CT.pinF0.y}`);
+  setW('wCtlBr', `${CT.pinBranch.x},${CT.pinBranch.y} 1060,${CT.pinBranch.y} 1060,75 1280,75`);
+  setW('wCtlJp', `${CT.pinJump.x},${CT.pinJump.y} 1004,${CT.pinJump.y} 1004,190 1140,190 1140,118 1280,118`);
+  setW('wCtlMr', `${CT.pinMemToReg.x},${CT.pinMemToReg.y} 1100,${CT.pinMemToReg.y} 1100,161 1280,161`);
+  setW('wCtlMw', `${CT.pinMemWrite.x},${CT.pinMemWrite.y} 1020,${CT.pinMemWrite.y} 1020,204 1280,204`);
+}
+const ctrlDetail = document.getElementById('ctrlDetail');
 
 // ── Per-wire pulse overlays so lit field wires animate flow. ──
 const wires = Array.from(svg.querySelectorAll<SVGPolylineElement>('.wire'));
@@ -94,6 +115,26 @@ function render() {
   setNet('opcode', on(oc));
   setNet('op', on(aluOp)); setNet('raddrA', on(rs1)); setNet('raddrB', on(rs2)); setNet('waddr', on(rd));
   setNet('branch', branch); setNet('jump', jump); setNet('memtoreg', memToReg); setNet('memwrite', memWrite);
+  // The embedded control-unit preview mirrors /ctrlunit.html's own lighting.
+  if (ctrlDetail) {
+    const fam = (oc === 1 ? 1 : 0) as Bit;
+    const cf1 = v[2], cf0 = v[3];
+    const f1bar = (cf1 ? 0 : 1) as Bit, f0bar = (cf0 ? 0 : 1) as Bit;
+    const jmp1 = (fam && cf1 ? 1 : 0) as Bit;
+    const cbody = (id: string, on2: Bit) =>
+      ctrlDetail.querySelector(`[data-body="${id}"]`)?.setAttribute('data-on', String(on2));
+    cbody('gOpdec', 1);
+    cbody('gNot1', f1bar); cbody('gNot0', f0bar);
+    cbody('gAnd1', branch); cbody('gAnd2', jmp1); cbody('gAnd3', jump);
+    const cnet = (net: string, on2: Bit) =>
+      ctrlDetail.querySelectorAll<SVGElement>(`.wire[data-net="${net}"]`).forEach((w) => w.setAttribute('data-on', String(on2)));
+    cnet('oc1', v[0]); cnet('oc0', v[1]); cnet('one', 1);
+    cnet('fam', fam); cnet('r00', (oc === 0 ? 1 : 0) as Bit);
+    cnet('f1', cf1); cnet('f0', cf0);
+    cnet('f1bar', f1bar); cnet('f0bar', f0bar); cnet('jmp1', jmp1);
+    cnet('branch', branch); cnet('jump', jump);
+    cnet('memtoreg', memToReg); cnet('memwrite', memWrite);
+  }
   document.getElementById('gCtlJump')?.setAttribute('data-on', String(jump));
   document.getElementById('gCtlBranch')?.setAttribute('data-on', String(branch));
   document.getElementById('gCtlMemToReg')?.setAttribute('data-on', String(memToReg));
@@ -133,6 +174,13 @@ BITS.forEach((b, i) => {
 document.getElementById('btnReset')?.addEventListener('click', () => {
   for (let i = 0; i < v.length; i++) v[i] = 0;
   clearSnapshot(SNAP_KEY); render();
+});
+
+// Drill: the control slot opens the real control-unit page with the live bits.
+document.getElementById('slot-ctrl')?.addEventListener('click', () => {
+  window.location.assign(buildDrillUrl('/ctrlunit.html', {
+    from: 'idecode', which: 'ctrl', oc1: v[0], oc0: v[1], f1: v[2], f0: v[3],
+  }));
 });
 
 initDrillBreadcrumb();

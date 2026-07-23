@@ -57,6 +57,19 @@
       .tlabel-group { fill: #666; font-size: 18px; font-family: ui-monospace, monospace; text-anchor: start; dominant-baseline: central; letter-spacing: 0.12em; pointer-events: none; user-select: none; }
       .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
       .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+      /* Drillable control unit: hover swaps the truth-table rows for the real
+         /ctrlunit.html circuit (decoder + gates); click drills into it. */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot .simple-body, .child-slot .simple-label { transition: opacity 180ms; }
+      .child-slot:hover .simple-body, .child-slot:focus-within .simple-body,
+      .child-slot:hover .simple-label, .child-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      .detailed .pulse { display: none; }
+      #ctrlDetail .tbody { stroke-width: 0.8; }
+      #ctrlDetail .wire { stroke-width: 1.5; }
+      #ctrlDetail .tlabel-small { font-size: 9px; }
+      #ctrlDetail .tlabel { font-size: 12px; }
       .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
       .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
       .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.18em; }
@@ -205,7 +218,11 @@
           <!-- Each field leaves as ONE 2-bit bus (/2) — the two cell-bits
                bundled — straight to its consumer. The opcode's bus goes to the
                CONTROL block; the others go to the datapath. -->
-          <polyline class="wire bus" data-net="opcode" points="590,126 700,126" />
+          <polyline class="wire bus" data-net="opcode" points="590,126 640,126" />
+          <polyline class="wire" data-net="opcode" id="wCtlOc1" points="640,126 640,83 719,83" />
+          <polyline class="wire" data-net="opcode" id="wCtlOc0" points="640,126 640,113 719,113" />
+          <polyline class="wire" data-net="op" id="wCtlF1" points="620,238 620,159 719,159" />
+          <polyline class="wire" data-net="op" id="wCtlF0" points="620,238 620,178 719,178" />
           <polyline class="wire bus" data-net="op"     points="590,238 1280,238" />
           <polyline class="wire bus" data-net="raddrA" points="590,350 1280,350" />
           <polyline class="wire bus" data-net="raddrB" points="590,462 1280,462" />
@@ -221,19 +238,24 @@
                style — each row is one opcode pattern and the control line it
                raises. R-type (00) matches neither row; both lines stay 0. ── -->
           <text class="tlabel-small" x="855" y="34">control</text>
-          <rect class="field-box" x="700" y="44" width="310" height="184" rx="10" />
-          <rect class="tbody" id="gCtlBranch" x="715" y="56" width="280" height="38" rx="6" />
-          <text class="tlabel-small" x="855" y="75">01,f0x · beq/bne → Branch</text>
-          <rect class="tbody" id="gCtlJump" x="715" y="99" width="280" height="38" rx="6" />
-          <text class="tlabel-small" x="855" y="118">01,f10 · jal → Jump, link</text>
-          <rect class="tbody" id="gCtlMemToReg" x="715" y="142" width="280" height="38" rx="6" />
-          <text class="tlabel-small" x="855" y="161">10 · load → memToReg</text>
-          <rect class="tbody" id="gCtlMemWrite" x="715" y="185" width="280" height="38" rx="6" />
-          <text class="tlabel-small" x="855" y="204">11 · store → memWrite</text>
-          <polyline class="wire" data-net="branch"   points="995,75 1280,75" />
-          <polyline class="wire" data-net="jump"     points="995,118 1280,118" />
-          <polyline class="wire" data-net="memtoreg" points="995,161 1280,161" />
-          <polyline class="wire" data-net="memwrite" points="995,204 1280,204" />
+          <g class="child-slot" id="slot-ctrl" tabindex="0" role="button"
+             aria-label="control unit — a 2-to-4 decoder plus gates; hover to see the circuit, click to drill in"
+             data-embed-page="/ctrlunit.html" data-embed-svg="ctrlunit">
+            <rect class="field-box simple-body" id="gCtl" x="700" y="44" width="310" height="184" rx="10" />
+            <rect class="tbody simple-body" id="gCtlBranch" x="715" y="56" width="280" height="38" rx="6" />
+            <text class="tlabel-small simple-label" x="855" y="75">01,f0x · beq/bne → Branch</text>
+            <rect class="tbody simple-body" id="gCtlJump" x="715" y="99" width="280" height="38" rx="6" />
+            <text class="tlabel-small simple-label" x="855" y="118">01,f10 · jal → Jump, link</text>
+            <rect class="tbody simple-body" id="gCtlMemToReg" x="715" y="142" width="280" height="38" rx="6" />
+            <text class="tlabel-small simple-label" x="855" y="161">10 · load → memToReg</text>
+            <rect class="tbody simple-body" id="gCtlMemWrite" x="715" y="185" width="280" height="38" rx="6" />
+            <text class="tlabel-small simple-label" x="855" y="204">11 · store → memWrite</text>
+            <g class="detailed" id="ctrlDetail"></g>
+          </g>
+          <polyline class="wire" data-net="branch"   id="wCtlBr" points="980,142 1060,142 1060,75 1280,75" />
+          <polyline class="wire" data-net="jump"     id="wCtlJp" points="980,202 1004,202 1004,190 1140,190 1140,118 1280,118" />
+          <polyline class="wire" data-net="memtoreg" id="wCtlMr" points="980,91 1100,91 1100,161 1280,161" />
+          <polyline class="wire" data-net="memwrite" id="wCtlMw" points="980,75 1020,75 1020,204 1280,204" />
 
           <!-- datapath outputs (right) — control lines + field bundles -->
           <circle class="pin" id="pinBranch"   cx="1280" cy="75"  r="7" />

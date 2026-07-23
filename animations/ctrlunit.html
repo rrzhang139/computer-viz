@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>computer-viz / control unit</title>
+    <style>
+      :root { --on: #EF9F27; --off: #2a2a2a; --bg: #0a0a0a; --panel: #141414; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ccc; min-height: 100vh; }
+      .nav { display: none; }
+      .page-layout { display: flex; flex-direction: column; align-items: center; padding: 14px 16px 20px; max-width: 100%; margin: 0 auto; gap: 14px; }
+      .canvas-col { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+      .step-panel { position: relative; width: 100%; max-width: 1480px; background: var(--panel); border: 1px solid #1f1f1f; border-radius: 14px; padding: 14px 24px 14px; min-height: 180px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); display: flex; flex-direction: column; }
+      .step-meta { font-size: 13px; color: #666; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 0 10px; }
+      .step-meta .step-num { color: var(--on); margin-right: 8px; }
+      .step-bodies { flex: 1 1 auto; overflow-y: auto; max-height: 40vh; }
+      .step[hidden] { display: none; }
+      .step h3 { font-family: ui-monospace, monospace; font-size: 15px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--on); margin: 0 0 10px; font-weight: 500; }
+      .step p { margin: 0 0 10px; color: #cccccc; font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.5; }
+      .step p:last-child { margin-bottom: 0; }
+      .step kbd { font-family: ui-monospace, monospace; font-size: 13px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 2px 8px; border-radius: 999px; color: #ddd; }
+      .step em { color: #fff; font-style: normal; }
+      .step .accent { color: var(--on); }
+      .step p.do { color: #eee; border-left: 2px solid var(--on); padding: 2px 0 2px 12px; }
+      .step p.do::before { content: "▸ "; color: var(--on); }
+      .step-nav { position: absolute; top: 12px; right: 24px; display: flex; gap: 8px; margin: 0; }
+      .step-nav .btn { min-width: 90px; font-size: 13px; padding: 7px 14px; }
+      .step-nav .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+      .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+      .btn { appearance: none; background: var(--panel); color: #999; border: 1px solid #222; border-radius: 999px; font: inherit; font-size: 13px; padding: 8px 16px; cursor: pointer; min-width: 52px; transition: background 120ms, color 120ms, box-shadow 120ms, border-color 120ms; }
+      .btn[data-on="1"] { background: var(--on); color: #1a0d00; border-color: var(--on); box-shadow: 0 0 18px rgba(239, 159, 39, 0.45); }
+      .btn-reset { background: transparent; color: #555; border: 1px solid #222; }
+      .btn-reset:hover { color: #aaa; border-color: #333; }
+      svg { display: block; background: var(--bg); max-width: 100%; max-height: 66vh; width: 100%; height: auto; }
+      .wire { fill: none; stroke: var(--off); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; transition: stroke 140ms, filter 140ms; }
+      .wire[data-on="1"] { stroke: var(--on); filter: drop-shadow(0 0 4px rgba(239, 159, 39, 0.65)); }
+      .wire.bus { stroke-width: 7; }
+      .pulse { fill: none; stroke: #fff4d6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 5 26; opacity: 0; pointer-events: none; transition: opacity 140ms; animation: flow 1.3s linear infinite; }
+      .pulse[data-on="1"] { opacity: 0.95; }
+      @keyframes flow { from { stroke-dashoffset: 31; } to { stroke-dashoffset: 0; } }
+      .tbody { fill: #111; stroke: #2a2a2a; stroke-width: 1.4; stroke-dasharray: 4 3; transition: fill 160ms, stroke 160ms, filter 160ms; }
+      .tbody[data-on="1"] { fill: rgba(239, 159, 39, 0.22); stroke: var(--on); stroke-dasharray: none; filter: drop-shadow(0 0 8px rgba(239, 159, 39, 0.4)); }
+      .tlabel { fill: #888; font-size: 26px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .tbody[data-on="1"] + .tlabel { fill: var(--on); }
+      .tlabel-small { fill: #777; font-size: 19px; font-family: ui-monospace, monospace; text-anchor: middle; dominant-baseline: central; pointer-events: none; user-select: none; }
+      .pin { fill: var(--off); stroke: none; transition: fill 140ms, filter 140ms; }
+      .pin[data-on="1"] { fill: var(--on); filter: drop-shadow(0 0 6px rgba(239, 159, 39, 0.75)); }
+
+      /* Drillable decoder: hover swaps the box for the real /decoder.html scene. */
+      .child-slot { pointer-events: bounding-box; cursor: pointer; outline: none; }
+      .child-slot .simple-body, .child-slot .simple-label { transition: opacity 180ms; }
+      .child-slot:hover .simple-body, .child-slot:focus-within .simple-body,
+      .child-slot:hover .simple-label, .child-slot:focus-within .simple-label { opacity: 0; }
+      .detailed { opacity: 0; pointer-events: none; transition: opacity 180ms; }
+      .child-slot:hover .detailed, .child-slot:focus-within .detailed { opacity: 1; }
+      .detailed .pulse { display: none; }
+      #opdecDetail .tbody { stroke-width: 0.8; }
+      #opdecDetail .wire { stroke-width: 1.5; }
+      #opdecDetail .tlabel-small { font-size: 9px; }
+
+      .out-readout { font-family: ui-monospace, monospace; font-size: 15px; color: #888; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; padding: 10px 18px; background: var(--panel); border: 1px solid #222; border-radius: 999px; }
+      .out-readout .label { color: #666; letter-spacing: 0.12em; text-transform: uppercase; font-size: 11px; }
+      .out-readout .bits { color: var(--on); font-weight: 500; letter-spacing: 0.10em; }
+      .out-readout .sep { color: #333; }
+    </style>
+  </head>
+  <body>
+    <div class="nav"><a href="/ctrlunit.html" aria-current="page">control unit</a></div>
+    <div class="page-layout">
+      <div class="canvas-col">
+        <div class="controls">
+          <button class="btn" id="btnOc1" data-on="0">oc₁ 0</button>
+          <button class="btn" id="btnOc0" data-on="0">oc₀ 0</button>
+          <button class="btn" id="btnF1" data-on="0">f₁ 0</button>
+          <button class="btn" id="btnF0" data-on="0">f₀ 0</button>
+          <button class="btn btn-reset" id="btnReset">↺ reset</button>
+        </div>
+        <div class="out-readout">
+          <span class="label">instr</span><span class="bits" id="rKind">ADD (R-type)</span>
+          <span class="sep">·</span>
+          <span class="label">Branch</span><span class="bits" id="rBranch">0</span>
+          <span class="sep">·</span>
+          <span class="label">Jump</span><span class="bits" id="rJump">0</span>
+          <span class="sep">·</span>
+          <span class="label">memToReg</span><span class="bits" id="rMemToReg">0</span>
+          <span class="sep">·</span>
+          <span class="label">memWrite</span><span class="bits" id="rMemWrite">0</span>
+        </div>
+
+        <!--
+          The control unit — the little machine inside the instruction decoder
+          that turns the opcode + funct fields into named control lines. It is
+          NOT magic: a 2-to-4 decoder (the exact one you built) matches the
+          opcode, and three gates refine the control-flow family row into
+          Branch vs. Jump using the funct bits. Loads and stores are single
+          decoder rows used directly. Wireframe: wire_sketches/layer23_ctrlunit.md.
+        -->
+        <svg id="ctrlunit" viewBox="-40 -30 1640 940" role="img"
+             aria-label="control unit: a 2-to-4 decoder matching the opcode, plus NOT/AND gates splitting the control-flow family into Branch and Jump by funct"
+             preserveAspectRatio="xMidYMid meet">
+          <polyline class="wire" data-net="Vdd" data-on="1" points="0,-10 1560,-10" />
+          <polyline class="wire" data-net="GND" points="0,880 1560,880" />
+
+          <!-- inputs (left): the two fields the decoder's slicer hands us -->
+          <circle class="pin" id="pinOc1" cx="60" cy="160" r="7" />
+          <text class="tlabel-small" data-pin="pinOc1" text-anchor="end" x="42" y="160">oc₁</text>
+          <circle class="pin" id="pinOc0" cx="60" cy="320" r="7" />
+          <text class="tlabel-small" data-pin="pinOc0" text-anchor="end" x="42" y="320">oc₀</text>
+          <circle class="pin" id="pinF1" cx="60" cy="560" r="7" />
+          <text class="tlabel-small" data-pin="pinF1" text-anchor="end" x="42" y="560">f₁</text>
+          <circle class="pin" id="pinF0" cx="60" cy="660" r="7" />
+          <text class="tlabel-small" data-pin="pinF0" text-anchor="end" x="42" y="660">f₀</text>
+
+          <!-- the opcode matcher — an EXACT embed of the 2-to-4 decoder page -->
+          <g class="child-slot" id="slot-opdec" tabindex="0" role="button"
+             aria-label="opcode decoder — the 2-to-4 decoder page, one-hot row per opcode"
+             data-embed-page="/decoder.html" data-embed-svg="decoder">
+            <text class="tlabel-small" x="500" y="58">opcode → one-hot</text>
+            <rect class="tbody simple-body" id="gOpdec" x="260" y="80" width="480" height="320" rx="12" />
+            <text class="tlabel simple-label" x="500" y="240">decoder</text>
+            <g class="detailed" id="opdecDetail"></g>
+          </g>
+
+          <!-- decoder inputs: opcode bits straight in; enable tied high -->
+          <polyline class="wire" data-net="oc1" points="60,160 260,160" />
+          <polyline class="wire" data-net="oc0" points="60,320 260,320" />
+          <circle class="pin" id="pinOne" cx="150" cy="240" r="7" data-on="1" />
+          <text class="tlabel-small" data-pin="pinOne" text-anchor="end" x="132" y="240">1</text>
+          <polyline class="wire" data-net="one" points="150,240 260,240" />
+
+          <!-- decoder rows: 11=store, 10=load are control lines DIRECTLY -->
+          <polyline class="wire" data-net="memwrite" points="740,120 1440,120" />
+          <polyline class="wire" data-net="memtoreg" points="740,200 1440,200" />
+          <!-- 01 = the control-flow family (beq / bne / jal share one opcode) -->
+          <polyline class="wire" data-net="fam" points="740,280 880,280 880,440 940,440" />
+          <polyline class="wire" data-net="fam" points="880,440 880,670 940,670" />
+          <!-- 00 = R-type: matches no control line at all -->
+          <polyline class="wire" data-net="r00" points="740,360 800,360" />
+          <circle class="pin" id="pinR" cx="800" cy="360" r="7" />
+          <text class="tlabel-small" data-pin="pinR" text-anchor="start" x="818" y="360">R-type — no control line</text>
+
+          <!-- funct refinement: Branch = fam · f̄₁ ; Jump = fam · f₁ · f̄₀ -->
+          <polyline class="wire" data-net="f1" points="60,560 700,560" />
+          <polyline class="wire" data-net="f1" points="640,560 640,730 940,730" />
+          <rect class="tbody" id="gNot1" x="690" y="530" width="90" height="60" rx="8" />
+          <text class="tlabel-small" x="735" y="560">NOT</text>
+          <polyline class="wire" data-net="f1bar" points="780,560 860,560 860,500 940,500" />
+
+          <path class="tbody" id="gAnd1" d="M 940 410 L 1020 410 A 60 60 0 0 1 1020 530 L 940 530 Z" />
+          <text class="tlabel-small" x="985" y="470">AND</text>
+          <polyline class="wire" data-net="branch" points="1080,470 1440,470" />
+
+          <path class="tbody" id="gAnd2" d="M 940 640 L 1020 640 A 60 60 0 0 1 1020 760 L 940 760 Z" />
+          <text class="tlabel-small" x="985" y="700">AND</text>
+          <polyline class="wire" data-net="jmp1" points="1080,700 1110,700 1110,760 1140,760" />
+
+          <polyline class="wire" data-net="f0" points="60,660 700,660" />
+          <rect class="tbody" id="gNot0" x="690" y="630" width="90" height="60" rx="8" />
+          <text class="tlabel-small" x="735" y="660">NOT</text>
+          <polyline class="wire" data-net="f0bar" points="780,660 820,660 820,820 1140,820" />
+
+          <path class="tbody" id="gAnd3" d="M 1140 730 L 1220 730 A 60 60 0 0 1 1220 850 L 1140 850 Z" />
+          <text class="tlabel-small" x="1185" y="790">AND</text>
+          <polyline class="wire" data-net="jump" points="1280,790 1440,790" />
+
+          <!-- outputs (right): the four named control lines -->
+          <circle class="pin" id="pinMemWrite" cx="1440" cy="120" r="7" />
+          <text class="tlabel-small" data-pin="pinMemWrite" text-anchor="start" x="1458" y="120">→ memWrite</text>
+          <circle class="pin" id="pinMemToReg" cx="1440" cy="200" r="7" />
+          <text class="tlabel-small" data-pin="pinMemToReg" text-anchor="start" x="1458" y="200">→ memToReg</text>
+          <circle class="pin" id="pinBranch" cx="1440" cy="470" r="7" />
+          <text class="tlabel-small" data-pin="pinBranch" text-anchor="start" x="1458" y="470">→ Branch</text>
+          <circle class="pin" id="pinJump" cx="1440" cy="790" r="7" />
+          <text class="tlabel-small" data-pin="pinJump" text-anchor="start" x="1458" y="790">→ Jump</text>
+        </svg>
+      </div>
+
+      <aside class="step-panel">
+        <div class="step-meta"><span class="step-num" id="stepNum">1</span><span id="stepCount"> / 5</span></div>
+        <div class="step-nav">
+          <button class="btn" id="stepPrev">← prev</button>
+          <button class="btn" id="stepNext">next →</button>
+        </div>
+        <div class="step-bodies">
+          <article class="step" data-focus="all">
+            <h3>where we are: the machine that reads the opcode</h3>
+            <p>Every page so far had control lines arriving from somewhere — <kbd>Branch</kbd>, <kbd>Jump</kbd>, <kbd>memToReg</kbd>, <kbd>memWrite</kbd>. This is the somewhere. The <em>control unit</em> is the little circuit inside the instruction decoder that reads the opcode and funct fields and raises exactly the control lines this instruction needs. And it is <strong>not magic</strong>: it is one <kbd>decoder</kbd> you already built, plus three gates.</p>
+            <p data-hl="box:gOpdec net:branch net:jump net:memtoreg net:memwrite">The shape to hold onto: the opcode enters a <kbd>2-to-4 decoder</kbd> that turns it into a one-hot row — "this instruction is <em>that</em> kind" — and each row either <em>is</em> a control line, or gets refined by a gate or two before leaving on the right.</p>
+          </article>
+          <article class="step" hidden data-focus="#gOpdec" data-gate="#btnOc1">
+            <h3>the decoder you already built</h3>
+            <p data-hl="open:gOpdec net:oc1 net:oc0 net:one">The two opcode bits <kbd class="wt-oc1">oc₁</kbd><kbd class="wt-oc0">oc₀</kbd> are the decoder's address, and its enable is tied to <kbd>1</kbd> — the control unit is always listening. Hover the <kbd>decoder</kbd> to see the real circuit (two inverters, four AND gates); click it to drill all the way down.</p>
+            <p class="do" data-hl="open:gOpdec">Click <kbd>oc₁</kbd> and <kbd>oc₀</kbd> and watch the lit row march: <kbd>00</kbd> R-type, <kbd>01</kbd> control-flow, <kbd>10</kbd> load, <kbd>11</kbd> store. One row, never two.</p>
+          </article>
+          <article class="step" hidden data-focus="#gNot1,#gAnd1,#gAnd3">
+            <h3>the funct refinement — branch or jump?</h3>
+            <p data-hl="net:fam box:gNot1 box:gAnd1 net:f1 net:f1bar net:branch">Opcode <kbd>01</kbd> is a <em>family</em>: <kbd>BEQ</kbd>, <kbd>BNE</kbd>, and <kbd>JAL</kbd> share it, and the funct field tells them apart — exactly like RISC-V's funct3. The family row <kbd class="wt-fam">fam</kbd> meets the funct bits: a conditional branch has <kbd>f₁=0</kbd>, so <kbd class="wt-branch">Branch</kbd> = fam AND (NOT f₁).</p>
+            <p data-hl="box:gAnd2 net:jmp1 box:gNot0 net:f0bar box:gAnd3 net:jump">A jump has <kbd>f₁=1</kbd>: the second AND passes <kbd class="wt-jmp1">fam·f₁</kbd>, and one more AND with <kbd>NOT f₀</kbd> pins it to funct <kbd>10</kbd> — <kbd class="wt-jump">Jump</kbd>. Set <kbd>oc</kbd> to <kbd>01</kbd> and flip <kbd>f₁</kbd>/<kbd>f₀</kbd>: the decision walks from Branch to Jump through these three gates.</p>
+          </article>
+          <article class="step" hidden data-focus="#gOpdec,#pinMemWrite,#pinMemToReg">
+            <h3>loads and stores are single rows</h3>
+            <p data-hl="net:memtoreg net:memwrite net:r00">Not every control line needs gates. Opcode <kbd>10</kbd> <em>is</em> a load, so that decoder row leaves directly as <kbd class="wt-memtoreg">memToReg</kbd>; opcode <kbd>11</kbd> leaves as <kbd class="wt-memwrite">memWrite</kbd>. And the R-type row <kbd class="wt-r00">00</kbd> connects to nothing at all — an ADD needs no special treatment, so its row honestly dead-ends.</p>
+          </article>
+          <article class="step" hidden data-focus="all">
+            <h3>why this matters</h3>
+            <p>Grow this to a real machine and nothing changes shape: RV32I has a 7-bit opcode, so the decoder is 7-to-128 instead of 2-to-4, and the gate cluster per family is bigger — but a control unit is still <em>a decoder plus combinational cleanup</em>. When an architecture manual says "the control unit asserts MemWrite for stores," this page is the entire mechanism behind that sentence.</p>
+            <p>It also explains control's <em>cost</em>: every new instruction format is another row and a few more gates — which is why RISC ISAs keep formats few and regular.</p>
+          </article>
+        </div>
+      </aside>
+    </div>
+    <script type="module" src="/src/ctrlunit.ts"></script>
+  </body>
+</html>
